@@ -19,7 +19,7 @@
     #subtitle { color: #aaa; font-size: 0.85rem; margin-bottom: 16px; }
     #game-wrapper { display: flex; gap: 20px; align-items: flex-start; }
     canvas { border: 2px solid #16213e; border-radius: 12px; display: block; }
-    #ui { width: 200px; }
+    #ui { width: 240px; }
     #status-box {
       background: #16213e;
       border-radius: 10px;
@@ -54,12 +54,20 @@
     #score-box { background: #16213e; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
     #score-box h3 { font-size: 0.8rem; color: #aaa; margin-bottom: 6px; }
     #score { font-size: 1.5rem; font-weight: bold; color: #facc15; }
-    #catalog { background: #16213e; border-radius: 10px; padding: 14px; }
-    #catalog h3 { font-size: 0.8rem; color: #aaa; margin-bottom: 8px; }
+    .score-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
+    .score-label { color: #aaa; font-size: 0.78rem; }
+    .score-value { color: #facc15; font-weight: bold; }
+    .panel { background: #16213e; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+    .panel h3 { font-size: 0.8rem; color: #aaa; margin-bottom: 8px; }
+    #catalog { max-height: 184px; overflow-y: auto; }
     #fish-list { font-size: 0.85rem; line-height: 1.8; }
     #fish-list .fish-entry { display: flex; justify-content: space-between; }
     #fish-list .fish-entry .count { color: #60a5fa; }
-    #btn {
+    #achievements-list { font-size: 0.78rem; line-height: 1.7; }
+    .achievement { color: #64748b; display: flex; gap: 6px; align-items: center; }
+    .achievement.done { color: #facc15; }
+    .equipment-line { color: #cbd5e1; font-size: 0.78rem; line-height: 1.6; margin-top: 8px; }
+    #btn, #shop-btn {
       width: 100%;
       padding: 12px;
       font-size: 1rem;
@@ -72,9 +80,90 @@
       margin-bottom: 12px;
       transition: background 0.2s;
     }
-    #btn:hover:not(:disabled) { background: #1a5276; }
-    #btn:active:not(:disabled) { background: #2980b9; }
+    #shop-btn { background: #22543d; }
+    #btn:hover:not(:disabled), #shop-btn:hover { background: #1a5276; }
+    #btn:active:not(:disabled), #shop-btn:active { background: #2980b9; }
     #btn:disabled { background: #1c2a3a; color: #445; cursor: default; }
+    #shop-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.58);
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      padding: 18px;
+    }
+    #shop-modal.open { display: flex; }
+    #shop-panel {
+      width: min(560px, 100%);
+      max-height: 88vh;
+      overflow-y: auto;
+      background: #111827;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+    }
+    .shop-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .shop-head h2 { font-size: 1.1rem; }
+    #shop-close {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 8px;
+      background: #1f2937;
+      color: white;
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+    .shop-section { margin-top: 14px; }
+    .shop-section h3 { color: #aaa; font-size: 0.85rem; margin-bottom: 8px; }
+    .shop-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border-top: 1px solid #263449;
+      padding: 10px 0;
+    }
+    .shop-title { font-weight: bold; margin-bottom: 4px; }
+    .shop-desc { color: #aab4c2; font-size: 0.78rem; line-height: 1.4; }
+    .shop-action {
+      min-width: 84px;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 8px;
+      background: #0f3460;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .shop-actions { display: flex; gap: 6px; }
+    .shop-actions .shop-action { min-width: 62px; }
+    .shop-action:disabled { background: #243042; color: #7b8794; cursor: default; }
+    #toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      display: grid;
+      gap: 8px;
+      z-index: 20;
+    }
+    .toast {
+      background: #0f172a;
+      border: 1px solid #facc15;
+      border-radius: 8px;
+      color: #f8fafc;
+      padding: 10px 12px;
+      font-size: 0.86rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      animation: toast-in 0.18s ease-out;
+    }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -94,16 +183,47 @@
         </div>
       </div>
       <button id="btn">🎣 낚싯대 던지기</button>
+      <button id="shop-btn">🛒 상점</button>
       <div id="score-box">
-        <h3>총 점수</h3>
+        <h3>보유 점수</h3>
         <div id="score">0</div>
+        <div class="score-row">
+          <span class="score-label">누적 점수</span>
+          <span id="total-score" class="score-value">0</span>
+        </div>
+        <div id="equipment-line" class="equipment-line"></div>
       </div>
-      <div id="catalog">
+      <div id="achievements" class="panel">
+        <h3>업적</h3>
+        <div id="achievements-list"></div>
+      </div>
+      <div id="catalog" class="panel">
         <h3>물고기 도감</h3>
         <div id="fish-list">아직 아무것도 못 잡았어요...</div>
       </div>
     </div>
   </div>
+  <div id="shop-modal" aria-hidden="true">
+    <div id="shop-panel" role="dialog" aria-modal="true" aria-labelledby="shop-title">
+      <div class="shop-head">
+        <h2 id="shop-title">상점</h2>
+        <button id="shop-close" aria-label="상점 닫기">×</button>
+      </div>
+      <div class="score-row">
+        <span class="score-label">보유 점수</span>
+        <span id="shop-coins" class="score-value">0</span>
+      </div>
+      <div class="shop-section">
+        <h3>낚싯대</h3>
+        <div id="rod-shop"></div>
+      </div>
+      <div class="shop-section">
+        <h3>미끼</h3>
+        <div id="bait-shop"></div>
+      </div>
+    </div>
+  </div>
+  <div id="toast" aria-live="polite"></div>
 
 <script>
 const canvas = document.getElementById('canvas');
@@ -114,24 +234,67 @@ const catchBarContainer = document.getElementById('catch-bar-container');
 const catchBarZone = document.getElementById('catch-bar-zone');
 const catchBarCursor = document.getElementById('catch-bar-cursor');
 const scoreEl = document.getElementById('score');
+const totalScoreEl = document.getElementById('total-score');
+const equipmentLineEl = document.getElementById('equipment-line');
 const fishListEl = document.getElementById('fish-list');
+const achievementsListEl = document.getElementById('achievements-list');
+const shopBtn = document.getElementById('shop-btn');
+const shopModal = document.getElementById('shop-modal');
+const shopClose = document.getElementById('shop-close');
+const shopCoinsEl = document.getElementById('shop-coins');
+const rodShopEl = document.getElementById('rod-shop');
+const baitShopEl = document.getElementById('bait-shop');
+const toastEl = document.getElementById('toast');
 
 const FISH_TYPES = [
   { name: '피라미',   emoji: '🐟', color: '#60a5fa', rarity: 'common',    points: 10,  size: 18 },
   { name: '붕어',     emoji: '🐠', color: '#f97316', rarity: 'common',    points: 20,  size: 22 },
+  { name: '흰동가리', emoji: '🐠', color: '#fb923c', rarity: 'common',    points: 30,  size: 20, stripe: '#fff7ed' },
   { name: '잉어',     emoji: '🐡', color: '#a78bfa', rarity: 'uncommon',  points: 50,  size: 28 },
   { name: '배스',     emoji: '🦈', color: '#6b7280', rarity: 'uncommon',  points: 80,  size: 26 },
+  { name: '메기',     emoji: '🐟', color: '#9ca3af', rarity: 'uncommon',  points: 90,  size: 29, whiskers: true },
+  { name: '심해 아귀', emoji: '🐡', color: '#4c1d95', rarity: 'uncommon',  points: 100, size: 30, glow: '#fde68a' },
   { name: '연어',     emoji: '🐟', color: '#f43f5e', rarity: 'rare',      points: 150, size: 30 },
+  { name: '무지개 송어', emoji: '🌈', color: '#38bdf8', rarity: 'rare',   points: 200, size: 31, rainbow: true },
   { name: '황금잉어', emoji: '✨', color: '#fbbf24', rarity: 'legendary', points: 500, size: 32 },
+  { name: '금붕어 왕', emoji: '👑', color: '#f59e0b', rarity: 'mythic',   points: 1000, size: 36, whiskers: true },
 ];
 
-const RARITY_WEIGHTS = { common: 50, uncommon: 30, rare: 15, legendary: 5 };
-const RARITY_SPEED  = { common: 1.0, uncommon: 1.3, rare: 1.6, legendary: 2.0 };
+const RARITY_WEIGHTS = { common: 48, uncommon: 31, rare: 15, legendary: 5, mythic: 1 };
+const RARITY_SPEED  = { common: 1.0, uncommon: 1.3, rare: 1.6, legendary: 2.0, mythic: 2.35 };
+const STORAGE_PREFIX = 'mksga_fishing_';
+
+const RODS = [
+  { id: 'basic', name: '기본 낚싯대', price: 0, desc: '기본 성능', rareBoost: 1, legendaryBoost: 1, speedBoost: 1 },
+  { id: 'enhanced', name: '강화 낚싯대', price: 500, desc: '희귀 어종 가중치 +30%', rareBoost: 1.3, legendaryBoost: 1, speedBoost: 1 },
+  { id: 'legendary', name: '전설 낚싯대', price: 2000, desc: '전설 어종 가중치 +100%, 타이밍 바 느려짐', rareBoost: 1.3, legendaryBoost: 2, speedBoost: 0.82 },
+];
+
+const BAITS = [
+  { id: 'worm', name: '지렁이', price: 0, desc: '기본 미끼' },
+  { id: 'shrimp', name: '새우', price: 100, desc: '다음 입질 대기 시간 단축' },
+  { id: 'golden', name: '황금 미끼', price: 300, desc: '다음 포획 물고기 점수 2배' },
+];
+
+const ACHIEVEMENTS = [
+  { id: 'firstBite', name: '첫 입질' },
+  { id: 'catalog5', name: '도감 5종 완성' },
+  { id: 'catalogAll', name: '도감 전체 완성' },
+  { id: 'score1000', name: '누적 점수 1000' },
+  { id: 'firstLegendary', name: '전설 어종 첫 포획' },
+];
 
 // States: idle | casting | waiting | approaching | biting | catching | pulling | result | escaped
 let state = 'idle';
-let score = 0;
+let coins = 0;
+let totalScore = 0;
 let catalog = {};
+let ownedRods = ['basic'];
+let currentRod = 'basic';
+let baitInventory = { shrimp: 0, golden: 0 };
+let selectedBait = 'worm';
+let activeBait = 'worm';
+let achievements = {};
 
 const HOOK_X = 210;
 let hookY = 80;
@@ -150,6 +313,7 @@ let catchZoneWidth = 0;
 
 let pullProgress = 0;
 let caughtFishType = null;
+let lastGainedPoints = 0;
 
 let resultTimer = 0;
 let ripples = [];
@@ -158,11 +322,109 @@ let lastTime = 0;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+function storageKey(name) {
+  return STORAGE_PREFIX + name;
+}
+
+function readStored(name, fallback) {
+  try {
+    const value = localStorage.getItem(storageKey(name));
+    return value === null ? fallback : JSON.parse(value);
+  } catch (err) {
+    return fallback;
+  }
+}
+
+function writeStored(name, value) {
+  try {
+    localStorage.setItem(storageKey(name), JSON.stringify(value));
+  } catch (err) {
+    // 저장소를 사용할 수 없는 환경에서도 게임 진행은 계속됩니다.
+  }
+}
+
+function loadProgress() {
+  coins = Math.max(0, readStored('coins', 0));
+  totalScore = Math.max(0, readStored('totalScore', 0));
+  catalog = readStored('catalog', {});
+  ownedRods = readStored('ownedRods', ['basic']);
+  currentRod = readStored('currentRod', 'basic');
+  baitInventory = Object.assign({ shrimp: 0, golden: 0 }, readStored('baitInventory', {}));
+  selectedBait = readStored('selectedBait', 'worm');
+  achievements = readStored('achievements', {});
+
+  if (!ownedRods.includes('basic')) ownedRods.unshift('basic');
+  if (!RODS.some(r => r.id === currentRod) || !ownedRods.includes(currentRod)) currentRod = 'basic';
+  if (!BAITS.some(b => b.id === selectedBait) || !canUseBait(selectedBait)) selectedBait = 'worm';
+}
+
+function saveProgress() {
+  writeStored('coins', coins);
+  writeStored('totalScore', totalScore);
+  writeStored('catalog', catalog);
+  writeStored('ownedRods', ownedRods);
+  writeStored('currentRod', currentRod);
+  writeStored('baitInventory', baitInventory);
+  writeStored('selectedBait', selectedBait);
+  writeStored('achievements', achievements);
+}
+
+function currentRodData() {
+  return RODS.find(r => r.id === currentRod) || RODS[0];
+}
+
+function canUseBait(baitId) {
+  return baitId === 'worm' || (baitInventory[baitId] || 0) > 0;
+}
+
+function baitName(baitId) {
+  return (BAITS.find(b => b.id === baitId) || BAITS[0]).name;
+}
+
+function getCatalogCount() {
+  return Object.keys(catalog).filter(name => catalog[name] > 0).length;
+}
+
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  toastEl.appendChild(toast);
+  setTimeout(() => toast.remove(), 2600);
+}
+
+function unlockAchievement(id) {
+  if (achievements[id]) return;
+  achievements[id] = true;
+  const achievement = ACHIEVEMENTS.find(a => a.id === id);
+  if (achievement) showToast(`업적 달성: ${achievement.name}`);
+}
+
+function checkAchievements(lastCatch) {
+  if (lastCatch) {
+    unlockAchievement('firstBite');
+    if (lastCatch.rarity === 'legendary' || lastCatch.rarity === 'mythic') {
+      unlockAchievement('firstLegendary');
+    }
+  }
+  if (getCatalogCount() >= 5) unlockAchievement('catalog5');
+  if (getCatalogCount() >= FISH_TYPES.length) unlockAchievement('catalogAll');
+  if (totalScore >= 1000) unlockAchievement('score1000');
+}
+
+function weightedRarity(rarity) {
+  const rod = currentRodData();
+  let weight = RARITY_WEIGHTS[rarity] || 0;
+  if (rarity === 'rare') weight *= rod.rareBoost;
+  if (rarity === 'legendary' || rarity === 'mythic') weight *= rod.legendaryBoost;
+  return weight;
+}
+
 function pickFishType() {
-  let total = Object.values(RARITY_WEIGHTS).reduce((a, b) => a + b, 0);
+  let total = Object.keys(RARITY_WEIGHTS).reduce((sum, rarity) => sum + weightedRarity(rarity), 0);
   let r = Math.random() * total;
   for (const type of FISH_TYPES) {
-    r -= RARITY_WEIGHTS[type.rarity];
+    r -= weightedRarity(type.rarity);
     if (r <= 0) return type;
   }
   return FISH_TYPES[0];
@@ -178,9 +440,16 @@ function doCast() {
   castProgress = 0;
   hookY = 80;
   hookTargetY = 290 + Math.random() * 120;
+  activeBait = canUseBait(selectedBait) ? selectedBait : 'worm';
+  if (activeBait === 'shrimp') {
+    baitInventory.shrimp = Math.max(0, baitInventory.shrimp - 1);
+    if (!canUseBait(selectedBait)) selectedBait = 'worm';
+    saveProgress();
+    updateProgressUI();
+  }
   btn.disabled = true;
   btn.textContent = '⏳ 기다리는 중...';
-  statusText.textContent = '미끼를 던졌어요!\n물고기를 기다리는 중...';
+  statusText.textContent = `${baitName(activeBait)} 미끼를 던졌어요!\n물고기를 기다리는 중...`;
   ripples = [];
 }
 
@@ -228,6 +497,9 @@ function startBiting() {
   state = 'biting';
   shakeT = 0;
   escapeTimer = ESCAPE_TIME;
+  unlockAchievement('firstBite');
+  saveProgress();
+  updateAchievements();
   btn.disabled = false;
   btn.textContent = '🎯 지금 당기기!';
   statusText.textContent = `${approachFish.type.emoji} ${approachFish.type.name}이(가) 물었어요!\n지금 당겨요!`;
@@ -273,11 +545,22 @@ function startPulling() {
 function finishPulling() {
   state = 'result';
   resultTimer = 2800;
-  score += caughtFishType.points;
+  const multiplier = activeBait === 'golden' ? 2 : 1;
+  const gained = caughtFishType.points * multiplier;
+  lastGainedPoints = gained;
+  coins += gained;
+  totalScore += gained;
+  if (activeBait === 'golden') {
+    baitInventory.golden = Math.max(0, baitInventory.golden - 1);
+    if (!canUseBait(selectedBait)) selectedBait = 'worm';
+  }
   catalog[caughtFishType.name] = (catalog[caughtFishType.name] || 0) + 1;
+  checkAchievements(caughtFishType);
+  saveProgress();
   updateCatalog();
-  scoreEl.textContent = score;
-  statusText.textContent = `🎉 ${caughtFishType.emoji} ${caughtFishType.name} 획득!\n+${caughtFishType.points}점!`;
+  updateProgressUI();
+  updateAchievements();
+  statusText.textContent = `🎉 ${caughtFishType.emoji} ${caughtFishType.name} 획득!\n+${gained}점${multiplier > 1 ? ' x2!' : '!'}`;
   btn.disabled = false;
   btn.textContent = '✅ 다시 낚시하기';
   ripples.push({ x: HOOK_X, y: 225, r: 0, alpha: 1 });
@@ -287,6 +570,7 @@ function fishEscaped(timeout) {
   state = 'escaped';
   resultTimer = 1500;
   catchBarContainer.style.display = 'none';
+  activeBait = 'worm';
   statusText.textContent = timeout
     ? `😱 ${approachFish.type.emoji} ${approachFish.type.name}이(가)\n도망갔어요!`
     : '😢 타이밍을 놓쳤어요!\n물고기가 도망갔어요.';
@@ -298,6 +582,7 @@ function resetIdle() {
   state = 'idle';
   approachFish = null;
   caughtFishType = null;
+  activeBait = 'worm';
   hookY = 80;
   btn.disabled = false;
   btn.textContent = '🎣 낚싯대 던지기';
@@ -315,12 +600,130 @@ function doAction() {
 
 function updateCatalog() {
   fishListEl.innerHTML = '';
-  for (const [name, count] of Object.entries(catalog)) {
+  const entries = Object.entries(catalog).filter(([, count]) => count > 0);
+  if (entries.length === 0) {
+    fishListEl.textContent = '아직 아무것도 못 잡았어요...';
+    return;
+  }
+  for (const [name, count] of entries) {
     const type = FISH_TYPES.find(f => f.name === name);
+    if (!type) continue;
     const div = document.createElement('div');
     div.className = 'fish-entry';
     div.innerHTML = `<span>${type.emoji} ${name}</span><span class="count">×${count}</span>`;
     fishListEl.appendChild(div);
+  }
+}
+
+function updateAchievements() {
+  achievementsListEl.innerHTML = '';
+  for (const item of ACHIEVEMENTS) {
+    const div = document.createElement('div');
+    div.className = 'achievement' + (achievements[item.id] ? ' done' : '');
+    div.innerHTML = `<span>${achievements[item.id] ? '✓' : '□'}</span><span>${item.name}</span>`;
+    achievementsListEl.appendChild(div);
+  }
+}
+
+function updateProgressUI() {
+  scoreEl.textContent = coins;
+  totalScoreEl.textContent = totalScore;
+  shopCoinsEl.textContent = coins;
+  equipmentLineEl.textContent = `${currentRodData().name} · ${baitName(selectedBait)}`
+    + (selectedBait === 'worm' ? '' : ` ${baitInventory[selectedBait] || 0}개`);
+  renderShop();
+}
+
+function renderShop() {
+  rodShopEl.innerHTML = '';
+  for (const rod of RODS) {
+    const owned = ownedRods.includes(rod.id);
+    const equipped = currentRod === rod.id;
+    const item = document.createElement('div');
+    item.className = 'shop-item';
+
+    const info = document.createElement('div');
+    info.innerHTML = `<div class="shop-title">${rod.name}</div><div class="shop-desc">${rod.desc} · ${rod.price}점</div>`;
+
+    const action = document.createElement('button');
+    action.className = 'shop-action';
+    action.textContent = equipped ? '장착중' : owned ? '장착' : '구매';
+    action.disabled = equipped || (!owned && coins < rod.price);
+    action.addEventListener('click', () => {
+      if (!owned) {
+        if (coins < rod.price) return;
+        coins -= rod.price;
+        ownedRods.push(rod.id);
+      }
+      currentRod = rod.id;
+      saveProgress();
+      updateProgressUI();
+    });
+
+    item.append(info, action);
+    rodShopEl.appendChild(item);
+  }
+
+  baitShopEl.innerHTML = '';
+  for (const bait of BAITS) {
+    const item = document.createElement('div');
+    item.className = 'shop-item';
+
+    const count = bait.id === 'worm' ? '무제한' : `${baitInventory[bait.id] || 0}개`;
+    const info = document.createElement('div');
+    info.innerHTML = `<div class="shop-title">${bait.name}</div><div class="shop-desc">${bait.desc} · ${bait.price}점 · 보유 ${count}</div>`;
+
+    const actions = document.createElement('div');
+    actions.className = 'shop-actions';
+
+    const action = document.createElement('button');
+    action.className = 'shop-action';
+    if (bait.id === 'worm') {
+      action.textContent = selectedBait === 'worm' ? '선택중' : '선택';
+      action.disabled = selectedBait === 'worm';
+      action.addEventListener('click', () => {
+        selectedBait = 'worm';
+        saveProgress();
+        updateProgressUI();
+      });
+      actions.appendChild(action);
+    } else if (canUseBait(bait.id)) {
+      action.textContent = selectedBait === bait.id ? '선택중' : '선택';
+      action.disabled = selectedBait === bait.id;
+      action.addEventListener('click', () => {
+        selectedBait = bait.id;
+        saveProgress();
+        updateProgressUI();
+      });
+      const buyAction = document.createElement('button');
+      buyAction.className = 'shop-action';
+      buyAction.textContent = '구매';
+      buyAction.disabled = coins < bait.price;
+      buyAction.addEventListener('click', () => {
+        if (coins < bait.price) return;
+        coins -= bait.price;
+        baitInventory[bait.id] = (baitInventory[bait.id] || 0) + 1;
+        selectedBait = bait.id;
+        saveProgress();
+        updateProgressUI();
+      });
+      actions.append(action, buyAction);
+    } else {
+      action.textContent = '구매';
+      action.disabled = coins < bait.price;
+      action.addEventListener('click', () => {
+        if (coins < bait.price) return;
+        coins -= bait.price;
+        baitInventory[bait.id] = (baitInventory[bait.id] || 0) + 1;
+        selectedBait = bait.id;
+        saveProgress();
+        updateProgressUI();
+      });
+      actions.appendChild(action);
+    }
+
+    item.append(info, actions);
+    baitShopEl.appendChild(item);
   }
 }
 
@@ -353,7 +756,8 @@ function update(dt) {
       hookY = hookTargetY;
       ripples.push({ x: HOOK_X, y: hookTargetY, r: 0, alpha: 1 });
       state = 'waiting';
-      setTimeout(() => { if (state === 'waiting') startApproaching(); }, 1200 + Math.random() * 2500);
+      const waitMultiplier = activeBait === 'shrimp' ? 0.45 : 1;
+      setTimeout(() => { if (state === 'waiting') startApproaching(); }, (1200 + Math.random() * 2500) * waitMultiplier);
     }
   }
 
@@ -381,7 +785,7 @@ function update(dt) {
   // Catching: timing bar
   if (state === 'catching') {
     shakeT += dt;
-    const speed = RARITY_SPEED[approachFish.type.rarity] * 0.048;
+    const speed = RARITY_SPEED[approachFish.type.rarity] * currentRodData().speedBoost * 0.048;
     catchCursor += catchDir * speed * dt;
     if (catchCursor >= 100) { catchCursor = 100; catchDir = -1; }
     if (catchCursor <= 0)   { catchCursor = 0;   catchDir =  1; }
@@ -417,6 +821,29 @@ function drawFishShape(type, x, y, dir, wobble, mouthOpen, alpha) {
   ctx.ellipse(0, 0, type.size, type.size * 0.55, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  if (type.rainbow) {
+    const colors = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6'];
+    for (let i = 0; i < colors.length; i++) {
+      ctx.strokeStyle = colors[i];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-type.size * 0.45 + i * 6, -type.size * 0.44);
+      ctx.lineTo(-type.size * 0.75 + i * 6, type.size * 0.38);
+      ctx.stroke();
+    }
+  }
+
+  if (type.stripe) {
+    ctx.strokeStyle = type.stripe;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(-type.size * 0.25, -type.size * 0.5);
+    ctx.lineTo(-type.size * 0.35, type.size * 0.5);
+    ctx.moveTo(type.size * 0.25, -type.size * 0.45);
+    ctx.lineTo(type.size * 0.15, type.size * 0.45);
+    ctx.stroke();
+  }
+
   ctx.beginPath();
   ctx.moveTo(-type.size * 0.8, 0);
   ctx.lineTo(-type.size * 1.4, -type.size * 0.4);
@@ -429,6 +856,30 @@ function drawFishShape(type, x, y, dir, wobble, mouthOpen, alpha) {
     ctx.beginPath();
     ctx.ellipse(type.size * 0.9, type.size * 0.08, 4, 3, 0.3, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  if (type.glow) {
+    ctx.strokeStyle = type.glow;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(type.size * 0.25, -type.size * 0.5);
+    ctx.quadraticCurveTo(type.size * 0.55, -type.size * 1.05, type.size * 0.9, -type.size * 0.65);
+    ctx.stroke();
+    ctx.fillStyle = type.glow;
+    ctx.beginPath();
+    ctx.arc(type.size * 0.95, -type.size * 0.66, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (type.whiskers) {
+    ctx.strokeStyle = '#fef3c7';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(type.size * 0.72, 0);
+    ctx.lineTo(type.size * 1.25, -5);
+    ctx.moveTo(type.size * 0.72, 2);
+    ctx.lineTo(type.size * 1.25, 8);
+    ctx.stroke();
   }
 
   ctx.fillStyle = 'white';
@@ -610,7 +1061,7 @@ function drawResultOverlay() {
   ctx.fillText(caughtFishType.name + ' 획득!', canvas.width / 2, canvas.height / 2 + 20);
   ctx.fillStyle = '#facc15';
   ctx.font = 'bold 15px sans-serif';
-  ctx.fillText(`+${caughtFishType.points}점`, canvas.width / 2, canvas.height / 2 + 46);
+  ctx.fillText(`+${lastGainedPoints || caughtFishType.points}점`, canvas.width / 2, canvas.height / 2 + 46);
   ctx.globalAlpha = 1;
 }
 
@@ -658,9 +1109,36 @@ function loop(t) {
 }
 
 btn.addEventListener('click', doAction);
+shopBtn.addEventListener('click', () => {
+  renderShop();
+  shopModal.classList.add('open');
+  shopModal.setAttribute('aria-hidden', 'false');
+});
+shopClose.addEventListener('click', () => {
+  shopModal.classList.remove('open');
+  shopModal.setAttribute('aria-hidden', 'true');
+});
+shopModal.addEventListener('click', e => {
+  if (e.target === shopModal) {
+    shopModal.classList.remove('open');
+    shopModal.setAttribute('aria-hidden', 'true');
+  }
+});
 document.addEventListener('keydown', e => {
+  if (e.code === 'Escape' && shopModal.classList.contains('open')) {
+    shopModal.classList.remove('open');
+    shopModal.setAttribute('aria-hidden', 'true');
+    return;
+  }
   if (e.code === 'Space') { e.preventDefault(); doAction(); }
 });
+
+loadProgress();
+checkAchievements();
+saveProgress();
+updateCatalog();
+updateAchievements();
+updateProgressUI();
 
 // 초기 배경 물고기 (희귀도 기반 스폰)
 for (let i = 0; i < 6; i++) {

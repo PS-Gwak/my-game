@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deadline Express MVP</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #171817;
+      color: #f4efe5;
+      font-family: "Segoe UI", Arial, sans-serif;
+      overflow: hidden;
+    }
+    #shell {
+      width: min(100vw, 1280px);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 8px;
+    }
+    #topbar, #hud {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 14px;
+      border: 1px solid #3f4035;
+      background: #24251f;
+      font-size: 15px;
+    }
+    #progressBox {
+      flex: 1;
+      height: 14px;
+      background: #10110f;
+      border: 1px solid #525347;
+      position: relative;
+    }
+    #progressFill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #d9aa43, #e7d37a);
+    }
+    #toast {
+      min-width: 270px;
+      text-align: right;
+      color: #f0c85d;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #canvasWrap {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      max-height: calc(100vh - 112px);
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #22221f;
+      border: 1px solid #4b4b40;
+    }
+    #hud {
+      height: 52px;
+      flex-wrap: wrap;
+      align-content: center;
+      row-gap: 2px;
+    }
+    .pill {
+      min-width: 72px;
+      padding: 2px 0;
+      color: #eee7d7;
+      white-space: nowrap;
+    }
+    #sosModal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.62);
+      z-index: 5;
+    }
+    #sosCard {
+      width: 520px;
+      padding: 22px;
+      border: 2px solid #d9aa43;
+      background: #24251f;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+    }
+    #sosCard h2 { font-size: 24px; margin-bottom: 10px; }
+    #sosCard p { line-height: 1.55; color: #d8d0bd; margin-bottom: 16px; }
+    #sosCard button {
+      margin-right: 10px;
+      padding: 10px 14px;
+      border: 1px solid #f0c85d;
+      background: #38382f;
+      color: #fff4cf;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    #sosCard button:hover { background: #514b37; }
+  </style>
+</head>
+<body>
+  <div id="shell">
+    <div id="topbar">
+      <span>진행도</span>
+      <div id="progressBox"><div id="progressFill"></div></div>
+      <span id="progressText">0%</span>
+      <span id="timerText">⏱05:00</span>
+      <span id="phaseText">Warm-up</span>
+      <span id="toast">Press Enter to Start</span>
+    </div>
+    <div id="canvasWrap">
+      <canvas id="game" width="1280" height="720"></canvas>
+    </div>
+    <div id="hud">
+      <span class="pill" id="hpText">HP 200/200</span>
+      <span class="pill" id="fuelText">연료 100</span>
+      <span class="pill" id="heatText">열 0%</span>
+      <span class="pill" id="speedText">속도 ▯▯▯ 0/3</span>
+      <span class="pill" id="burnText">BURN 잠금</span>
+      <span class="pill" id="scrapText">고철 20</span>
+      <span class="pill" id="coolantText">냉각수 2</span>
+      <span class="pill" id="modeText">모드: 외부</span>
+    </div>
+  </div>
+
+  <div id="sosModal">
+    <div id="sosCard">
+      <h2>무전 SOS</h2>
+      <p>무너진 전초기지에서 구조 요청이 들어왔습니다. 멈추면 위험하지만 자재를 얻을 수 있습니다.</p>
+      <button id="sosAccept">A: 5초 정지, 연료 -10, 고철 +30</button>
+      <button id="sosIgnore">B: 무시</button>
+    </div>
+  </div>
+
+<script>
+// === CONFIG ===
+window.CONFIG = {
+  CANVAS: { w: 1280, h: 720 },
+  SPEED: { fuel: [0.5, 1, 2, 4], heat: [0, 0.8, 3.2, 7.2], harvest: [220, 160, 100, 0] },
+  HEAT: { decay: 1.2, maintMult: 1.5, fireDuration: 15, coolantPunch: 40 },
+  HP: {
+    loco: 200, combat: 120, maint: 100, harvest: 100,
+    armor: { loco: 100, combat: 80, maint: 60, harvest: 40 }
+  },
+  ENEMY: {
+    rateBase: 0.5, rateGrow: 0.6, rateMin: 0.3, rateMax: 3.5,
+    bike: { hp: 30, dps: 4, speed: 65, reward: { scrap: 5 } },
+    worm: { hp: 80, impact: 25, delay: 5, reward: { scrap: 12, coolant: 1 } },
+    truck: { hp: 200, impact: 60, spawnAt: 210, reward: { fuel: 30, scrap: 25 } }
+  },
+  EVENT: { windows: [[45, 105], [180, 220]], pool: ["storm", "canyon", "scrap", "ghost", "leak", "sos"] },
+  BURNOUT: { unlockAt: 240, durSec: 5, speedBoost: 1, fireRateMult: 2, enemyAccuracyDebuff: 0.5, postFire: true },
+  TIMER: { totalSec: 300 },
+  COMBAT: { range: 500, manualDps: 48, autoDps: 28.8, internalDps: 70, critChance: 0.25 },
+  BREACH: { bulkheadSec: 30, pinchAt: 150 },
+  RESOURCE: { spawnEvery: 2.2, maxCoolant: 4 }
+};
+
+// === DOM ===
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const progressFill = document.getElementById("progressFill");
+const progressText = document.getElementById("progressText");
+const timerText = document.getElementById("timerText");
+const phaseText = document.getElementById("phaseText");
+const toastEl = document.getElementById("toast");
+const hpText = document.getElementById("hpText");
+const fuelText = document.getElementById("fuelText");
+const heatText = document.getElementById("heatText");
+const speedText = document.getElementById("speedText");
+const burnText = document.getElementById("burnText");
+const scrapText = document.getElementById("scrapText");
+const coolantText = document.getElementById("coolantText");
+const modeText = document.getElementById("modeText");
+const sosModal = document.getElementById("sosModal");
+const sosAccept = document.getElementById("sosAccept");
+const sosIgnore = document.getElementById("sosIgnore");
+const CONFIG = window.CONFIG;
+
+// === STATE ===
+const moduleDefs = [
+  { id: "loco", label: "기관차", x: 240, y: 340, w: 150, h: 88, color: "#b94b3d" },
+  { id: "combat", label: "전투칸", x: 398, y: 350, w: 150, h: 78, color: "#596f9f" },
+  { id: "maint", label: "유지보수칸", x: 556, y: 350, w: 160, h: 78, color: "#5f8f72" },
+  { id: "harvest", label: "채집칸", x: 724, y: 350, w: 160, h: 78, color: "#b88448" }
+];
+
+const input = {
+  keys: {},
+  mouse: { x: 640, y: 360, down: false }
+};
+
+let state = null;
+let lastFrame = 0;
+let accumulator = 0;
+
+function resetState() {
+  const modules = {};
+  for (const mod of moduleDefs) {
+    modules[mod.id] = {
+      hp: CONFIG.HP[mod.id],
+      maxHp: CONFIG.HP[mod.id],
+      armor: CONFIG.HP.armor[mod.id],
+      maxArmor: CONFIG.HP.armor[mod.id],
+      fire: 0,
+      bulkhead: 0,
+      breached: false,
+      disabled: false
+    };
+  }
+  state = {
+    screen: "title",
+    paused: false,
+    time: 0,
+    phase: "Warm-up",
+    speedIdx: 0,
+    speedCurrent: 0,
+    forcedStop: 0,
+    fuel: 100,
+    heat: 0,
+    scrap: 20,
+    coolant: 2,
+    mode: "external",
+    enemies: [],
+    resources: [],
+    intruders: [],
+    bullets: [],
+    fx: [],
+    modules,
+    events: [],
+    eventPlan: buildEventPlan(),
+    activeEvent: null,
+    toast: { text: "Press Enter to Start", t: 999 },
+    spawners: { enemy: 1.5, resource: 0.8 },
+    burnout: { unlocked: false, used: false, active: false, t: 0 },
+    forced: { truck: false, breach: false },
+    stats: { kills: 0, shots: 0, resources: 0, events: 0, breaches: 0, fires: 0 },
+    gameOverReason: ""
+  };
+  hideSos();
+}
+
+// === AUDIO ===
+let audioCtx = null;
+function beep(type) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    const map = {
+      shoot: [560, 0.035, "square", 0.035],
+      hit: [180, 0.07, "sawtooth", 0.06],
+      alarm: [760, 0.16, "triangle", 0.07],
+      fire: [95, 0.24, "sawtooth", 0.08],
+      burnout: [1220, 0.28, "square", 0.09]
+    };
+    const cfg = map[type] || map.hit;
+    o.frequency.value = cfg[0];
+    o.type = cfg[2];
+    g.gain.setValueAtTime(cfg[3], audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + cfg[1]);
+    o.connect(g);
+    g.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + cfg[1]);
+  } catch (err) {
+    // WebAudio가 막힌 환경에서는 조용히 실패한다.
+  }
+}
+
+// === HELPERS ===
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function rand(a, b) { return a + Math.random() * (b - a); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function dist(a, b, c, d) { return Math.hypot(a - c, b - d); }
+function moduleCenter(id) {
+  const mod = moduleDefs.find(m => m.id === id);
+  return { x: mod.x + mod.w / 2, y: mod.y + mod.h / 2 };
+}
+function randomModuleId(includeLoco) {
+  const ids = includeLoco ? ["loco", "combat", "maint", "harvest"] : ["combat", "maint", "harvest"];
+  return pick(ids);
+}
+function setToast(text, sec) {
+  state.toast = { text, t: sec || 3 };
+  toastEl.textContent = text;
+}
+function buildEventPlan() {
+  const pool = CONFIG.EVENT.pool.slice();
+  return CONFIG.EVENT.windows.map(win => {
+    const id = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    return { id, at: rand(win[0], win[1]), done: false };
+  });
+}
+function formatTime(sec) {
+  const left = Math.max(0, CONFIG.TIMER.totalSec - sec);
+  const m = Math.floor(left / 60);
+  const s = Math.floor(left % 60);
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+function getPhase(t) {
+  if (t < 45) return "Warm-up";
+  if (t < 135) return "Crescendo";
+  if (t < 210) return "Pinch";
+  if (t < 270) return "Climax";
+  return "Sprint";
+}
+function activeEvent(id) {
+  return state.activeEvent && state.activeEvent.id === id ? state.activeEvent : null;
+}
+function effectiveSpeed() {
+  let speed = state.forcedStop > 0 ? 0 : state.speedCurrent;
+  if (state.burnout.active) speed += CONFIG.BURNOUT.speedBoost;
+  return speed;
+}
+function effectiveSpeedIdx() {
+  return clamp(Math.round(effectiveSpeed()), 0, 4);
+}
+function harvestRadius() {
+  let radius = CONFIG.SPEED.harvest[clamp(Math.round(state.speedCurrent), 0, 3)];
+  if (activeEvent("storm")) radius *= 0.5;
+  if (activeEvent("scrap")) radius *= 2;
+  if (state.modules.harvest.disabled || state.modules.harvest.breached) radius = 0;
+  return radius;
+}
+
+// === INPUT ===
+function canvasPoint(evt) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (evt.clientX - r.left) * canvas.width / r.width,
+    y: (evt.clientY - r.top) * canvas.height / r.height
+  };
+}
+window.addEventListener("keydown", evt => {
+  input.keys[evt.code] = true;
+  if (evt.code === "Tab") evt.preventDefault();
+  if (state.paused && sosModal.style.display === "flex" && evt.code === "KeyA") resolveSos(true);
+  if (state.paused && sosModal.style.display === "flex" && evt.code === "KeyB") resolveSos(false);
+  if (state.screen === "title" && evt.code === "Enter") startGame();
+  if ((state.screen === "won" || state.screen === "lost") && evt.code === "KeyR") resetState();
+  if (state.screen !== "playing" || state.paused) return;
+  if (evt.code === "Digit0") setSpeed(0);
+  if (evt.code === "Digit1") setSpeed(1);
+  if (evt.code === "Digit2") setSpeed(2);
+  if (evt.code === "Digit3") setSpeed(3);
+  if (evt.code === "Tab") toggleMode();
+  if (evt.code === "KeyC") useCoolant();
+  if (evt.code === "KeyQ") activateBulkhead();
+  if (evt.code === "Space") activateBURNOUT();
+});
+window.addEventListener("keyup", evt => { input.keys[evt.code] = false; });
+canvas.addEventListener("mousemove", evt => Object.assign(input.mouse, canvasPoint(evt)));
+canvas.addEventListener("mousedown", evt => {
+  input.mouse.down = true;
+  Object.assign(input.mouse, canvasPoint(evt));
+});
+window.addEventListener("mouseup", () => { input.mouse.down = false; });
+sosAccept.addEventListener("click", () => resolveSos(true));
+sosIgnore.addEventListener("click", () => resolveSos(false));
+
+function startGame() {
+  resetState();
+  state.screen = "playing";
+  setToast("출발. 5분 안에 노드를 통과하라.", 3);
+}
+function setSpeed(idx) {
+  state.speedIdx = idx;
+  setToast(`속도 ${idx}`, 0.8);
+}
+function toggleMode() {
+  state.mode = state.mode === "external" ? "internal" : "external";
+  setToast(state.mode === "internal" ? "내부 모드: 침입자를 직접 사격" : "외부 모드: 포탑 조준", 2);
+}
+function useCoolant() {
+  if (state.coolant <= 0) return;
+  state.coolant--;
+  state.heat = Math.max(0, state.heat - CONFIG.HEAT.coolantPunch);
+  for (const id of Object.keys(state.modules)) {
+    if (state.modules[id].fire > 0) {
+      state.modules[id].fire = 0;
+      state.modules[id].disabled = state.modules[id].breached || state.modules[id].bulkhead > 0;
+      break;
+    }
+  }
+  beep("fire");
+  setToast("냉각수 사용: 열 -40%, 화재 1건 진압", 2);
+}
+function activateBulkhead() {
+  const intruder = state.intruders.find(i => i.alive && !state.modules[i.moduleId].bulkhead);
+  if (!intruder) {
+    setToast("격리할 침입자가 없습니다.", 1.4);
+    return;
+  }
+  const mod = state.modules[intruder.moduleId];
+  mod.bulkhead = CONFIG.BREACH.bulkheadSec;
+  mod.disabled = true;
+  setToast(`${labelFor(intruder.moduleId)} 격리벽 30초 작동`, 2.2);
+  beep("alarm");
+}
+function activateBURNOUT() {
+  const burn = state.burnout;
+  if (!burn.unlocked || burn.used || burn.active) return;
+  burn.used = true;
+  burn.active = true;
+  burn.t = CONFIG.BURNOUT.durSec;
+  setToast("BURNOUT! 5초간 속도+1, 사격x2, 적 명중-50%", 3);
+  beep("burnout");
+}
+function labelFor(id) {
+  return moduleDefs.find(m => m.id === id).label;
+}
+
+// === GAME LOOP ===
+function frame(now) {
+  if (!lastFrame) lastFrame = now;
+  accumulator += Math.min(0.25, (now - lastFrame) / 1000);
+  lastFrame = now;
+  while (accumulator >= 1 / 60) {
+    update(1 / 60);
+    accumulator -= 1 / 60;
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+resetState();
+window.game = { start: startGame, update, render };
+
+function update(dt) {
+  if (!state || state.screen !== "playing" || state.paused) {
+    updateHud();
+    return;
+  }
+  state.time += dt;
+  state.phase = getPhase(state.time);
+  updateToast(dt);
+  updateSpeed(dt);
+  updateHeatAndFuel(dt);
+  updateEvents(dt);
+  updateBURNOUT(dt);
+  updateEnemies(dt);
+  updateCombat(dt);
+  updateResources(dt);
+  updateBreach(dt);
+  updateModules(dt);
+  updateFx(dt);
+  checkEnd();
+  updateHud();
+}
+
+// === SYSTEMS:speed ===
+function updateSpeed(dt) {
+  if (state.forcedStop > 0) {
+    state.forcedStop -= dt;
+    state.speedCurrent = lerp(state.speedCurrent, 0, 8 * dt);
+    return;
+  }
+  state.speedCurrent = lerp(state.speedCurrent, state.speedIdx, clamp(dt / 0.3, 0, 1));
+}
+
+function updateHeatAndFuel(dt) {
+  const idx = clamp(Math.round(effectiveSpeed()), 0, 3);
+  let heatGain = CONFIG.SPEED.heat[idx];
+  if (activeEvent("leak")) heatGain *= 1.5;
+  state.heat += heatGain * dt;
+  const maintBuff = !state.modules.maint.disabled && !state.modules.maint.breached;
+  state.heat -= CONFIG.HEAT.decay * (maintBuff ? CONFIG.HEAT.maintMult : 1) * dt;
+  state.heat = clamp(state.heat, 0, 100);
+  state.fuel -= CONFIG.SPEED.fuel[idx] * dt;
+  if (state.heat >= 100) {
+    state.heat = 72;
+    startFire(randomModuleId(true), CONFIG.HEAT.fireDuration);
+  }
+}
+
+function startFire(moduleId, sec) {
+  const mod = state.modules[moduleId];
+  mod.fire = Math.max(mod.fire, sec);
+  mod.disabled = true;
+  state.stats.fires++;
+  setToast(`${labelFor(moduleId)} 화재 발생`, 2.5);
+  beep("fire");
+}
+
+// === SYSTEMS:combat ===
+function updateCombat(dt) {
+  if (state.mode === "internal") {
+    updateInternalCombat(dt);
+    updateExternalAutoCombat(dt, 0.6);
+  } else if (input.mouse.down) {
+    updateManualCombat(dt);
+  } else {
+    updateExternalAutoCombat(dt, 1);
+  }
+  updateBullets(dt);
+}
+
+function updateManualCombat(dt) {
+  const range = CONFIG.COMBAT.range * (activeEvent("canyon") ? 0.7 : 1);
+  const turret = { x: 468, y: 325 };
+  const target = state.enemies
+    .filter(e => !e.dead && !e.fake && dist(turret.x, turret.y, e.x, e.y) <= range)
+    .sort((a, b) => dist(input.mouse.x, input.mouse.y, a.x, a.y) - dist(input.mouse.x, input.mouse.y, b.x, b.y))[0];
+  if (!target) return;
+  let dps = CONFIG.COMBAT.manualDps * (state.burnout.active ? CONFIG.BURNOUT.fireRateMult : 1);
+  if (activeEvent("storm")) dps *= 0.7;
+  const crit = Math.random() < CONFIG.COMBAT.critChance * dt * 8;
+  damageEnemy(target, dps * dt * (crit ? 1.75 : 1), crit);
+  if (Math.random() < dt * 13) spawnBullet(turret.x, turret.y, target.x, target.y, "#f6df80");
+  if (Math.random() < dt * 12) beep("shoot");
+}
+
+function updateExternalAutoCombat(dt, efficiency) {
+  const range = CONFIG.COMBAT.range * (activeEvent("canyon") ? 0.7 : 1);
+  const turret = { x: 468, y: 325 };
+  const target = state.enemies
+    .filter(e => !e.dead && !e.fake && dist(turret.x, turret.y, e.x, e.y) <= range)
+    .sort((a, b) => a.x - b.x)[0];
+  if (!target) return;
+  let dps = CONFIG.COMBAT.autoDps * efficiency * (state.burnout.active ? CONFIG.BURNOUT.fireRateMult : 1);
+  if (activeEvent("storm")) dps *= 0.7;
+  damageEnemy(target, dps * dt, false);
+  if (Math.random() < dt * 8) spawnBullet(turret.x, turret.y, target.x, target.y, "#cbd5e1");
+}
+
+function updateInternalCombat(dt) {
+  if (!input.mouse.down) return;
+  const target = state.intruders
+    .filter(i => i.alive)
+    .sort((a, b) => dist(input.mouse.x, input.mouse.y, a.x, a.y) - dist(input.mouse.x, input.mouse.y, b.x, b.y))[0];
+  if (!target || dist(input.mouse.x, input.mouse.y, target.x, target.y) > 90) return;
+  target.hp -= CONFIG.COMBAT.internalDps * dt;
+  if (Math.random() < dt * 12) {
+    spawnBullet(input.mouse.x, input.mouse.y, target.x, target.y, "#90f0a0");
+    beep("shoot");
+  }
+  if (target.hp <= 0) {
+    target.alive = false;
+    state.stats.kills++;
+    const mod = state.modules[target.moduleId];
+    mod.breached = false;
+    mod.disabled = mod.bulkhead > 0 || mod.fire > 0;
+    setToast(`${labelFor(target.moduleId)} 침입자 제압`, 2);
+    beep("hit");
+  }
+}
+
+function damageEnemy(enemy, amount, crit) {
+  enemy.hp -= amount;
+  if (crit) state.fx.push({ type: "text", x: enemy.x, y: enemy.y - 30, text: "CRIT", t: 0.5 });
+  if (enemy.hp <= 0 && !enemy.dead) killEnemy(enemy);
+}
+
+function killEnemy(enemy) {
+  enemy.dead = true;
+  state.stats.kills++;
+  const reward = CONFIG.ENEMY[enemy.type]?.reward || {};
+  addResourceReward(reward, enemy.x, enemy.y);
+  state.fx.push({ type: "boom", x: enemy.x, y: enemy.y, t: 0.45 });
+  beep("hit");
+}
+
+function spawnBullet(x, y, tx, ty, color) {
+  state.stats.shots++;
+  state.bullets.push({ x, y, tx, ty, color, t: 0.12 });
+}
+
+function updateBullets(dt) {
+  for (const b of state.bullets) b.t -= dt;
+  state.bullets = state.bullets.filter(b => b.t > 0);
+}
+
+// === SYSTEMS:enemies ===
+function updateEnemies(dt) {
+  state.spawners.enemy -= dt * eventSpawnMult();
+  const rate = clamp(CONFIG.ENEMY.rateBase + (state.time / 60) * CONFIG.ENEMY.rateGrow, CONFIG.ENEMY.rateMin, CONFIG.ENEMY.rateMax);
+  if (state.spawners.enemy <= 0) {
+    spawnPhaseEnemy();
+    state.spawners.enemy = 1 / rate;
+  }
+  if (!state.forced.truck && state.time >= CONFIG.ENEMY.truck.spawnAt) {
+    spawnEnemy("truck", true);
+    state.forced.truck = true;
+    setToast("코뿔 트럭 접근!", 3);
+    beep("alarm");
+  }
+  for (const enemy of state.enemies) {
+    if (enemy.dead) continue;
+    if (enemy.fake) {
+      enemy.x -= enemy.speed * dt;
+      if (enemy.x < 180) enemy.dead = true;
+      continue;
+    }
+    if (enemy.type === "bike") updateBike(enemy, dt);
+    if (enemy.type === "worm") updateWorm(enemy, dt);
+    if (enemy.type === "truck") updateTruck(enemy, dt);
+  }
+  state.enemies = state.enemies.filter(e => !e.dead && e.x > -120);
+}
+
+function eventSpawnMult() {
+  let mult = 1;
+  if (activeEvent("scrap")) mult *= 1.5;
+  return mult;
+}
+
+function spawnPhaseEnemy() {
+  if (state.phase === "Warm-up") return spawnEnemy("bike");
+  if (state.phase === "Crescendo") return spawnEnemy(Math.random() < 0.76 ? "bike" : "worm");
+  if (state.phase === "Pinch") return spawnEnemy(Math.random() < 0.58 ? "bike" : "worm");
+  if (state.phase === "Climax") return spawnEnemy(Math.random() < 0.50 ? "bike" : (Math.random() < 0.8 ? "worm" : "truck"));
+  return spawnEnemy(Math.random() < 0.68 ? "bike" : "worm");
+}
+
+function spawnEnemy(type, forced) {
+  const cfg = CONFIG.ENEMY[type];
+  const lowerOnly = activeEvent("canyon");
+  const y = lowerOnly ? rand(468, 560) : rand(230, 560);
+  const enemy = {
+    id: Math.random().toString(36).slice(2),
+    type,
+    hp: cfg.hp,
+    maxHp: cfg.hp,
+    x: forced ? 1260 : rand(1160, 1390),
+    y,
+    speed: type === "bike" ? cfg.speed : (type === "worm" ? 35 : 95),
+    targetModule: type === "truck" ? "loco" : randomModuleId(true),
+    attackCd: rand(0.1, 1.1),
+    state: type === "worm" ? "burrow" : "run",
+    jumpT: type === "worm" ? CONFIG.ENEMY.worm.delay : 0,
+    fake: false,
+    dead: false
+  };
+  if (type === "worm") enemy.y = rand(470, 585);
+  state.enemies.push(enemy);
+  return enemy;
+}
+
+function updateBike(enemy, dt) {
+  enemy.x -= enemy.speed * dt * (1 + state.speedCurrent * 0.06);
+  enemy.attackCd -= dt;
+  if (enemy.attackCd <= 0) {
+    enemy.attackCd = 1;
+    if (enemyHitRoll()) damageModule(enemy.targetModule, CONFIG.ENEMY.bike.dps);
+  }
+}
+
+function updateWorm(enemy, dt) {
+  if (enemy.state === "burrow") {
+    enemy.x -= 24 * dt;
+    enemy.jumpT -= dt;
+    if (enemy.jumpT <= 0) {
+      enemy.state = "jump";
+      enemy.speed = 170;
+      setToast("사막 벌레 점프!", 1.5);
+    }
+    return;
+  }
+  enemy.x -= enemy.speed * dt;
+  if (enemy.x <= 890) {
+    impactEnemy(enemy, CONFIG.ENEMY.worm.impact);
+  }
+}
+
+function updateTruck(enemy, dt) {
+  enemy.x -= enemy.speed * dt * (1 + state.speedCurrent * 0.05);
+  if (enemy.x <= 905) impactEnemy(enemy, CONFIG.ENEMY.truck.impact, true);
+}
+
+function impactEnemy(enemy, amount, forceBreach) {
+  damageModule(enemy.targetModule, amount);
+  if (forceBreach || enemy.type === "truck") createBreach(enemy.targetModule, enemy.type);
+  enemy.dead = true;
+  state.fx.push({ type: "boom", x: enemy.x, y: enemy.y, t: 0.55 });
+  beep("alarm");
+}
+
+function enemyHitRoll() {
+  let chance = 0.76;
+  if (activeEvent("storm")) chance *= 0.7;
+  if (state.burnout.active) chance *= 0.5;
+  return Math.random() < chance;
+}
+
+function damageModule(id, amount) {
+  const mod = state.modules[id];
+  if (!mod) return;
+  if (mod.armor > 0) {
+    const armorDamage = Math.min(mod.armor, amount);
+    mod.armor -= armorDamage;
+    amount -= armorDamage;
+    if (mod.armor <= 0) createBreach(id, "bike");
+  }
+  if (amount > 0) mod.hp = Math.max(0, mod.hp - amount);
+}
+
+// === SYSTEMS:resources ===
+function updateResources(dt) {
+  state.spawners.resource -= dt;
+  const spawnEvery = CONFIG.RESOURCE.spawnEvery / (activeEvent("scrap") ? 1.5 : 1);
+  if (state.spawners.resource <= 0) {
+    spawnResource();
+    state.spawners.resource = spawnEvery;
+  }
+  const magnet = moduleCenter("harvest");
+  const radius = harvestRadius();
+  for (const r of state.resources) {
+    r.x -= (35 + state.speedCurrent * 35) * dt;
+    if (radius > 0 && dist(r.x, r.y, magnet.x, magnet.y) <= radius) {
+      r.x = lerp(r.x, magnet.x, 5 * dt);
+      r.y = lerp(r.y, magnet.y, 5 * dt);
+      if (dist(r.x, r.y, magnet.x, magnet.y) < 18) {
+        collectResource(r);
+      }
+    }
+  }
+  state.resources = state.resources.filter(r => !r.dead && r.x > -60);
+}
+
+function spawnResource() {
+  const roll = Math.random();
+  const type = roll < 0.48 ? "scrap" : (roll < 0.82 ? "fuel" : "coolant");
+  state.resources.push({
+    type,
+    x: rand(1040, 1320),
+    y: rand(210, 610),
+    dead: false,
+    amount: type === "scrap" ? 8 : (type === "fuel" ? 12 : 1)
+  });
+}
+
+function collectResource(r) {
+  r.dead = true;
+  const mult = activeEvent("leak") ? 1.5 : 1;
+  if (r.type === "scrap") state.scrap += Math.round(r.amount * mult);
+  if (r.type === "fuel") state.fuel += Math.round(r.amount * mult);
+  if (r.type === "coolant") state.coolant = Math.min(CONFIG.RESOURCE.maxCoolant, state.coolant + 1);
+  state.stats.resources++;
+  state.fx.push({ type: "text", x: r.x, y: r.y - 12, text: `+${r.type}`, t: 0.65 });
+}
+
+function addResourceReward(reward, x, y) {
+  if (reward.scrap) state.scrap += reward.scrap;
+  if (reward.fuel) state.fuel += reward.fuel;
+  if (reward.coolant) state.coolant = Math.min(CONFIG.RESOURCE.maxCoolant, state.coolant + reward.coolant);
+  if (reward.scrap || reward.fuel || reward.coolant) state.fx.push({ type: "text", x, y: y - 20, text: "LOOT", t: 0.65 });
+}
+
+// === SYSTEMS:breach ===
+function updateBreach(dt) {
+  if (!state.forced.breach && state.time >= CONFIG.BREACH.pinchAt) {
+    createBreach("maint", "worm");
+    state.forced.breach = true;
+    setToast("Pinch 강제 침입: 유지보수칸", 3);
+  }
+  for (const id of Object.keys(state.modules)) {
+    const mod = state.modules[id];
+    if (mod.bulkhead > 0) {
+      mod.bulkhead -= dt;
+      if (mod.bulkhead <= 0) {
+        mod.bulkhead = 0;
+        mod.disabled = mod.breached || mod.fire > 0;
+        setToast(`${labelFor(id)} 격리 해제`, 1.8);
+      }
+    }
+  }
+  for (const intruder of state.intruders) {
+    if (!intruder.alive) continue;
+    const mod = state.modules[intruder.moduleId];
+    intruder.wander += dt;
+    intruder.x += Math.sin(intruder.wander * 3.1) * 10 * dt;
+    intruder.y += Math.cos(intruder.wander * 2.2) * 8 * dt;
+    intruder.attackCd -= dt;
+    if (intruder.attackCd <= 0 && mod.bulkhead <= 0) {
+      intruder.attackCd = 1.4;
+      mod.hp = Math.max(0, mod.hp - 3.2);
+    }
+  }
+  state.intruders = state.intruders.filter(i => i.alive);
+}
+
+function createBreach(moduleId, source) {
+  const mod = state.modules[moduleId];
+  if (!mod || mod.breached || moduleId === "loco" && source !== "truck") return;
+  mod.armor = 0;
+  mod.breached = true;
+  mod.disabled = true;
+  const c = moduleCenter(moduleId);
+  state.intruders.push({ moduleId, hp: 55, maxHp: 55, x: c.x, y: c.y, alive: true, wander: 0, attackCd: 0.7 });
+  state.stats.breaches++;
+  setToast(`${labelFor(moduleId)} breach: 내부 침입 발생`, 3);
+  beep("alarm");
+}
+
+// === SYSTEMS:events ===
+function updateEvents(dt) {
+  if (state.activeEvent) {
+    state.activeEvent.t -= dt;
+    if (state.activeEvent.t <= 0) endEvent();
+  }
+  for (const planned of state.eventPlan) {
+    if (!planned.done && state.time >= planned.at) {
+      planned.done = true;
+      startEvent(planned.id);
+      break;
+    }
+  }
+}
+
+function startEvent(id) {
+  const dur = { storm: 25, canyon: 20, scrap: 12, ghost: 15, leak: 30, sos: 0 }[id];
+  state.stats.events++;
+  if (id === "sos") {
+    showSos();
+    return;
+  }
+  state.activeEvent = { id, t: dur, dur };
+  if (id === "ghost") startGhostSignal();
+  const names = { storm: "모래폭풍", canyon: "협곡 좁힘", scrap: "고철 더미", ghost: "유령 신호", leak: "냉각수 누수" };
+  setToast(`이벤트: ${names[id]} (${dur}s)`, 4);
+  beep("alarm");
+}
+
+function endEvent() {
+  setToast(`이벤트 종료: ${state.activeEvent.id}`, 2);
+  state.activeEvent = null;
+}
+
+function startGhostSignal() {
+  for (let i = 0; i < 3; i++) {
+    state.enemies.push({
+      type: "ghost", hp: 1, maxHp: 1, x: rand(1030, 1250), y: rand(220, 560),
+      speed: rand(25, 55), targetModule: "combat", fake: true, dead: false
+    });
+  }
+  const worm = spawnEnemy("worm");
+  worm.jumpT = 2.2;
+  worm.hp += 30;
+}
+
+function showSos() {
+  state.paused = true;
+  sosModal.style.display = "flex";
+  setToast("SOS 선택 대기", 999);
+  beep("alarm");
+}
+
+function hideSos() {
+  sosModal.style.display = "none";
+}
+
+function resolveSos(accept) {
+  hideSos();
+  state.paused = false;
+  if (accept) {
+    state.forcedStop = 5;
+    state.fuel = Math.max(0, state.fuel - 10);
+    state.scrap += 30;
+    setToast("SOS 수락: 5초 정지, 연료 -10, 고철 +30", 4);
+  } else {
+    setToast("SOS 무시: 계속 달립니다.", 2);
+  }
+}
+
+// === SYSTEMS:BURNOUT ===
+function updateBURNOUT(dt) {
+  if (!state.burnout.unlocked && state.time >= CONFIG.BURNOUT.unlockAt) {
+    state.burnout.unlocked = true;
+    setToast("BURNOUT 해금: Space", 4);
+    beep("burnout");
+  }
+  if (!state.burnout.active) return;
+  state.burnout.t -= dt;
+  if (state.burnout.t <= 0) {
+    state.burnout.active = false;
+    startFire(randomModuleId(true), CONFIG.HEAT.fireDuration);
+    setToast("BURNOUT 종료: 후유증 화재 발생", 3);
+  }
+}
+
+// === SYSTEMS:modules ===
+function updateModules(dt) {
+  for (const id of Object.keys(state.modules)) {
+    const mod = state.modules[id];
+    if (mod.fire > 0) {
+      mod.fire -= dt;
+      mod.hp = Math.max(0, mod.hp - 2 * dt);
+      if (mod.fire <= 0) {
+        mod.fire = 0;
+        mod.disabled = mod.breached || mod.bulkhead > 0;
+      }
+    }
+    if (state.scrap >= 10 && mod.armor < mod.maxArmor && !mod.breached && Math.random() < dt * 0.65) {
+      state.scrap -= 10;
+      mod.armor = Math.min(mod.maxArmor, mod.armor + 20);
+      state.fx.push({ type: "text", x: moduleCenter(id).x, y: 315, text: "ARMOR", t: 0.55 });
+    }
+  }
+}
+
+function updateFx(dt) {
+  for (const fx of state.fx) fx.t -= dt;
+  state.fx = state.fx.filter(fx => fx.t > 0);
+}
+
+function updateToast(dt) {
+  if (state.toast.t < 900) state.toast.t -= dt;
+  if (state.toast.t <= 0) {
+    state.toast.text = "";
+    toastEl.textContent = "";
+  }
+}
+
+function checkEnd() {
+  if (state.time >= CONFIG.TIMER.totalSec && state.modules.loco.hp > 0) {
+    state.screen = "won";
+    setToast("노드 통과 성공", 999);
+  }
+  if (state.modules.loco.hp <= 0) {
+    state.screen = "lost";
+    state.gameOverReason = "기관차 HP 0";
+    setToast("실패: 기관차 파괴", 999);
+  }
+  if (state.fuel <= 0) {
+    state.screen = "lost";
+    state.gameOverReason = "연료 고갈";
+    setToast("실패: 연료 고갈", 999);
+  }
+}
+
+// === RENDER:HUD ===
+function updateHud() {
+  if (!state) return;
+  const pct = clamp(state.time / CONFIG.TIMER.totalSec, 0, 1);
+  progressFill.style.width = `${Math.round(pct * 100)}%`;
+  progressText.textContent = `${Math.round(pct * 100)}%`;
+  timerText.textContent = `⏱${formatTime(state.time)}`;
+  phaseText.textContent = state.phase;
+  const loco = state.modules.loco;
+  hpText.textContent = `HP ${Math.ceil(loco.hp)}/${loco.maxHp}`;
+  fuelText.textContent = `연료 ${Math.ceil(state.fuel)}`;
+  heatText.textContent = `열 ${Math.round(state.heat)}%`;
+  const bars = "▮".repeat(clamp(Math.round(state.speedCurrent), 0, 3)) + "▯".repeat(3 - clamp(Math.round(state.speedCurrent), 0, 3));
+  speedText.textContent = `속도 ${bars} ${clamp(Math.round(effectiveSpeed()), 0, 4)}/3`;
+  const burn = state.burnout.active ? "사용중" : (state.burnout.used ? "사용완료" : (state.burnout.unlocked ? "사용가능" : "잠금"));
+  burnText.textContent = `BURN ${burn}`;
+  scrapText.textContent = `고철 ${Math.floor(state.scrap)}`;
+  coolantText.textContent = `냉각수 ${state.coolant}`;
+  modeText.textContent = `모드: ${state.mode === "external" ? "외부" : "내부"}`;
+  if (state.toast.text) toastEl.textContent = state.toast.text;
+}
+
+// === RENDER:main ===
+function render() {
+  drawWorld();
+  if (state.screen === "title") drawTitle();
+  if (state.screen === "won" || state.screen === "lost") drawResult();
+}
+
+function drawWorld() {
+  ctx.clearRect(0, 0, 1280, 720);
+  drawSky();
+  drawGround();
+  drawResources();
+  drawTrain();
+  drawEnemies();
+  drawIntruders();
+  drawBullets();
+  drawFx();
+  drawAim();
+  drawOverlays();
+}
+
+function drawSky() {
+  const grd = ctx.createLinearGradient(0, 0, 0, 720);
+  grd.addColorStop(0, "#31302a");
+  grd.addColorStop(0.55, "#6b5b42");
+  grd.addColorStop(1, "#2b2821");
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, 1280, 720);
+  ctx.fillStyle = "rgba(255, 220, 150, 0.08)";
+  for (let i = 0; i < 12; i++) {
+    const x = (i * 137 - (state.time * 18 * (state.speedCurrent + 0.3)) % 137) % 1280;
+    ctx.fillRect(x, 110 + (i % 4) * 36, 90, 3);
+  }
+}
+
+function drawGround() {
+  ctx.fillStyle = "#312a22";
+  ctx.fillRect(0, 598, 1280, 122);
+  ctx.strokeStyle = "#4b4033";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(0, 456);
+  ctx.lineTo(1280, 456);
+  ctx.stroke();
+  ctx.strokeStyle = "#1d1b17";
+  for (let x = -80; x < 1360; x += 72) {
+    const sx = x - ((state.time * 90 * (state.speedCurrent + 0.4)) % 72);
+    ctx.beginPath();
+    ctx.moveTo(sx, 466);
+    ctx.lineTo(sx + 52, 510);
+    ctx.stroke();
+  }
+}
+
+function drawTrain() {
+  ctx.lineWidth = 3;
+  for (const def of moduleDefs) {
+    const mod = state.modules[def.id];
+    ctx.fillStyle = mod.disabled ? "#4b4d48" : def.color;
+    ctx.strokeStyle = mod.breached ? "#ff4d4d" : "#1b1d1c";
+    ctx.fillRect(def.x, def.y, def.w, def.h);
+    ctx.strokeRect(def.x, def.y, def.w, def.h);
+    ctx.fillStyle = "#151515";
+    ctx.fillRect(def.x + 18, def.y + def.h, 28, 28);
+    ctx.fillRect(def.x + def.w - 46, def.y + def.h, 28, 28);
+    ctx.fillStyle = "#f4efe5";
+    ctx.font = "18px Segoe UI";
+    ctx.fillText(def.label, def.x + 16, def.y + 30);
+    ctx.font = "13px Segoe UI";
+    ctx.fillText(`HP ${Math.ceil(mod.hp)}/${mod.maxHp}`, def.x + 14, def.y + 52);
+    ctx.fillText(`ARM ${Math.ceil(mod.armor)}/${mod.maxArmor}`, def.x + 14, def.y + 70);
+    if (mod.fire > 0) drawFire(def.x + def.w - 38, def.y + 12, mod.fire);
+    if (mod.bulkhead > 0) {
+      ctx.fillStyle = "#9ca3af";
+      ctx.fillRect(def.x + def.w / 2 - 8, def.y - 8, 16, def.h + 16);
+      ctx.fillStyle = "#101010";
+      ctx.fillText(`Q ${Math.ceil(mod.bulkhead)}`, def.x + def.w / 2 - 20, def.y - 14);
+    }
+  }
+  ctx.strokeStyle = "#252525";
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(382, 396);
+  ctx.lineTo(400, 396);
+  ctx.moveTo(546, 396);
+  ctx.lineTo(558, 396);
+  ctx.moveTo(714, 396);
+  ctx.lineTo(726, 396);
+  ctx.stroke();
+  drawTurret();
+  drawHarvestRadius();
+}
+
+function drawTurret() {
+  ctx.save();
+  ctx.translate(468, 340);
+  const angle = Math.atan2(input.mouse.y - 340, input.mouse.x - 468);
+  ctx.rotate(angle);
+  ctx.fillStyle = "#272c34";
+  ctx.fillRect(0, -6, 54, 12);
+  ctx.restore();
+  ctx.fillStyle = "#1d2026";
+  ctx.beginPath();
+  ctx.arc(468, 340, 18, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawHarvestRadius() {
+  const r = harvestRadius();
+  if (r <= 0) return;
+  const c = moduleCenter("harvest");
+  ctx.strokeStyle = "rgba(232, 183, 80, 0.34)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawEnemies() {
+  for (const e of state.enemies) {
+    if (e.fake) {
+      ctx.globalAlpha = 0.45;
+      ctx.strokeStyle = "#d8d8ff";
+      ctx.strokeRect(e.x - 22, e.y - 15, 44, 30);
+      ctx.fillStyle = "#d8d8ff";
+      ctx.fillText("ghost", e.x - 20, e.y - 22);
+      ctx.globalAlpha = 1;
+      continue;
+    }
+    if (e.type === "bike") {
+      ctx.fillStyle = "#c55339";
+      ctx.fillRect(e.x - 22, e.y - 12, 44, 20);
+      ctx.fillStyle = "#111";
+      ctx.beginPath(); ctx.arc(e.x - 14, e.y + 12, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(e.x + 14, e.y + 12, 7, 0, Math.PI * 2); ctx.fill();
+    } else if (e.type === "worm") {
+      ctx.fillStyle = e.state === "burrow" ? "#5b4939" : "#9c6b47";
+      ctx.beginPath(); ctx.ellipse(e.x, e.y, 35, 18, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (e.type === "truck") {
+      ctx.fillStyle = "#5c6670";
+      ctx.fillRect(e.x - 42, e.y - 22, 84, 40);
+      ctx.fillStyle = "#c4b27f";
+      ctx.fillRect(e.x - 52, e.y - 10, 18, 10);
+    }
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "13px Segoe UI";
+    ctx.fillText(e.type, e.x - 20, e.y - 28);
+    drawBar(e.x - 28, e.y - 23, 56, 5, e.hp / e.maxHp, "#ef4444");
+  }
+}
+
+function drawResources() {
+  for (const r of state.resources) {
+    ctx.fillStyle = r.type === "scrap" ? "#c0c0b8" : (r.type === "fuel" ? "#70b36a" : "#62c7d9");
+    ctx.beginPath();
+    if (r.type === "scrap") ctx.rect(r.x - 8, r.y - 8, 16, 16);
+    else ctx.arc(r.x, r.y, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#1a1a1a";
+    ctx.font = "10px Segoe UI";
+    ctx.fillText(r.type[0].toUpperCase(), r.x - 3, r.y + 4);
+  }
+}
+
+function drawIntruders() {
+  if (state.mode !== "internal") return;
+  for (const i of state.intruders) {
+    ctx.fillStyle = "#f97316";
+    ctx.beginPath();
+    ctx.arc(i.x, i.y, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#111";
+    ctx.fillText("IN", i.x - 8, i.y + 5);
+    drawBar(i.x - 24, i.y - 30, 48, 5, i.hp / i.maxHp, "#f97316");
+  }
+}
+
+function drawBullets() {
+  ctx.lineWidth = 2;
+  for (const b of state.bullets) {
+    ctx.strokeStyle = b.color;
+    ctx.globalAlpha = clamp(b.t / 0.12, 0, 1);
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.tx, b.ty);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawFx() {
+  for (const fx of state.fx) {
+    if (fx.type === "boom") {
+      ctx.strokeStyle = `rgba(255, 188, 80, ${fx.t * 2})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(fx.x, fx.y, (0.6 - fx.t) * 65, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (fx.type === "text") {
+      ctx.fillStyle = `rgba(255, 244, 190, ${clamp(fx.t * 2, 0, 1)})`;
+      ctx.font = "bold 18px Segoe UI";
+      ctx.fillText(fx.text, fx.x, fx.y - (0.7 - fx.t) * 30);
+    }
+  }
+}
+
+function drawAim() {
+  ctx.strokeStyle = state.mode === "internal" ? "#90f0a0" : "#f6df80";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(input.mouse.x, input.mouse.y, 16, 0, Math.PI * 2);
+  ctx.moveTo(input.mouse.x - 24, input.mouse.y);
+  ctx.lineTo(input.mouse.x + 24, input.mouse.y);
+  ctx.moveTo(input.mouse.x, input.mouse.y - 24);
+  ctx.lineTo(input.mouse.x, input.mouse.y + 24);
+  ctx.stroke();
+}
+
+function drawOverlays() {
+  if (activeEvent("storm")) {
+    ctx.fillStyle = "rgba(190, 170, 120, 0.5)";
+    ctx.fillRect(0, 0, 1280, 720);
+  }
+  if (activeEvent("canyon")) {
+    ctx.fillStyle = "rgba(40, 30, 20, 0.42)";
+    ctx.fillRect(0, 0, 1280, 185);
+    ctx.fillRect(0, 585, 1280, 135);
+  }
+  if (state.burnout.active) {
+    ctx.strokeStyle = "rgba(255, 90, 40, 0.8)";
+    ctx.lineWidth = 9;
+    ctx.strokeRect(7, 7, 1266, 706);
+  }
+  drawControls();
+}
+
+function drawControls() {
+  ctx.fillStyle = "rgba(0,0,0,0.42)";
+  ctx.fillRect(18, 650, 760, 40);
+  ctx.fillStyle = "#efe8d8";
+  ctx.font = "17px Segoe UI";
+  ctx.fillText("0/1/2/3 속도  |  마우스 hold 사격  |  Tab 외부/내부  |  Q 격리  |  C 냉각수  |  Space BURNOUT  |  R 재시작", 32, 676);
+}
+
+function drawFire(x, y, t) {
+  ctx.fillStyle = "#ffcf33";
+  ctx.beginPath();
+  ctx.arc(x, y + Math.sin(t * 8) * 3, 13, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ff4f1f";
+  ctx.beginPath();
+  ctx.arc(x + 5, y + 5, 10, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawBar(x, y, w, h, pct, color) {
+  ctx.fillStyle = "#111";
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w * clamp(pct, 0, 1), h);
+}
+
+function drawTitle() {
+  ctx.fillStyle = "rgba(0,0,0,0.62)";
+  ctx.fillRect(0, 0, 1280, 720);
+  ctx.fillStyle = "#f4efe5";
+  ctx.textAlign = "center";
+  ctx.font = "bold 58px Segoe UI";
+  ctx.fillText("DEADLINE EXPRESS", 640, 260);
+  ctx.font = "24px Segoe UI";
+  ctx.fillText("5분 1노드 자율 템포 디펜스 MVP", 640, 310);
+  ctx.fillStyle = "#f0c85d";
+  ctx.font = "bold 28px Segoe UI";
+  ctx.fillText("Press Enter to Start", 640, 382);
+  ctx.fillStyle = "#d8d0bd";
+  ctx.font = "18px Segoe UI";
+  ctx.fillText("0/1/2/3 속도, 마우스 사격, Tab 내부 전환, Q 격리, C 냉각수, Space BURNOUT", 640, 438);
+  ctx.textAlign = "left";
+}
+
+function drawResult() {
+  ctx.fillStyle = "rgba(0,0,0,0.70)";
+  ctx.fillRect(0, 0, 1280, 720);
+  ctx.textAlign = "center";
+  ctx.fillStyle = state.screen === "won" ? "#f0c85d" : "#ff6b4a";
+  ctx.font = "bold 52px Segoe UI";
+  ctx.fillText(state.screen === "won" ? "CLEAR" : "FAILED", 640, 235);
+  ctx.fillStyle = "#f4efe5";
+  ctx.font = "22px Segoe UI";
+  const reason = state.screen === "won" ? "기관차 생존, 노드 통과" : state.gameOverReason;
+  ctx.fillText(reason, 640, 284);
+  ctx.font = "18px Segoe UI";
+  ctx.fillText(`Kills ${state.stats.kills}  Shots ${state.stats.shots}  Resources ${state.stats.resources}  Events ${state.stats.events}  Breaches ${state.stats.breaches}  Fires ${state.stats.fires}`, 640, 340);
+  ctx.fillStyle = "#f0c85d";
+  ctx.font = "bold 24px Segoe UI";
+  ctx.fillText("Press R to Restart", 640, 410);
+  ctx.textAlign = "left";
+}
+</script>
+</body>
+</html>
