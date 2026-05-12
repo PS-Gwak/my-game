@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Roach Exterminator — 데모 1판</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: "Apple SD Gothic Neo", "Helvetica Neue", system-ui, sans-serif; background: #1a1a1a; color: #f5f5f0; }
+  body { display: flex; justify-content: center; min-height: 100vh; padding: 12px; }
+  .app { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 10px; }
+
+  .screen { display: none; flex-direction: column; gap: 12px; }
+  .screen.on { display: flex; }
+
+  /* 시작 화면 */
+  #screen-start { align-items: center; justify-content: center; min-height: 80vh; }
+  #screen-start h1 { font-size: 28px; margin: 0; text-align: center; }
+  #screen-start p { color: #aaa; text-align: center; max-width: 380px; }
+  .btn { background: #c25434; color: white; border: 0; padding: 12px 24px; border-radius: 6px; font-size: 16px; cursor: pointer; font-family: inherit; }
+  .btn:hover { background: #d96344; }
+  .btn:disabled { background: #555; cursor: not-allowed; }
+  .btn.ghost { background: transparent; border: 1px solid #555; color: #ccc; }
+  .btn.ghost:hover { background: #2a2a2a; }
+
+  /* 상단 패널 */
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #262626; border-radius: 6px; font-size: 14px; }
+  .topbar .info { display: flex; gap: 18px; }
+  .topbar .info span { color: #ddd; }
+  .topbar .info b { color: #fff; font-weight: 600; }
+  .topbar .tabhint { color: #888; font-size: 12px; }
+  .topbar .tabhint.on { color: #f5d272; }
+
+  /* 격자 */
+  .board-wrap { display: flex; justify-content: center; }
+  .board { display: grid; grid-template-columns: repeat(6, 56px); grid-template-rows: repeat(6, 56px); gap: 3px; background: #2a2a2a; padding: 6px; border-radius: 8px; user-select: none; touch-action: none; }
+  .cell { background: #3a3a36; border-radius: 4px; display: flex; align-items: center; justify-content: center; position: relative; cursor: default; }
+  .cell.placeable { cursor: pointer; outline: 2px solid #6cc4ff; outline-offset: -2px; }
+  .cell.preview { background: #4a4a3a; }
+  .cell.range { background: #3a4040; }
+  .pillar { width: 70%; height: 70%; background: #6e6c5c; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #2a2a2a; }
+  .furniture { position: absolute; background: #8b5a3c; border: 2px solid #6e4327; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff5e0; font-size: 22px; cursor: grab; z-index: 2; transition: top 0.25s ease, left 0.25s ease; }
+  .furniture:active { cursor: grabbing; }
+  .furniture.dragging { opacity: 0.7; }
+  .furniture.preview-ghost { opacity: 0.45; background: #a06a44; }
+  .tower { position: absolute; pointer-events: none; font-size: 26px; text-shadow: 0 0 4px black; z-index: 3; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+  .tower.broad { color: #ff5c5c; }
+  .tower.single { color: #5cc4ff; }
+  .roach { position: absolute; font-size: 22px; pointer-events: none; opacity: 0; transition: opacity 0.15s, top 0.4s, left 0.4s; z-index: 4; }
+  .roach.show { opacity: 1; }
+  .roach.dying { opacity: 0; transform: translateY(-30px); transition: opacity 0.6s, transform 0.6s; }
+  .roach-count { position: absolute; top: 2px; right: 4px; font-size: 10px; background: #c25434; color: white; padding: 1px 5px; border-radius: 8px; z-index: 5; display: none; }
+  .roach-count.show { display: block; }
+
+  /* 하단 패널 */
+  .bottombar { display: flex; gap: 8px; padding: 10px; background: #262626; border-radius: 6px; align-items: center; }
+  .card { background: #353532; border: 2px solid #555; border-radius: 6px; padding: 8px 12px; cursor: pointer; flex: 1; text-align: center; }
+  .card.selected { border-color: #f5d272; background: #4a4232; }
+  .card.disabled { opacity: 0.4; cursor: not-allowed; }
+  .card.placed { opacity: 0.3; cursor: not-allowed; text-decoration: line-through; }
+  .card .name { font-size: 13px; color: #fff; font-weight: 600; }
+  .card .desc { font-size: 10px; color: #aaa; margin-top: 2px; }
+
+  /* 결과 화면 */
+  #screen-cleared { align-items: center; justify-content: center; min-height: 70vh; gap: 16px; }
+  #screen-cleared .big { font-size: 48px; }
+  #screen-cleared h2 { font-size: 26px; margin: 0; }
+  #screen-cleared .stat { color: #f5d272; font-size: 18px; }
+  #screen-cleared .bonus { color: #6cffaa; font-size: 14px; }
+
+  /* 미리보기 알림 */
+  .preview-banner { background: #3a3320; color: #f5d272; padding: 6px 10px; border-radius: 4px; font-size: 12px; text-align: center; min-height: 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div id="screen-start" class="screen on">
+    <h1>🪳 Roach Exterminator</h1>
+    <p>가구를 밀어 바퀴벌레를 한곳에 몰아넣고 박멸하라.<br>데모 1판 (3판 중 1판) · 룰 익히기 단계.</p>
+    <button class="btn" id="btn-start">Start</button>
+    <p style="font-size:12px;color:#666;margin-top:24px;">Tab 키를 누르고 있으면 바퀴 위치가 보입니다.</p>
+  </div>
+
+  <div id="screen-game" class="screen">
+    <div class="topbar">
+      <div class="info">
+        <span>R<b id="hud-round">1</b></span>
+        <span>이동 <b id="hud-moves">0</b>/6</span>
+        <span>코스트 <b id="hud-cost">0</b>/2</span>
+      </div>
+      <div class="tabhint" id="hud-tab">Tab=숨김</div>
+    </div>
+
+    <div class="preview-banner" id="preview-banner">&nbsp;</div>
+
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+    </div>
+
+    <div class="bottombar">
+      <div class="card" id="card-broad" data-card="broad">
+        <div class="name">▲ 광범위 (2)</div>
+        <div class="desc">사거리2·동시타격</div>
+      </div>
+      <div class="card" id="card-single" data-card="single">
+        <div class="name">▲ 단일연사 (1)</div>
+        <div class="desc">사거리2·1턴 2발</div>
+      </div>
+      <button class="btn" id="btn-execute" disabled>실행</button>
+      <button class="btn ghost" id="btn-reset">리셋</button>
+    </div>
+  </div>
+
+  <div id="screen-cleared" class="screen">
+    <div class="big">✨</div>
+    <h2>Cleared!</h2>
+    <div class="stat">잔여 이동 <span id="result-remain">0</span>회</div>
+    <div class="bonus" id="result-bonus">&nbsp;</div>
+    <button class="btn" id="btn-retry">다시 도전</button>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+const GRID = 6;
+const MOVES_LIMIT = 6;
+const COST_LIMIT = 2;
+const BONUS_THRESHOLD = 3;
+const CELL = 56;
+const GAP = 3;
+const PAD = 6;
+
+function initialState() {
+  return {
+    phase: "start",
+    round: 1,
+    moves: 0,
+    costUsed: 0,
+    furniture: [
+      { id: 0, cells: [[1,1],[1,2]] },
+      { id: 1, cells: [[3,5]] }
+    ],
+    pillars: [[2,3]],
+    roaches: [
+      { id: 0, alive: true, hidden: true, under: 0, row: 1, col: 1 },
+      { id: 1, alive: true, hidden: true, under: 0, row: 1, col: 2 },
+      { id: 2, alive: true, hidden: true, under: 1, row: 3, col: 5 },
+      { id: 3, alive: true, hidden: true, under: 1, row: 3, col: 5 }
+    ],
+    hand: [
+      { type: "broad", cost: 2, placed: false },
+      { type: "single", cost: 1, placed: false }
+    ],
+    towers: [],
+    tabHeld: false,
+    selectedCard: null,
+    preview: null
+  };
+}
+
+let state = initialState();
+
+function $(id) { return document.getElementById(id); }
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  $("screen-"+name).classList.add("on");
+}
+
+function isPillar(r, c) {
+  return state.pillars.some(([pr, pc]) => pr === r && pc === c);
+}
+function isTower(r, c) {
+  return state.towers.some(t => t.row === r && t.col === c);
+}
+function furnitureAt(r, c, exceptId) {
+  return state.furniture.find(f => f.id !== exceptId && f.cells.some(([fr, fc]) => fr === r && fc === c));
+}
+function inBounds(r, c) {
+  return r >= 0 && r < GRID && c >= 0 && c < GRID;
+}
+function cellBlocked(r, c, exceptFurId) {
+  if (!inBounds(r, c)) return true;
+  if (isPillar(r, c)) return true;
+  if (isTower(r, c)) return true;
+  if (furnitureAt(r, c, exceptFurId)) return true;
+  return false;
+}
+
+function slideFurniture(fur, dr, dc, exceptId) {
+  let cells = fur.cells.map(([r, c]) => [r, c]);
+  while (true) {
+    const next = cells.map(([r, c]) => [r + dr, c + dc]);
+    const blocked = next.some(([r, c]) => {
+      if (!inBounds(r, c)) return true;
+      if (isPillar(r, c)) return true;
+      if (isTower(r, c)) return true;
+      const owner = state.furniture.find(f => f.id !== exceptId && f.cells.some(([fr, fc]) => fr === r && fc === c));
+      if (owner) return true;
+      return false;
+    });
+    if (blocked) break;
+    cells = next;
+  }
+  return cells;
+}
+
+function euclid(r1, c1, r2, c2) {
+  return Math.sqrt((r1-r2)**2 + (c1-c2)**2);
+}
+
+function pickHidingFurniture(roach) {
+  const candidates = state.furniture.filter(f => f.id !== roach.under);
+  if (candidates.length === 0) return null;
+  let best = null;
+  for (const f of candidates) {
+    let nearestCell = null, nearestDist = Infinity;
+    for (const [fr, fc] of f.cells) {
+      const d = euclid(roach.row, roach.col, fr, fc);
+      if (d < nearestDist) { nearestDist = d; nearestCell = [fr, fc]; }
+    }
+    if (!best || nearestDist < best.dist || (nearestDist === best.dist && f.id < best.fur.id)) {
+      best = { fur: f, cell: nearestCell, dist: nearestDist };
+    }
+  }
+  return best;
+}
+
+function pickAnyClosestFurniture(roach) {
+  let best = null;
+  for (const f of state.furniture) {
+    for (const [fr, fc] of f.cells) {
+      const d = euclid(roach.row, roach.col, fr, fc);
+      if (!best || d < best.dist || (d === best.dist && f.id < best.fur.id)) {
+        best = { fur: f, cell: [fr, fc], dist: d };
+      }
+    }
+  }
+  return best;
+}
+
+function towerInRange(tower, roach) {
+  return euclid(tower.row, tower.col, roach.row, roach.col) <= 2;
+}
+
+function fireTowers() {
+  const events = [];
+  for (const t of state.towers) {
+    if (t.type === "broad") {
+      const targets = state.roaches.filter(r => r.alive && !r.hidden && towerInRange(t, r));
+      for (const r of targets) { r.alive = false; events.push({ kill: r.id, by: t }); }
+    } else if (t.type === "single") {
+      for (let shot = 0; shot < 2; shot++) {
+        const targets = state.roaches.filter(r => r.alive && !r.hidden && towerInRange(t, r));
+        if (targets.length === 0) break;
+        targets.sort((a, b) => {
+          const da = euclid(t.row, t.col, a.row, a.col);
+          const db = euclid(t.row, t.col, b.row, b.col);
+          if (da !== db) return da - db;
+          return a.id - b.id;
+        });
+        const target = targets[0];
+        target.alive = false;
+        events.push({ kill: target.id, by: t });
+      }
+    }
+  }
+  return events;
+}
+
+function buildPreview(furId, dr, dc) {
+  const fur = state.furniture.find(f => f.id === furId);
+  if (!fur) return null;
+  const newCells = slideFurniture(fur, dr, dc, fur.id);
+  const moved = JSON.stringify(newCells) !== JSON.stringify(fur.cells);
+  return { furId, newCells, moved };
+}
+
+function applyTurn() {
+  if (!state.preview) return;
+  if (!state.preview.moved) {
+    state.preview = null;
+    render();
+    return;
+  }
+
+  const fur = state.furniture.find(f => f.id === state.preview.furId);
+  const oldCells = fur.cells;
+  fur.cells = state.preview.newCells;
+
+  const exposed = state.roaches.filter(r => r.alive && r.under === fur.id && !state.preview.newCells.some(([nr, nc]) => nr === r.row && nc === r.col));
+
+  for (const r of exposed) {
+    r.hidden = false;
+  }
+
+  const moveResults = [];
+  for (const r of exposed) {
+    let hide = pickHidingFurniture(r);
+    if (!hide) {
+      const others = state.furniture.filter(f => f.id !== r.under);
+      if (others.length === 0) hide = pickAnyClosestFurniture(r);
+    }
+    if (hide) {
+      moveResults.push({ roach: r, target: hide });
+    }
+  }
+
+  for (const mv of moveResults) {
+    mv.roach.row = mv.target.cell[0];
+    mv.roach.col = mv.target.cell[1];
+    mv.roach.under = null;
+  }
+
+  fireTowers();
+
+  for (const mv of moveResults) {
+    if (mv.roach.alive) {
+      mv.roach.under = mv.target.fur.id;
+      mv.roach.hidden = true;
+    }
+  }
+
+  state.moves += 1;
+  state.preview = null;
+
+  if (state.roaches.every(r => !r.alive)) {
+    state.phase = "cleared";
+    showScreen("cleared");
+    const remain = MOVES_LIMIT - state.moves;
+    $("result-remain").textContent = remain;
+    $("result-bonus").textContent = (state.moves <= BONUS_THRESHOLD) ? "보너스! 절반 이하 사용으로 클리어 (카드팩 +1)" : " ";
+    return;
+  }
+
+  render();
+}
+
+function placeTower(r, c) {
+  if (state.selectedCard === null) return;
+  const card = state.hand[state.selectedCard];
+  if (card.placed) return;
+  if (state.costUsed + card.cost > COST_LIMIT) {
+    showBanner("코스트 한도 초과");
+    return;
+  }
+  if (cellBlocked(r, c, -1)) {
+    showBanner("이 칸에는 둘 수 없어요");
+    return;
+  }
+  state.towers.push({ type: card.type, row: r, col: c });
+  state.costUsed += card.cost;
+  card.placed = true;
+  state.selectedCard = null;
+  showBanner("타워 배치 완료 — 회수 불가");
+  render();
+}
+
+function showBanner(text) {
+  $("preview-banner").textContent = text || " ";
+}
+
+function pixelToCell(x, y) {
+  const boardRect = $("board").getBoundingClientRect();
+  const localX = x - boardRect.left - PAD;
+  const localY = y - boardRect.top - PAD;
+  const col = Math.floor(localX / (CELL + GAP));
+  const row = Math.floor(localY / (CELL + GAP));
+  return { row, col };
+}
+
+let dragState = null;
+
+function onFurnitureMouseDown(e, furId) {
+  if (state.preview) {
+    showBanner("이미 미리보기 중. 실행하거나 다른 가구를 선택하기 전에 확정하세요.");
+    return;
+  }
+  if (state.moves >= MOVES_LIMIT) {
+    showBanner("이동 횟수 다 썼어요");
+    return;
+  }
+  dragState = { furId, startX: e.clientX, startY: e.clientY };
+  e.preventDefault();
+}
+
+function onMouseUp(e) {
+  if (!dragState) return;
+  const dx = e.clientX - dragState.startX;
+  const dy = e.clientY - dragState.startY;
+  const absX = Math.abs(dx), absY = Math.abs(dy);
+  if (Math.max(absX, absY) < 12) { dragState = null; return; }
+  let dr = 0, dc = 0;
+  if (absX > absY) dc = dx > 0 ? 1 : -1;
+  else dr = dy > 0 ? 1 : -1;
+  state.preview = buildPreview(dragState.furId, dr, dc);
+  dragState = null;
+  if (state.preview && state.preview.moved) {
+    showBanner("미리보기: 실행 누르면 가구가 이동 + 바퀴 도망 + 타워 공격");
+  } else {
+    showBanner("그 방향으론 못 움직여요 (벽·기둥·다른 가구)");
+    state.preview = null;
+  }
+  render();
+}
+
+function onCellClick(r, c) {
+  if (state.selectedCard !== null) {
+    placeTower(r, c);
+  }
+}
+
+function onCardClick(idx) {
+  const card = state.hand[idx];
+  if (card.placed) return;
+  if (state.costUsed + card.cost > COST_LIMIT) {
+    showBanner("코스트 부족 — 이 카드 못 깔아요");
+    return;
+  }
+  state.selectedCard = (state.selectedCard === idx) ? null : idx;
+  render();
+}
+
+function render() {
+  $("hud-round").textContent = state.round;
+  $("hud-moves").textContent = state.moves;
+  $("hud-cost").textContent = state.costUsed;
+
+  const tabhint = $("hud-tab");
+  tabhint.textContent = state.tabHeld ? "Tab=보임" : "Tab=숨김";
+  tabhint.classList.toggle("on", state.tabHeld);
+
+  const board = $("board");
+  board.innerHTML = "";
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      if (isPillar(r, c)) {
+        const p = document.createElement("div");
+        p.className = "pillar";
+        p.textContent = "▣";
+        cell.appendChild(p);
+      }
+      if (state.selectedCard !== null) {
+        const blocked = cellBlocked(r, c, -1);
+        if (!blocked) cell.classList.add("placeable");
+      }
+      cell.addEventListener("click", () => onCellClick(r, c));
+      board.appendChild(cell);
+    }
+  }
+
+  for (const t of state.towers) {
+    const cellIdx = t.row * GRID + t.col;
+    const cell = board.children[cellIdx];
+    const tw = document.createElement("div");
+    tw.className = "tower " + t.type;
+    tw.textContent = "▲";
+    cell.appendChild(tw);
+  }
+
+  for (const fur of state.furniture) {
+    const [r0, c0] = fur.cells[0];
+    const rs = fur.cells.map(([r]) => r);
+    const cs = fur.cells.map(([, c]) => c);
+    const minR = Math.min(...rs), maxR = Math.max(...rs);
+    const minC = Math.min(...cs), maxC = Math.max(...cs);
+    const w = (maxC - minC + 1) * CELL + (maxC - minC) * GAP;
+    const h = (maxR - minR + 1) * CELL + (maxR - minR) * GAP;
+    const left = PAD + minC * (CELL + GAP);
+    const top = PAD + minR * (CELL + GAP);
+    const div = document.createElement("div");
+    div.className = "furniture";
+    div.style.width = w + "px";
+    div.style.height = h + "px";
+    div.style.left = left + "px";
+    div.style.top = top + "px";
+    div.textContent = "□";
+    div.addEventListener("mousedown", (e) => onFurnitureMouseDown(e, fur.id));
+    div.addEventListener("touchstart", (e) => {
+      const touch = e.touches[0];
+      onFurnitureMouseDown({ clientX: touch.clientX, clientY: touch.clientY, preventDefault: () => e.preventDefault() }, fur.id);
+    });
+    board.appendChild(div);
+  }
+
+  if (state.preview && state.preview.moved) {
+    const fur = state.furniture.find(f => f.id === state.preview.furId);
+    if (fur) {
+      const rs = state.preview.newCells.map(([r]) => r);
+      const cs = state.preview.newCells.map(([, c]) => c);
+      const minR = Math.min(...rs), maxR = Math.max(...rs);
+      const minC = Math.min(...cs), maxC = Math.max(...cs);
+      const w = (maxC - minC + 1) * CELL + (maxC - minC) * GAP;
+      const h = (maxR - minR + 1) * CELL + (maxR - minR) * GAP;
+      const left = PAD + minC * (CELL + GAP);
+      const top = PAD + minR * (CELL + GAP);
+      const ghost = document.createElement("div");
+      ghost.className = "furniture preview-ghost";
+      ghost.style.width = w + "px";
+      ghost.style.height = h + "px";
+      ghost.style.left = left + "px";
+      ghost.style.top = top + "px";
+      ghost.textContent = "□";
+      board.appendChild(ghost);
+    }
+  }
+
+  for (const roach of state.roaches) {
+    if (!roach.alive) continue;
+    const cellIdx = roach.row * GRID + roach.col;
+    const cell = board.children[cellIdx];
+    const r = document.createElement("div");
+    r.className = "roach" + (state.tabHeld ? " show" : "");
+    r.textContent = "🪳";
+    cell.appendChild(r);
+  }
+
+  if (state.tabHeld) {
+    for (const fur of state.furniture) {
+      let count = 0;
+      for (const roach of state.roaches) {
+        if (roach.alive && roach.under === fur.id) count++;
+      }
+      if (count > 0) {
+        const [minR, minC] = fur.cells[0];
+        const cellIdx = minR * GRID + minC;
+        const cell = board.children[cellIdx];
+        const badge = document.createElement("div");
+        badge.className = "roach-count show";
+        badge.textContent = "🪳×" + count;
+        cell.appendChild(badge);
+      }
+    }
+  }
+
+  const broadCard = $("card-broad");
+  const singleCard = $("card-single");
+  broadCard.classList.toggle("placed", state.hand[0].placed);
+  singleCard.classList.toggle("placed", state.hand[1].placed);
+  broadCard.classList.toggle("selected", state.selectedCard === 0);
+  singleCard.classList.toggle("selected", state.selectedCard === 1);
+  broadCard.classList.toggle("disabled", !state.hand[0].placed && state.costUsed + 2 > COST_LIMIT);
+  singleCard.classList.toggle("disabled", !state.hand[1].placed && state.costUsed + 1 > COST_LIMIT);
+
+  $("btn-execute").disabled = !(state.preview && state.preview.moved);
+}
+
+function bindEvents() {
+  $("btn-start").addEventListener("click", () => {
+    state.phase = "playing";
+    showScreen("game");
+    render();
+  });
+  $("btn-execute").addEventListener("click", () => {
+    if (state.preview && state.preview.moved) applyTurn();
+  });
+  $("btn-reset").addEventListener("click", () => {
+    state = initialState();
+    state.phase = "playing";
+    showScreen("game");
+    render();
+    showBanner(" ");
+  });
+  $("btn-retry").addEventListener("click", () => {
+    state = initialState();
+    state.phase = "playing";
+    showScreen("game");
+    render();
+    showBanner(" ");
+  });
+  $("card-broad").addEventListener("click", () => onCardClick(0));
+  $("card-single").addEventListener("click", () => onCardClick(1));
+  document.addEventListener("mouseup", onMouseUp);
+  document.addEventListener("touchend", (e) => {
+    if (!dragState) return;
+    const touch = e.changedTouches[0];
+    onMouseUp({ clientX: touch.clientX, clientY: touch.clientY });
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      if (!state.tabHeld) { state.tabHeld = true; render(); }
+    }
+  });
+  document.addEventListener("keyup", (e) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      if (state.tabHeld) { state.tabHeld = false; render(); }
+    }
+  });
+  window.addEventListener("blur", () => { state.tabHeld = false; render(); });
+}
+
+bindEvents();
+showScreen("start");
+
+// self-check mode (?check=1=정적, ?check=2=동적 시나리오)
+if (location.search.includes("check=")) {
+  const errors = [];
+  window.addEventListener("error", e => errors.push("ERR:"+e.message));
+  try {
+    $("btn-start").click();
+    const onGame = $("screen-game").classList.contains("on");
+    const cells = $("board").querySelectorAll(".cell").length;
+    const fur = $("board").querySelectorAll(".furniture").length;
+    const pillar = $("board").querySelectorAll(".pillar").length;
+    const cards = document.querySelectorAll(".card").length;
+    const initialAlive = state.roaches.filter(r => r.alive).length;
+    const initialUnder0 = state.roaches.filter(r => r.under === 0 && r.alive).length;
+    const initialUnder1 = state.roaches.filter(r => r.under === 1 && r.alive).length;
+
+    let dyn = "";
+    if (location.search.includes("check=2")) {
+      // 시나리오: 광범위 (2,5) 배치 → 가구 1을 아래로 슬라이딩
+      state.selectedCard = 0;
+      placeTower(2, 5);
+      const broadPlaced = state.towers.length === 1 && state.towers[0].type === "broad";
+      const costAfterBroad = state.costUsed;
+      // 광범위 깐 뒤 단일 시도 → 코스트 부족이라 막혀야
+      state.selectedCard = 1;
+      const before = state.towers.length;
+      placeTower(0, 0);
+      const blockedSingle = state.towers.length === before;
+      state.selectedCard = null;
+      // 가구 1 (id=0) 아래로 슬라이딩
+      state.preview = buildPreview(0, 1, 0);
+      const previewMoved = !!(state.preview && state.preview.moved);
+      applyTurn();
+      const aliveAfter = state.roaches.filter(r => r.alive).length;
+      const cleared = $("screen-cleared").classList.contains("on");
+      dyn = ` broadPlaced=${broadPlaced} cost=${costAfterBroad} blockedSingle=${blockedSingle} preview=${previewMoved} aliveAfter=${aliveAfter} cleared=${cleared}`;
+    }
+
+    if (location.search.includes("check=3")) {
+      // 시나리오: 광범위 (5,5) 배치 (가구 1·2 모두 사거리 밖) → 가구 1 아래로 슬라이딩 → 0마리 처치 확인 (사거리 검증)
+      state.selectedCard = 0;
+      placeTower(5, 5);
+      state.selectedCard = null;
+      state.preview = buildPreview(0, 1, 0);
+      const beforeAlive = state.roaches.filter(r => r.alive).length;
+      applyTurn();
+      const afterAlive = state.roaches.filter(r => r.alive).length;
+      // (5,5)에서 (3,5) 가구2까지 거리=2. 사거리 안. 도망 바퀴 2마리 처치 가능. 가구2 밑 바퀴 hidden이라 안 잡힘
+      // (5,5)에서 (1,1) 가구1 원위치는 무관 (가구1 이미 이동)
+      dyn = ` rangeKill=${beforeAlive - afterAlive}`;
+    }
+
+    if (location.search.includes("check=4")) {
+      // 시나리오: 사거리 멀리 배치 (0,0) → 슬라이딩해도 0마리 처치
+      state.selectedCard = 1;
+      placeTower(0, 0);
+      state.selectedCard = null;
+      state.preview = buildPreview(0, 1, 0);
+      applyTurn();
+      const afterAlive = state.roaches.filter(r => r.alive).length;
+      dyn = ` aliveAfter=${afterAlive} (expected 4, range too far)`;
+    }
+
+    if (location.search.includes("check=5")) {
+      // 시나리오: 한 번 깐 타워 재클릭해도 변동 없음
+      state.selectedCard = 0;
+      placeTower(2, 5);
+      const t1 = state.towers.length;
+      // 같은 카드 다시 누름 — placed라 클릭 무시
+      onCardClick(0);
+      const stillNullSel = state.selectedCard === null;
+      // 같은 자리에 다시 배치 시도 → 다른 카드로
+      state.selectedCard = 1;
+      placeTower(2, 5);
+      const t2 = state.towers.length;
+      dyn = ` towersAfterReplace=${t2} (expected ${t1}) cardLocked=${stillNullSel}`;
+    }
+
+    document.title = (errors.length ? "ERR " : "OK ") +
+      `gameOn=${onGame} cells=${cells} fur=${fur} pillar=${pillar} cards=${cards} roaches=${initialAlive} u0=${initialUnder0} u1=${initialUnder1}${dyn}` +
+      (errors.length ? " | " + errors.join("; ") : "");
+  } catch(e) {
+    document.title = "FAIL " + e.message + " stack=" + (e.stack ? e.stack.split("\n")[1] : "?");
+  }
+}
+</script>
+
+</body>
+</html>
