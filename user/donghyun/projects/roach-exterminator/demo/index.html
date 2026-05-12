@@ -35,19 +35,15 @@
   .board { display: grid; grid-template-columns: repeat(6, 56px); grid-template-rows: repeat(6, 56px); gap: 3px; background: #2a2a2a; padding: 6px; border-radius: 8px; user-select: none; touch-action: none; }
   .cell { background: #3a3a36; border-radius: 4px; display: flex; align-items: center; justify-content: center; position: relative; cursor: default; }
   .cell.placeable { cursor: pointer; outline: 2px solid #6cc4ff; outline-offset: -2px; }
-  .cell.preview { background: #4a4a3a; }
-  .cell.range { background: #3a4040; }
   .pillar { width: 70%; height: 70%; background: #6e6c5c; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #2a2a2a; }
   .furniture { position: absolute; background: #8b5a3c; border: 2px solid #6e4327; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff5e0; font-size: 22px; cursor: grab; z-index: 2; transition: top 0.25s ease, left 0.25s ease; }
   .furniture:active { cursor: grabbing; }
-  .furniture.dragging { opacity: 0.7; }
   .furniture.preview-ghost { opacity: 0.45; background: #a06a44; }
   .tower { position: absolute; pointer-events: none; font-size: 26px; text-shadow: 0 0 4px black; z-index: 3; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
   .tower.broad { color: #ff5c5c; }
   .tower.single { color: #5cc4ff; }
   .roach { position: absolute; font-size: 22px; pointer-events: none; opacity: 0; transition: opacity 0.15s, top 0.4s, left 0.4s; z-index: 4; }
   .roach.show { opacity: 1; }
-  .roach.dying { opacity: 0; transform: translateY(-30px); transition: opacity 0.6s, transform 0.6s; }
   .roach-count { position: absolute; top: 2px; right: 4px; font-size: 10px; background: #c25434; color: white; padding: 1px 5px; border-radius: 8px; z-index: 5; display: none; }
   .roach-count.show { display: block; }
 
@@ -98,11 +94,11 @@
     </div>
 
     <div class="bottombar">
-      <div class="card" id="card-broad" data-card="broad">
+      <div class="card" id="card-broad">
         <div class="name">▲ 광범위 (2)</div>
         <div class="desc">사거리2·동시타격</div>
       </div>
-      <div class="card" id="card-single" data-card="single">
+      <div class="card" id="card-single">
         <div class="name">▲ 단일연사 (1)</div>
         <div class="desc">사거리2·1턴 2발</div>
       </div>
@@ -246,11 +242,10 @@ function towerInRange(tower, roach) {
 }
 
 function fireTowers() {
-  const events = [];
   for (const t of state.towers) {
     if (t.type === "broad") {
       const targets = state.roaches.filter(r => r.alive && !r.hidden && towerInRange(t, r));
-      for (const r of targets) { r.alive = false; events.push({ kill: r.id, by: t }); }
+      for (const r of targets) r.alive = false;
     } else if (t.type === "single") {
       for (let shot = 0; shot < 2; shot++) {
         const targets = state.roaches.filter(r => r.alive && !r.hidden && towerInRange(t, r));
@@ -261,13 +256,10 @@ function fireTowers() {
           if (da !== db) return da - db;
           return a.id - b.id;
         });
-        const target = targets[0];
-        target.alive = false;
-        events.push({ kill: target.id, by: t });
+        targets[0].alive = false;
       }
     }
   }
-  return events;
 }
 
 function buildPreview(furId, dr, dc) {
@@ -287,7 +279,6 @@ function applyTurn() {
   }
 
   const fur = state.furniture.find(f => f.id === state.preview.furId);
-  const oldCells = fur.cells;
   fur.cells = state.preview.newCells;
 
   const exposed = state.roaches.filter(r => r.alive && r.under === fur.id && !state.preview.newCells.some(([nr, nc]) => nr === r.row && nc === r.col));
@@ -364,15 +355,6 @@ function showBanner(text) {
   $("preview-banner").textContent = text || " ";
 }
 
-function pixelToCell(x, y) {
-  const boardRect = $("board").getBoundingClientRect();
-  const localX = x - boardRect.left - PAD;
-  const localY = y - boardRect.top - PAD;
-  const col = Math.floor(localX / (CELL + GAP));
-  const row = Math.floor(localY / (CELL + GAP));
-  return { row, col };
-}
-
 let dragState = null;
 
 function onFurnitureMouseDown(e, furId) {
@@ -440,8 +422,6 @@ function render() {
     for (let c = 0; c < GRID; c++) {
       const cell = document.createElement("div");
       cell.className = "cell";
-      cell.dataset.row = r;
-      cell.dataset.col = c;
       if (isPillar(r, c)) {
         const p = document.createElement("div");
         p.className = "pillar";
@@ -467,7 +447,6 @@ function render() {
   }
 
   for (const fur of state.furniture) {
-    const [r0, c0] = fur.cells[0];
     const rs = fur.cells.map(([r]) => r);
     const cs = fur.cells.map(([, c]) => c);
     const minR = Math.min(...rs), maxR = Math.max(...rs);
