@@ -189,6 +189,7 @@ function cellBlocked(r, c, exceptFurId) {
 }
 
 function slideFurniture(fur, dr, dc, exceptId) {
+  if (dr === 0 && dc === 0) return fur.cells.map(([r, c]) => [r, c]);
   let cells = fur.cells.map(([r, c]) => [r, c]);
   while (true) {
     const next = cells.map(([r, c]) => [r + dr, c + dc]);
@@ -319,6 +320,8 @@ function applyTurn() {
     if (mv.roach.alive) {
       mv.roach.under = mv.target.fur.id;
       mv.roach.hidden = true;
+    } else {
+      mv.roach.under = null;
     }
   }
 
@@ -659,6 +662,21 @@ if (location.search.includes("check=")) {
       applyTurn();
       const afterAlive = state.roaches.filter(r => r.alive).length;
       dyn = ` aliveAfter=${afterAlive} (expected 4, range too far)`;
+    }
+
+    if (location.search.includes("check=6")) {
+      // 단일공격 연사 (4,5)에 배치 → 가구1 아래 슬라이딩
+      // 가구1 밑 2마리가 가구2(3,5)로 도망 → 새 위치 (3,5)
+      // 단일 (4,5) 사거리: (3,5) 거리 1 안. 1턴 2발 = 두 마리 자동 전환으로 처치
+      state.selectedCard = 1;
+      placeTower(4, 5);
+      const singlePlaced = state.towers.length === 1 && state.towers[0].type === "single";
+      state.selectedCard = null;
+      state.preview = buildPreview(0, 1, 0);
+      applyTurn();
+      const aliveAfter = state.roaches.filter(r => r.alive).length;
+      // 도망 바퀴 2 처치 (단일 2발 자동 전환) → aliveAfter = 2 (가구2 밑 hidden 2)
+      dyn = ` singlePlaced=${singlePlaced} aliveAfter=${aliveAfter} (expected 2: 단일 자동전환 2발)`;
     }
 
     if (location.search.includes("check=5")) {
