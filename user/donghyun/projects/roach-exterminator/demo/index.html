@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>Roach Exterminator — 데모 1판</title>
+<title>Roach Exterminator — 데모 1판 v2</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; font-family: "Apple SD Gothic Neo", "Helvetica Neue", system-ui, sans-serif; background: #1a1a1a; color: #f5f5f0; }
@@ -12,59 +12,77 @@
   .screen { display: none; flex-direction: column; gap: 12px; }
   .screen.on { display: flex; }
 
-  /* 시작 화면 */
   #screen-start { align-items: center; justify-content: center; min-height: 80vh; }
   #screen-start h1 { font-size: 28px; margin: 0; text-align: center; }
   #screen-start p { color: #aaa; text-align: center; max-width: 380px; }
-  .btn { background: #c25434; color: white; border: 0; padding: 12px 24px; border-radius: 6px; font-size: 16px; cursor: pointer; font-family: inherit; }
+  .btn { background: #c25434; color: white; border: 0; padding: 10px 18px; border-radius: 6px; font-size: 14px; cursor: pointer; font-family: inherit; position: relative; }
   .btn:hover { background: #d96344; }
   .btn:disabled { background: #555; cursor: not-allowed; }
   .btn.ghost { background: transparent; border: 1px solid #555; color: #ccc; }
   .btn.ghost:hover { background: #2a2a2a; }
+  .btn .key { display: block; font-size: 9px; color: #fbd0bb; margin-top: 2px; letter-spacing: 1px; }
 
-  /* 상단 패널 */
-  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #262626; border-radius: 6px; font-size: 14px; }
-  .topbar .info { display: flex; gap: 18px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #262626; border-radius: 6px; font-size: 14px; flex-wrap: wrap; gap: 6px; }
+  .topbar .info { display: flex; gap: 16px; flex-wrap: wrap; }
   .topbar .info span { color: #ddd; }
   .topbar .info b { color: #fff; font-weight: 600; }
-  .topbar .tabhint { color: #888; font-size: 12px; }
-  .topbar .tabhint.on { color: #f5d272; }
+  .topbar .right { display: flex; gap: 10px; align-items: center; }
+  .speed-toggle { display: flex; gap: 2px; background: #1a1a1a; border-radius: 4px; padding: 2px; }
+  .speed-toggle button { background: transparent; color: #888; border: 0; padding: 3px 8px; font-size: 11px; cursor: pointer; font-family: inherit; border-radius: 3px; }
+  .speed-toggle button.on { background: #c25434; color: white; }
+  .tabhint { color: #888; font-size: 12px; }
+  .tabhint.on { color: #f5d272; }
 
-  /* 격자 */
+  .guide-bar { background: #1f2840; color: #6cc4ff; padding: 8px 12px; border-radius: 6px; font-size: 13px; text-align: center; border: 1px solid #2a3a5a; min-height: 18px; }
+  .guide-bar.lock { background: #3a2a1a; color: #f5a26c; border-color: #5a3a1a; }
+  .guide-bar.cleared { background: #1a3a2a; color: #6cffaa; }
+
   .board-wrap { display: flex; justify-content: center; }
-  .board { display: grid; grid-template-columns: repeat(6, 56px); grid-template-rows: repeat(6, 56px); gap: 3px; background: #2a2a2a; padding: 6px; border-radius: 8px; user-select: none; touch-action: none; }
-  .cell { background: #3a3a36; border-radius: 4px; display: flex; align-items: center; justify-content: center; position: relative; cursor: default; }
+  .board { display: grid; grid-template-columns: repeat(6, 56px); grid-template-rows: repeat(6, 56px); gap: 3px; background: #2a2a2a; padding: 6px; border-radius: 8px; position: relative; user-select: none; }
+  .cell { background: #3a3a36; border-radius: 4px; position: relative; display: flex; align-items: center; justify-content: center; }
   .cell.placeable { cursor: pointer; outline: 2px solid #6cc4ff; outline-offset: -2px; }
+  .cell.placeable:hover { background: #45554a; }
   .pillar { width: 70%; height: 70%; background: #6e6c5c; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #2a2a2a; }
-  .furniture { position: absolute; background: #8b5a3c; border: 2px solid #6e4327; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff5e0; font-size: 22px; cursor: grab; z-index: 2; transition: top 0.25s ease, left 0.25s ease; }
-  .furniture:active { cursor: grabbing; }
-  .furniture.preview-ghost { opacity: 0.45; background: #a06a44; }
-  .tower { position: absolute; pointer-events: none; font-size: 26px; text-shadow: 0 0 4px black; z-index: 3; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+
+  .furniture { position: absolute; background: #8b5a3c; border: 2px solid #6e4327; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff5e0; font-size: 22px; cursor: pointer; z-index: 3; transition: left var(--anim) ease, top var(--anim) ease, opacity 0.15s; }
+  .furniture:hover { box-shadow: 0 0 0 2px #c25434; }
+  .furniture.selected { box-shadow: 0 0 0 3px #f5d272; opacity: 0.55; }
+  .furniture.hidden-by-tab { opacity: 0; }
+
+  .ghost-arrow { position: absolute; background: rgba(245,210,114,0.18); border: 2px dashed #f5d272; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #f5d272; font-size: 24px; font-weight: bold; z-index: 4; cursor: pointer; animation: pulse 1.4s infinite; }
+  .ghost-arrow:hover { background: rgba(245,210,114,0.4); }
+  @keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+
+  .tower { position: absolute; pointer-events: none; font-size: 26px; text-shadow: 0 0 4px black; z-index: 5; display: flex; align-items: center; justify-content: center; }
   .tower.broad { color: #ff5c5c; }
   .tower.single { color: #5cc4ff; }
-  .roach { position: absolute; font-size: 22px; pointer-events: none; opacity: 0; transition: opacity 0.15s, top 0.4s, left 0.4s; z-index: 4; }
-  .roach.show { opacity: 1; }
-  .roach-count { position: absolute; top: 2px; right: 4px; font-size: 10px; background: #c25434; color: white; padding: 1px 5px; border-radius: 8px; z-index: 5; display: none; }
-  .roach-count.show { display: block; }
+  .tower.firing { animation: firing 0.2s ease; }
+  @keyframes firing { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.4); } }
 
-  /* 하단 패널 */
-  .bottombar { display: flex; gap: 8px; padding: 10px; background: #262626; border-radius: 6px; align-items: center; }
-  .card { background: #353532; border: 2px solid #555; border-radius: 6px; padding: 8px 12px; cursor: pointer; flex: 1; text-align: center; }
+  .roach { position: absolute; font-size: 22px; pointer-events: none; z-index: 6; display: flex; align-items: center; justify-content: center; transition: left var(--anim) ease, top var(--anim) ease, opacity 0.3s; }
+  .roach.dying { opacity: 0; transform: translateY(-30px); transition: opacity 0.4s, transform 0.4s; }
+
+  .broad-pulse { position: absolute; border: 3px solid #ff5c5c; border-radius: 50%; pointer-events: none; z-index: 4; animation: broadPulse 0.4s ease-out forwards; }
+  @keyframes broadPulse { 0% { transform: scale(0.3); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
+
+  .single-shot { position: absolute; height: 2px; background: #5cc4ff; pointer-events: none; z-index: 4; transform-origin: 0 50%; animation: singleShot 0.15s ease-out forwards; }
+  @keyframes singleShot { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+  .bottombar { display: flex; gap: 8px; padding: 10px; background: #262626; border-radius: 6px; align-items: stretch; }
+  .card { background: #353532; border: 2px solid #555; border-radius: 6px; padding: 8px 10px; flex: 1; text-align: center; cursor: pointer; }
   .card.selected { border-color: #f5d272; background: #4a4232; }
   .card.disabled { opacity: 0.4; cursor: not-allowed; }
   .card.placed { opacity: 0.3; cursor: not-allowed; text-decoration: line-through; }
   .card .name { font-size: 13px; color: #fff; font-weight: 600; }
   .card .desc { font-size: 10px; color: #aaa; margin-top: 2px; }
+  .btn-stack { display: flex; flex-direction: column; gap: 4px; min-width: 84px; }
+  .btn-stack .btn { padding: 7px 10px; }
 
-  /* 결과 화면 */
   #screen-cleared { align-items: center; justify-content: center; min-height: 70vh; gap: 16px; }
   #screen-cleared .big { font-size: 48px; }
   #screen-cleared h2 { font-size: 26px; margin: 0; }
   #screen-cleared .stat { color: #f5d272; font-size: 18px; }
   #screen-cleared .bonus { color: #6cffaa; font-size: 14px; }
-
-  /* 미리보기 알림 */
-  .preview-banner { background: #3a3320; color: #f5d272; padding: 6px 10px; border-radius: 4px; font-size: 12px; text-align: center; min-height: 14px; }
 </style>
 </head>
 <body>
@@ -72,9 +90,9 @@
 
   <div id="screen-start" class="screen on">
     <h1>🪳 Roach Exterminator</h1>
-    <p>가구를 밀어 바퀴벌레를 한곳에 몰아넣고 박멸하라.<br>데모 1판 (3판 중 1판) · 룰 익히기 단계.</p>
+    <p>가구를 밀어 바퀴벌레를 한곳에 몰아넣고 박멸하라.<br>데모 1판 v2 (3판 중 1판)</p>
     <button class="btn" id="btn-start">Start</button>
-    <p style="font-size:12px;color:#666;margin-top:24px;">Tab 키를 누르고 있으면 바퀴 위치가 보입니다.</p>
+    <p style="font-size:12px;color:#666;margin-top:24px;">Tab 키를 누르고 있으면 가구가 사라지고 숨은 바퀴가 보입니다.</p>
   </div>
 
   <div id="screen-game" class="screen">
@@ -83,11 +101,19 @@
         <span>R<b id="hud-round">1</b></span>
         <span>이동 <b id="hud-moves">0</b>/6</span>
         <span>코스트 <b id="hud-cost">0</b>/2</span>
+        <span>바퀴 <b id="hud-roach">4</b>/4</span>
       </div>
-      <div class="tabhint" id="hud-tab">Tab=숨김</div>
+      <div class="right">
+        <div class="speed-toggle">
+          <button data-speed="slow">느림</button>
+          <button data-speed="normal" class="on">중간</button>
+          <button data-speed="fast">빠름</button>
+        </div>
+        <span class="tabhint" id="hud-tab">Tab=숨김</span>
+      </div>
     </div>
 
-    <div class="preview-banner" id="preview-banner">&nbsp;</div>
+    <div class="guide-bar" id="guide">가구를 클릭해 도착 칸을 선택하세요 (또는 타워 카드 먼저)</div>
 
     <div class="board-wrap">
       <div class="board" id="board"></div>
@@ -102,8 +128,10 @@
         <div class="name">▲ 단일연사 (1)</div>
         <div class="desc">사거리2·1턴 2발</div>
       </div>
-      <button class="btn" id="btn-execute" disabled>실행</button>
-      <button class="btn ghost" id="btn-reset">리셋</button>
+      <div class="btn-stack">
+        <button class="btn" id="btn-execute" disabled>실행<span class="key">Enter</span></button>
+        <button class="btn ghost" id="btn-reset">다시하기</button>
+      </div>
     </div>
   </div>
 
@@ -128,9 +156,15 @@ const CELL = 56;
 const GAP = 3;
 const PAD = 6;
 
+const SPEED = {
+  slow:   { anim: 0.7,  attack: 0.4 },
+  normal: { anim: 0.35, attack: 0.2 },
+  fast:   { anim: 0.18, attack: 0.1 }
+};
+
 function initialState() {
   return {
-    phase: "start",
+    phase: "playing",
     round: 1,
     moves: 0,
     costUsed: 0,
@@ -152,7 +186,11 @@ function initialState() {
     towers: [],
     tabHeld: false,
     selectedCard: null,
-    preview: null
+    selectedFur: null,
+    chosenDir: null,
+    speed: "normal",
+    locked: false,
+    initialRoachCount: 4
   };
 }
 
@@ -164,18 +202,12 @@ function showScreen(name) {
   $("screen-"+name).classList.add("on");
 }
 
-function isPillar(r, c) {
-  return state.pillars.some(([pr, pc]) => pr === r && pc === c);
-}
-function isTower(r, c) {
-  return state.towers.some(t => t.row === r && t.col === c);
-}
+function isPillar(r, c) { return state.pillars.some(([pr, pc]) => pr === r && pc === c); }
+function isTower(r, c) { return state.towers.some(t => t.row === r && t.col === c); }
 function furnitureAt(r, c, exceptId) {
   return state.furniture.find(f => f.id !== exceptId && f.cells.some(([fr, fc]) => fr === r && fc === c));
 }
-function inBounds(r, c) {
-  return r >= 0 && r < GRID && c >= 0 && c < GRID;
-}
+function inBounds(r, c) { return r >= 0 && r < GRID && c >= 0 && c < GRID; }
 function cellBlocked(r, c, exceptFurId) {
   if (!inBounds(r, c)) return true;
   if (isPillar(r, c)) return true;
@@ -184,7 +216,7 @@ function cellBlocked(r, c, exceptFurId) {
   return false;
 }
 
-function slideFurniture(fur, dr, dc, exceptId) {
+function slideFurniture(fur, dr, dc) {
   if (dr === 0 && dc === 0) return fur.cells.map(([r, c]) => [r, c]);
   let cells = fur.cells.map(([r, c]) => [r, c]);
   while (true) {
@@ -193,7 +225,7 @@ function slideFurniture(fur, dr, dc, exceptId) {
       if (!inBounds(r, c)) return true;
       if (isPillar(r, c)) return true;
       if (isTower(r, c)) return true;
-      const owner = state.furniture.find(f => f.id !== exceptId && f.cells.some(([fr, fc]) => fr === r && fc === c));
+      const owner = state.furniture.find(f => f.id !== fur.id && f.cells.some(([fr, fc]) => fr === r && fc === c));
       if (owner) return true;
       return false;
     });
@@ -203,9 +235,7 @@ function slideFurniture(fur, dr, dc, exceptId) {
   return cells;
 }
 
-function euclid(r1, c1, r2, c2) {
-  return Math.sqrt((r1-r2)**2 + (c1-c2)**2);
-}
+function euclid(r1, c1, r2, c2) { return Math.sqrt((r1-r2)**2 + (c1-c2)**2); }
 
 function pickHidingFurniture(roach) {
   const candidates = state.furniture.filter(f => f.id !== roach.under);
@@ -224,29 +254,230 @@ function pickHidingFurniture(roach) {
   return best;
 }
 
-function pickAnyClosestFurniture(roach) {
-  let best = null;
-  for (const f of state.furniture) {
-    for (const [fr, fc] of f.cells) {
-      const d = euclid(roach.row, roach.col, fr, fc);
-      if (!best || d < best.dist || (d === best.dist && f.id < best.fur.id)) {
-        best = { fur: f, cell: [fr, fc], dist: d };
-      }
-    }
-  }
-  return best;
-}
-
 function towerInRange(tower, roach) {
   return euclid(tower.row, tower.col, roach.row, roach.col) <= 2;
 }
 
+function showBanner(text, cls) {
+  const g = $("guide");
+  g.textContent = text;
+  g.className = "guide-bar" + (cls ? " " + cls : "");
+}
+
+function cellPx(r, c) {
+  return {
+    left: PAD + c * (CELL + GAP),
+    top: PAD + r * (CELL + GAP)
+  };
+}
+
+function furBoundingBox(cells) {
+  const rs = cells.map(([r]) => r);
+  const cs = cells.map(([, c]) => c);
+  const minR = Math.min(...rs), maxR = Math.max(...rs);
+  const minC = Math.min(...cs), maxC = Math.max(...cs);
+  return {
+    left: PAD + minC * (CELL + GAP),
+    top: PAD + minR * (CELL + GAP),
+    width: (maxC - minC + 1) * CELL + (maxC - minC) * GAP,
+    height: (maxR - minR + 1) * CELL + (maxR - minR) * GAP,
+    minR, maxR, minC, maxC
+  };
+}
+
+function setAnimVar() {
+  const s = SPEED[state.speed];
+  document.documentElement.style.setProperty("--anim", s.anim + "s");
+}
+
+function renderTopbar() {
+  $("hud-round").textContent = state.round;
+  $("hud-moves").textContent = state.moves;
+  $("hud-cost").textContent = state.costUsed;
+  const aliveCount = state.roaches.filter(r => r.alive).length;
+  $("hud-roach").textContent = aliveCount;
+  $("hud-tab").textContent = state.tabHeld ? "Tab=보임" : "Tab=숨김";
+  $("hud-tab").classList.toggle("on", state.tabHeld);
+  document.querySelectorAll(".speed-toggle button").forEach(b => {
+    b.classList.toggle("on", b.dataset.speed === state.speed);
+  });
+}
+
+function renderBoard() {
+  const board = $("board");
+  board.innerHTML = "";
+
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      if (isPillar(r, c)) {
+        const p = document.createElement("div");
+        p.className = "pillar";
+        p.textContent = "▣";
+        cell.appendChild(p);
+      }
+      if (state.selectedCard !== null && !state.locked) {
+        if (!cellBlocked(r, c, -1)) {
+          cell.classList.add("placeable");
+          cell.addEventListener("click", () => placeTower(r, c));
+        }
+      }
+      board.appendChild(cell);
+    }
+  }
+
+  for (const t of state.towers) {
+    const tw = document.createElement("div");
+    tw.className = "tower " + t.type;
+    tw.textContent = "▲";
+    const { left, top } = cellPx(t.row, t.col);
+    tw.style.cssText = `left:${left}px;top:${top}px;width:${CELL}px;height:${CELL}px;`;
+    tw.id = `tower-${t.row}-${t.col}`;
+    board.appendChild(tw);
+  }
+
+  for (const fur of state.furniture) {
+    const bb = furBoundingBox(fur.cells);
+    const div = document.createElement("div");
+    div.className = "furniture";
+    if (state.selectedFur === fur.id) div.classList.add("selected");
+    if (state.tabHeld) div.classList.add("hidden-by-tab");
+    div.style.cssText = `left:${bb.left}px;top:${bb.top}px;width:${bb.width}px;height:${bb.height}px;`;
+    div.textContent = "□";
+    div.id = `fur-${fur.id}`;
+    if (!state.locked) {
+      div.addEventListener("click", (e) => { e.stopPropagation(); selectFurniture(fur.id); });
+    }
+    board.appendChild(div);
+  }
+
+  if (state.selectedFur !== null && !state.locked) {
+    const fur = state.furniture.find(f => f.id === state.selectedFur);
+    const dirs = [[-1,0,"↑"],[1,0,"↓"],[0,-1,"←"],[0,1,"→"]];
+    for (const [dr, dc, arrow] of dirs) {
+      const target = slideFurniture(fur, dr, dc);
+      if (JSON.stringify(target) === JSON.stringify(fur.cells)) continue;
+      const bb = furBoundingBox(target);
+      const ghost = document.createElement("div");
+      ghost.className = "ghost-arrow";
+      ghost.style.cssText = `left:${bb.left}px;top:${bb.top}px;width:${bb.width}px;height:${bb.height}px;`;
+      ghost.textContent = arrow;
+      const key = `${dr},${dc}`;
+      ghost.dataset.dir = key;
+      ghost.addEventListener("click", (e) => { e.stopPropagation(); chooseDestination(dr, dc); });
+      board.appendChild(ghost);
+    }
+  }
+
+  for (const roach of state.roaches) {
+    if (!roach.alive) continue;
+    const { left, top } = cellPx(roach.row, roach.col);
+    const r = document.createElement("div");
+    r.className = "roach";
+    r.textContent = "🪳";
+    r.id = `roach-${roach.id}`;
+    const visible = !roach.hidden || state.tabHeld;
+    r.style.cssText = `left:${left}px;top:${top}px;width:${CELL}px;height:${CELL}px;opacity:${visible ? 1 : 0};`;
+    board.appendChild(r);
+  }
+}
+
+function render() {
+  setAnimVar();
+  renderTopbar();
+  renderBoard();
+  renderCards();
+  updateGuide();
+}
+
+function renderCards() {
+  const broadCard = $("card-broad");
+  const singleCard = $("card-single");
+  broadCard.classList.toggle("placed", state.hand[0].placed);
+  singleCard.classList.toggle("placed", state.hand[1].placed);
+  broadCard.classList.toggle("selected", state.selectedCard === 0);
+  singleCard.classList.toggle("selected", state.selectedCard === 1);
+  broadCard.classList.toggle("disabled", !state.hand[0].placed && state.costUsed + 2 > COST_LIMIT);
+  singleCard.classList.toggle("disabled", !state.hand[1].placed && state.costUsed + 1 > COST_LIMIT);
+  $("btn-execute").disabled = !(state.selectedFur !== null && state.chosenDir !== null) || state.locked;
+}
+
+function updateGuide() {
+  if (state.locked) { showBanner("진행 중... 잠시만요", "lock"); return; }
+  if (state.selectedCard !== null) {
+    const t = state.selectedCard === 0 ? "광범위" : "단일연사";
+    showBanner(`타워(${t}) 둘 칸을 클릭하세요 — ESC로 취소`);
+    return;
+  }
+  if (state.selectedFur !== null) {
+    if (state.chosenDir !== null) {
+      showBanner("도착 위치 확정 — Enter 또는 실행 버튼");
+    } else {
+      const n = state.selectedFur + 1;
+      showBanner(`가구 ${n} 선택됨 — 4방향 도착 칸 중 하나 클릭 (ESC 취소)`);
+    }
+    return;
+  }
+  showBanner("가구를 클릭해 도착 칸을 선택하세요 (또는 타워 카드 먼저)");
+}
+
+function selectFurniture(id) {
+  if (state.locked) return;
+  if (state.selectedCard !== null) return;
+  if (state.selectedFur === id) {
+    state.selectedFur = null;
+    state.chosenDir = null;
+  } else {
+    state.selectedFur = id;
+    state.chosenDir = null;
+  }
+  render();
+}
+
+function chooseDestination(dr, dc) {
+  if (state.locked) return;
+  state.chosenDir = { dr, dc };
+  applyTurn();
+}
+
+function onCardClick(idx) {
+  if (state.locked) return;
+  const card = state.hand[idx];
+  if (card.placed) return;
+  if (state.costUsed + card.cost > COST_LIMIT) {
+    showBanner("코스트 부족", "lock");
+    setTimeout(updateGuide, 800);
+    return;
+  }
+  if (state.selectedFur !== null) state.selectedFur = null;
+  state.selectedCard = (state.selectedCard === idx) ? null : idx;
+  render();
+}
+
+function placeTower(r, c) {
+  if (state.locked) return;
+  if (state.selectedCard === null) return;
+  const card = state.hand[state.selectedCard];
+  if (card.placed) return;
+  if (state.costUsed + card.cost > COST_LIMIT) return;
+  if (cellBlocked(r, c, -1)) return;
+  state.towers.push({ type: card.type, row: r, col: c });
+  state.costUsed += card.cost;
+  card.placed = true;
+  state.selectedCard = null;
+  render();
+}
+
 function fireTowers() {
+  const events = [];
   for (const t of state.towers) {
     if (t.type === "broad") {
       const targets = state.roaches.filter(r => r.alive && !r.hidden && towerInRange(t, r));
+      events.push({ type: "broad", tower: t, targets: targets.slice() });
       for (const r of targets) r.alive = false;
     } else if (t.type === "single") {
+      const shots = [];
       for (let shot = 0; shot < 2; shot++) {
         const targets = state.roaches.filter(r => r.alive && !r.hidden && towerInRange(t, r));
         if (targets.length === 0) break;
@@ -257,46 +488,88 @@ function fireTowers() {
           return a.id - b.id;
         });
         targets[0].alive = false;
+        shots.push(targets[0]);
+      }
+      if (shots.length > 0) events.push({ type: "single", tower: t, shots });
+    }
+  }
+  return events;
+}
+
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function animateAttacks(events) {
+  const board = $("board");
+  const s = SPEED[state.speed];
+  for (const ev of events) {
+    if (ev.type === "broad") {
+      const { left, top } = cellPx(ev.tower.row, ev.tower.col);
+      const pulse = document.createElement("div");
+      pulse.className = "broad-pulse";
+      pulse.style.cssText = `left:${left - CELL}px;top:${top - CELL}px;width:${CELL*3}px;height:${CELL*3}px;`;
+      pulse.style.animationDuration = (s.attack * 2) + "s";
+      board.appendChild(pulse);
+      const tw = document.getElementById(`tower-${ev.tower.row}-${ev.tower.col}`);
+      if (tw) { tw.classList.add("firing"); setTimeout(() => tw.classList.remove("firing"), s.attack * 1000); }
+      for (const target of ev.targets) {
+        const re = document.getElementById(`roach-${target.id}`);
+        if (re) re.classList.add("dying");
+      }
+      await sleep(s.attack * 1000);
+    } else if (ev.type === "single") {
+      for (const target of ev.shots) {
+        const tp = cellPx(ev.tower.row, ev.tower.col);
+        const rp = cellPx(target.row, target.col);
+        const dx = (rp.left + CELL/2) - (tp.left + CELL/2);
+        const dy = (rp.top + CELL/2) - (tp.top + CELL/2);
+        const len = Math.hypot(dx, dy);
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        const beam = document.createElement("div");
+        beam.className = "single-shot";
+        beam.style.cssText = `left:${tp.left + CELL/2}px;top:${tp.top + CELL/2}px;width:${len}px;transform:rotate(${angle}deg);`;
+        beam.style.animationDuration = (s.attack * 1.5) + "s";
+        board.appendChild(beam);
+        const tw = document.getElementById(`tower-${ev.tower.row}-${ev.tower.col}`);
+        if (tw) { tw.classList.add("firing"); setTimeout(() => tw.classList.remove("firing"), s.attack * 800); }
+        const re = document.getElementById(`roach-${target.id}`);
+        if (re) re.classList.add("dying");
+        await sleep(s.attack * 500);
       }
     }
   }
+  await sleep(s.attack * 500);
 }
 
-function buildPreview(furId, dr, dc) {
-  const fur = state.furniture.find(f => f.id === furId);
-  if (!fur) return null;
-  const newCells = slideFurniture(fur, dr, dc, fur.id);
-  const moved = JSON.stringify(newCells) !== JSON.stringify(fur.cells);
-  return { furId, newCells, moved };
-}
+async function applyTurn() {
+  if (state.selectedFur === null || state.chosenDir === null) return;
+  state.locked = true;
+  render();
 
-function applyTurn() {
-  if (!state.preview) return;
-  if (!state.preview.moved) {
-    state.preview = null;
+  const fur = state.furniture.find(f => f.id === state.selectedFur);
+  const target = slideFurniture(fur, state.chosenDir.dr, state.chosenDir.dc);
+  if (JSON.stringify(target) === JSON.stringify(fur.cells)) {
+    state.locked = false;
+    state.chosenDir = null;
+    state.selectedFur = null;
     render();
     return;
   }
 
-  const fur = state.furniture.find(f => f.id === state.preview.furId);
-  fur.cells = state.preview.newCells;
+  const oldCells = fur.cells;
+  fur.cells = target;
+  render();
+  const s = SPEED[state.speed];
+  await sleep(s.anim * 1000 + 50);
 
-  const exposed = state.roaches.filter(r => r.alive && r.under === fur.id && !state.preview.newCells.some(([nr, nc]) => nr === r.row && nc === r.col));
-
-  for (const r of exposed) {
-    r.hidden = false;
-  }
+  const exposed = state.roaches.filter(r => r.alive && r.under === fur.id && !target.some(([nr, nc]) => nr === r.row && nc === r.col));
+  for (const r of exposed) r.hidden = false;
+  render();
+  await sleep(120);
 
   const moveResults = [];
   for (const r of exposed) {
-    let hide = pickHidingFurniture(r);
-    if (!hide) {
-      const others = state.furniture.filter(f => f.id !== r.under);
-      if (others.length === 0) hide = pickAnyClosestFurniture(r);
-    }
-    if (hide) {
-      moveResults.push({ roach: r, target: hide });
-    }
+    const hide = pickHidingFurniture(r);
+    if (hide) moveResults.push({ roach: r, target: hide });
   }
 
   for (const mv of moveResults) {
@@ -304,8 +577,11 @@ function applyTurn() {
     mv.roach.col = mv.target.cell[1];
     mv.roach.under = null;
   }
+  render();
+  await sleep(s.anim * 1000 + 50);
 
-  fireTowers();
+  const events = fireTowers();
+  await animateAttacks(events);
 
   for (const mv of moveResults) {
     if (mv.roach.alive) {
@@ -317,256 +593,55 @@ function applyTurn() {
   }
 
   state.moves += 1;
-  state.preview = null;
+  state.selectedFur = null;
+  state.chosenDir = null;
+  state.locked = false;
 
   if (state.roaches.every(r => !r.alive)) {
     state.phase = "cleared";
     showScreen("cleared");
     const remain = MOVES_LIMIT - state.moves;
     $("result-remain").textContent = remain;
-    $("result-bonus").textContent = (state.moves <= BONUS_THRESHOLD) ? "보너스! 절반 이하 사용으로 클리어 (카드팩 +1)" : " ";
+    $("result-bonus").textContent = (state.moves <= BONUS_THRESHOLD) ? "보너스! 절반 이하 사용으로 클리어 (카드팩 +1)" : " ";
     return;
   }
 
   render();
 }
 
-function placeTower(r, c) {
-  if (state.selectedCard === null) return;
-  const card = state.hand[state.selectedCard];
-  if (card.placed) return;
-  if (state.costUsed + card.cost > COST_LIMIT) {
-    showBanner("코스트 한도 초과");
-    return;
-  }
-  if (cellBlocked(r, c, -1)) {
-    showBanner("이 칸에는 둘 수 없어요");
-    return;
-  }
-  state.towers.push({ type: card.type, row: r, col: c });
-  state.costUsed += card.cost;
-  card.placed = true;
-  state.selectedCard = null;
-  showBanner("타워 배치 완료 — 회수 불가");
+function resetGame() {
+  state = initialState();
+  showScreen("game");
+  setAnimVar();
   render();
-}
-
-function showBanner(text) {
-  $("preview-banner").textContent = text || " ";
-}
-
-let dragState = null;
-
-function onFurnitureMouseDown(e, furId) {
-  if (state.preview) {
-    showBanner("이미 미리보기 중. 실행하거나 다른 가구를 선택하기 전에 확정하세요.");
-    return;
-  }
-  if (state.moves >= MOVES_LIMIT) {
-    showBanner("이동 횟수 다 썼어요");
-    return;
-  }
-  dragState = { furId, startX: e.clientX, startY: e.clientY };
-  e.preventDefault();
-}
-
-function onMouseUp(e) {
-  if (!dragState) return;
-  const dx = e.clientX - dragState.startX;
-  const dy = e.clientY - dragState.startY;
-  const absX = Math.abs(dx), absY = Math.abs(dy);
-  if (Math.max(absX, absY) < 12) { dragState = null; return; }
-  let dr = 0, dc = 0;
-  if (absX > absY) dc = dx > 0 ? 1 : -1;
-  else dr = dy > 0 ? 1 : -1;
-  state.preview = buildPreview(dragState.furId, dr, dc);
-  dragState = null;
-  if (state.preview && state.preview.moved) {
-    showBanner("미리보기: 실행 누르면 가구가 이동 + 바퀴 도망 + 타워 공격");
-  } else {
-    showBanner("그 방향으론 못 움직여요 (벽·기둥·다른 가구)");
-    state.preview = null;
-  }
-  render();
-}
-
-function onCellClick(r, c) {
-  if (state.selectedCard !== null) {
-    placeTower(r, c);
-  }
-}
-
-function onCardClick(idx) {
-  const card = state.hand[idx];
-  if (card.placed) return;
-  if (state.costUsed + card.cost > COST_LIMIT) {
-    showBanner("코스트 부족 — 이 카드 못 깔아요");
-    return;
-  }
-  state.selectedCard = (state.selectedCard === idx) ? null : idx;
-  render();
-}
-
-function render() {
-  $("hud-round").textContent = state.round;
-  $("hud-moves").textContent = state.moves;
-  $("hud-cost").textContent = state.costUsed;
-
-  const tabhint = $("hud-tab");
-  tabhint.textContent = state.tabHeld ? "Tab=보임" : "Tab=숨김";
-  tabhint.classList.toggle("on", state.tabHeld);
-
-  const board = $("board");
-  board.innerHTML = "";
-  for (let r = 0; r < GRID; r++) {
-    for (let c = 0; c < GRID; c++) {
-      const cell = document.createElement("div");
-      cell.className = "cell";
-      if (isPillar(r, c)) {
-        const p = document.createElement("div");
-        p.className = "pillar";
-        p.textContent = "▣";
-        cell.appendChild(p);
-      }
-      if (state.selectedCard !== null) {
-        const blocked = cellBlocked(r, c, -1);
-        if (!blocked) cell.classList.add("placeable");
-      }
-      cell.addEventListener("click", () => onCellClick(r, c));
-      board.appendChild(cell);
-    }
-  }
-
-  for (const t of state.towers) {
-    const cellIdx = t.row * GRID + t.col;
-    const cell = board.children[cellIdx];
-    const tw = document.createElement("div");
-    tw.className = "tower " + t.type;
-    tw.textContent = "▲";
-    cell.appendChild(tw);
-  }
-
-  for (const fur of state.furniture) {
-    const rs = fur.cells.map(([r]) => r);
-    const cs = fur.cells.map(([, c]) => c);
-    const minR = Math.min(...rs), maxR = Math.max(...rs);
-    const minC = Math.min(...cs), maxC = Math.max(...cs);
-    const w = (maxC - minC + 1) * CELL + (maxC - minC) * GAP;
-    const h = (maxR - minR + 1) * CELL + (maxR - minR) * GAP;
-    const left = PAD + minC * (CELL + GAP);
-    const top = PAD + minR * (CELL + GAP);
-    const div = document.createElement("div");
-    div.className = "furniture";
-    div.style.width = w + "px";
-    div.style.height = h + "px";
-    div.style.left = left + "px";
-    div.style.top = top + "px";
-    div.textContent = "□";
-    div.addEventListener("mousedown", (e) => onFurnitureMouseDown(e, fur.id));
-    div.addEventListener("touchstart", (e) => {
-      const touch = e.touches[0];
-      onFurnitureMouseDown({ clientX: touch.clientX, clientY: touch.clientY, preventDefault: () => e.preventDefault() }, fur.id);
-    });
-    board.appendChild(div);
-  }
-
-  if (state.preview && state.preview.moved) {
-    const fur = state.furniture.find(f => f.id === state.preview.furId);
-    if (fur) {
-      const rs = state.preview.newCells.map(([r]) => r);
-      const cs = state.preview.newCells.map(([, c]) => c);
-      const minR = Math.min(...rs), maxR = Math.max(...rs);
-      const minC = Math.min(...cs), maxC = Math.max(...cs);
-      const w = (maxC - minC + 1) * CELL + (maxC - minC) * GAP;
-      const h = (maxR - minR + 1) * CELL + (maxR - minR) * GAP;
-      const left = PAD + minC * (CELL + GAP);
-      const top = PAD + minR * (CELL + GAP);
-      const ghost = document.createElement("div");
-      ghost.className = "furniture preview-ghost";
-      ghost.style.width = w + "px";
-      ghost.style.height = h + "px";
-      ghost.style.left = left + "px";
-      ghost.style.top = top + "px";
-      ghost.textContent = "□";
-      board.appendChild(ghost);
-    }
-  }
-
-  for (const roach of state.roaches) {
-    if (!roach.alive) continue;
-    const cellIdx = roach.row * GRID + roach.col;
-    const cell = board.children[cellIdx];
-    const r = document.createElement("div");
-    r.className = "roach" + (state.tabHeld ? " show" : "");
-    r.textContent = "🪳";
-    cell.appendChild(r);
-  }
-
-  if (state.tabHeld) {
-    for (const fur of state.furniture) {
-      let count = 0;
-      for (const roach of state.roaches) {
-        if (roach.alive && roach.under === fur.id) count++;
-      }
-      if (count > 0) {
-        const [minR, minC] = fur.cells[0];
-        const cellIdx = minR * GRID + minC;
-        const cell = board.children[cellIdx];
-        const badge = document.createElement("div");
-        badge.className = "roach-count show";
-        badge.textContent = "🪳×" + count;
-        cell.appendChild(badge);
-      }
-    }
-  }
-
-  const broadCard = $("card-broad");
-  const singleCard = $("card-single");
-  broadCard.classList.toggle("placed", state.hand[0].placed);
-  singleCard.classList.toggle("placed", state.hand[1].placed);
-  broadCard.classList.toggle("selected", state.selectedCard === 0);
-  singleCard.classList.toggle("selected", state.selectedCard === 1);
-  broadCard.classList.toggle("disabled", !state.hand[0].placed && state.costUsed + 2 > COST_LIMIT);
-  singleCard.classList.toggle("disabled", !state.hand[1].placed && state.costUsed + 1 > COST_LIMIT);
-
-  $("btn-execute").disabled = !(state.preview && state.preview.moved);
 }
 
 function bindEvents() {
   $("btn-start").addEventListener("click", () => {
-    state.phase = "playing";
     showScreen("game");
+    setAnimVar();
     render();
   });
-  $("btn-execute").addEventListener("click", () => {
-    if (state.preview && state.preview.moved) applyTurn();
-  });
-  $("btn-reset").addEventListener("click", () => {
-    state = initialState();
-    state.phase = "playing";
-    showScreen("game");
-    render();
-    showBanner(" ");
-  });
-  $("btn-retry").addEventListener("click", () => {
-    state = initialState();
-    state.phase = "playing";
-    showScreen("game");
-    render();
-    showBanner(" ");
-  });
+  $("btn-execute").addEventListener("click", () => { if (state.selectedFur !== null && state.chosenDir !== null) applyTurn(); });
+  $("btn-reset").addEventListener("click", resetGame);
+  $("btn-retry").addEventListener("click", resetGame);
   $("card-broad").addEventListener("click", () => onCardClick(0));
   $("card-single").addEventListener("click", () => onCardClick(1));
-  document.addEventListener("mouseup", onMouseUp);
-  document.addEventListener("touchend", (e) => {
-    if (!dragState) return;
-    const touch = e.changedTouches[0];
-    onMouseUp({ clientX: touch.clientX, clientY: touch.clientY });
+  document.querySelectorAll(".speed-toggle button").forEach(b => {
+    b.addEventListener("click", () => { state.speed = b.dataset.speed; setAnimVar(); render(); });
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Tab") {
       e.preventDefault();
       if (!state.tabHeld) { state.tabHeld = true; render(); }
+    } else if (e.key === "Enter") {
+      if (state.selectedFur !== null && state.chosenDir !== null && !state.locked) applyTurn();
+    } else if (e.key === "Escape") {
+      if (state.locked) return;
+      state.selectedCard = null;
+      state.selectedFur = null;
+      state.chosenDir = null;
+      render();
     }
   });
   document.addEventListener("keyup", (e) => {
@@ -575,13 +650,13 @@ function bindEvents() {
       if (state.tabHeld) { state.tabHeld = false; render(); }
     }
   });
-  window.addEventListener("blur", () => { state.tabHeld = false; render(); });
+  window.addEventListener("blur", () => { if (state.tabHeld) { state.tabHeld = false; render(); } });
 }
 
 bindEvents();
+setAnimVar();
 showScreen("start");
 
-// self-check mode (?check=1=정적, ?check=2=동적 시나리오)
 if (location.search.includes("check=")) {
   const errors = [];
   window.addEventListener("error", e => errors.push("ERR:"+e.message));
@@ -597,87 +672,138 @@ if (location.search.includes("check=")) {
     const initialUnder1 = state.roaches.filter(r => r.under === 1 && r.alive).length;
 
     let dyn = "";
+
     if (location.search.includes("check=2")) {
-      // 시나리오: 광범위 (2,5) 배치 → 가구 1을 아래로 슬라이딩
       state.selectedCard = 0;
       placeTower(2, 5);
       const broadPlaced = state.towers.length === 1 && state.towers[0].type === "broad";
-      const costAfterBroad = state.costUsed;
-      // 광범위 깐 뒤 단일 시도 → 코스트 부족이라 막혀야
-      state.selectedCard = 1;
-      const before = state.towers.length;
-      placeTower(0, 0);
-      const blockedSingle = state.towers.length === before;
-      state.selectedCard = null;
-      // 가구 1 (id=0) 아래로 슬라이딩
-      state.preview = buildPreview(0, 1, 0);
-      const previewMoved = !!(state.preview && state.preview.moved);
-      applyTurn();
+      const cost = state.costUsed;
+      state.selectedFur = 0;
+      state.chosenDir = { dr: 1, dc: 0 };
+      const fur = state.furniture[0];
+      const newCells = slideFurniture(fur, 1, 0);
+      fur.cells = newCells;
+      const exposed = state.roaches.filter(r => r.alive && r.under === 0 && !newCells.some(([nr, nc]) => nr === r.row && nc === r.col));
+      for (const r of exposed) r.hidden = false;
+      const moveResults = [];
+      for (const r of exposed) {
+        const hide = pickHidingFurniture(r);
+        if (hide) moveResults.push({ roach: r, target: hide });
+      }
+      for (const mv of moveResults) {
+        mv.roach.row = mv.target.cell[0];
+        mv.roach.col = mv.target.cell[1];
+        mv.roach.under = null;
+      }
+      fireTowers();
+      for (const mv of moveResults) {
+        if (mv.roach.alive) { mv.roach.under = mv.target.fur.id; mv.roach.hidden = true; }
+      }
       const aliveAfter = state.roaches.filter(r => r.alive).length;
-      const cleared = $("screen-cleared").classList.contains("on");
-      dyn = ` broadPlaced=${broadPlaced} cost=${costAfterBroad} blockedSingle=${blockedSingle} preview=${previewMoved} aliveAfter=${aliveAfter} cleared=${cleared}`;
-    }
-
-    if (location.search.includes("check=3")) {
-      // 시나리오: 광범위 (5,5) 배치 (가구 1·2 모두 사거리 밖) → 가구 1 아래로 슬라이딩 → 0마리 처치 확인 (사거리 검증)
-      state.selectedCard = 0;
-      placeTower(5, 5);
-      state.selectedCard = null;
-      state.preview = buildPreview(0, 1, 0);
-      const beforeAlive = state.roaches.filter(r => r.alive).length;
-      applyTurn();
-      const afterAlive = state.roaches.filter(r => r.alive).length;
-      // (5,5)에서 (3,5) 가구2까지 거리=2. 사거리 안. 도망 바퀴 2마리 처치 가능. 가구2 밑 바퀴 hidden이라 안 잡힘
-      // (5,5)에서 (1,1) 가구1 원위치는 무관 (가구1 이미 이동)
-      dyn = ` rangeKill=${beforeAlive - afterAlive}`;
-    }
-
-    if (location.search.includes("check=4")) {
-      // 시나리오: 사거리 멀리 배치 (0,0) → 슬라이딩해도 0마리 처치
-      state.selectedCard = 1;
-      placeTower(0, 0);
-      state.selectedCard = null;
-      state.preview = buildPreview(0, 1, 0);
-      applyTurn();
-      const afterAlive = state.roaches.filter(r => r.alive).length;
-      dyn = ` aliveAfter=${afterAlive} (expected 4, range too far)`;
+      dyn = ` broadPlaced=${broadPlaced} cost=${cost} aliveAfter=${aliveAfter}`;
     }
 
     if (location.search.includes("check=6")) {
-      // 단일공격 연사 (4,5)에 배치 → 가구1 아래 슬라이딩
-      // 가구1 밑 2마리가 가구2(3,5)로 도망 → 새 위치 (3,5)
-      // 단일 (4,5) 사거리: (3,5) 거리 1 안. 1턴 2발 = 두 마리 자동 전환으로 처치
       state.selectedCard = 1;
       placeTower(4, 5);
       const singlePlaced = state.towers.length === 1 && state.towers[0].type === "single";
-      state.selectedCard = null;
-      state.preview = buildPreview(0, 1, 0);
-      applyTurn();
+      const fur = state.furniture[0];
+      const newCells = slideFurniture(fur, 1, 0);
+      fur.cells = newCells;
+      const exposed = state.roaches.filter(r => r.alive && r.under === 0 && !newCells.some(([nr, nc]) => nr === r.row && nc === r.col));
+      for (const r of exposed) r.hidden = false;
+      const moveResults = [];
+      for (const r of exposed) {
+        const hide = pickHidingFurniture(r);
+        if (hide) moveResults.push({ roach: r, target: hide });
+      }
+      for (const mv of moveResults) {
+        mv.roach.row = mv.target.cell[0];
+        mv.roach.col = mv.target.cell[1];
+        mv.roach.under = null;
+      }
+      fireTowers();
+      for (const mv of moveResults) {
+        if (mv.roach.alive) { mv.roach.under = mv.target.fur.id; mv.roach.hidden = true; }
+      }
       const aliveAfter = state.roaches.filter(r => r.alive).length;
-      // 도망 바퀴 2 처치 (단일 2발 자동 전환) → aliveAfter = 2 (가구2 밑 hidden 2)
-      dyn = ` singlePlaced=${singlePlaced} aliveAfter=${aliveAfter} (expected 2: 단일 자동전환 2발)`;
+      dyn = ` singlePlaced=${singlePlaced} aliveAfter=${aliveAfter} (expected 2)`;
     }
 
-    if (location.search.includes("check=5")) {
-      // 시나리오: 한 번 깐 타워 재클릭해도 변동 없음
+    if (location.search.includes("check=7")) {
+      const board = $("board");
+      const furEls = board.querySelectorAll(".furniture");
+      const f0 = furEls[0];
+      const f1 = furEls[1];
+      const f0left = parseFloat(f0.style.left), f0top = parseFloat(f0.style.top);
+      const f1left = parseFloat(f1.style.left), f1top = parseFloat(f1.style.top);
+      const expectedF0left = PAD + 1 * (CELL + GAP);
+      const expectedF0top = PAD + 1 * (CELL + GAP);
+      const expectedF1left = PAD + 5 * (CELL + GAP);
+      const expectedF1top = PAD + 3 * (CELL + GAP);
+      const f0w = parseFloat(f0.style.width), f0h = parseFloat(f0.style.height);
+      const f1w = parseFloat(f1.style.width), f1h = parseFloat(f1.style.height);
+      const expectedF0w = 2*CELL + GAP;
+      const onGrid = f0left === expectedF0left && f0top === expectedF0top && f1left === expectedF1left && f1top === expectedF1top;
+      const correctSize = f0w === expectedF0w && f0h === CELL && f1w === CELL && f1h === CELL;
+      dyn = ` furOnGrid=${onGrid} furSize=${correctSize} f0=(${f0left},${f0top},${f0w}x${f0h}) f1=(${f1left},${f1top},${f1w}x${f1h})`;
+    }
+
+    if (location.search.includes("check=8")) {
+      state.selectedFur = 0;
+      render();
+      const ghosts = $("board").querySelectorAll(".ghost-arrow");
+      const ghostCount = ghosts.length;
+      const dirs = new Set();
+      ghosts.forEach(g => dirs.add(g.dataset.dir));
+      const sizes = Array.from(ghosts).map(g => `${parseFloat(g.style.width)}x${parseFloat(g.style.height)}`);
+      const allSame2x1 = sizes.every(s => s === `${2*CELL+GAP}x${CELL}`);
+      dyn = ` ghostCount=${ghostCount} dirs=${Array.from(dirs).sort().join("|")} allSame2x1=${allSame2x1}`;
+    }
+
+    if (location.search.includes("check=9")) {
+      const aliveCountText = $("hud-roach").textContent;
+      state.tabHeld = true;
+      render();
+      const tabhintOn = $("hud-tab").classList.contains("on");
+      const fur0 = document.getElementById("fur-0");
+      const hiddenByTab = fur0 && fur0.classList.contains("hidden-by-tab");
+      const roachVisible = Array.from(document.querySelectorAll(".roach")).every(r => parseFloat(r.style.opacity) === 1);
+      state.tabHeld = false;
+      render();
+      const tabhintOff = !$("hud-tab").classList.contains("on");
+      const fur0After = document.getElementById("fur-0");
+      const hiddenAfter = fur0After && fur0After.classList.contains("hidden-by-tab");
+      dyn = ` roachCounter=${aliveCountText}/4 tabOn=${tabhintOn} hiddenByTab=${hiddenByTab} roachVisible=${roachVisible} tabOff=${tabhintOff} hiddenAfter=${hiddenAfter}`;
+    }
+
+    if (location.search.includes("check=10")) {
+      const slow = document.querySelector('.speed-toggle button[data-speed="slow"]');
+      slow.click();
+      const animSlow = getComputedStyle(document.documentElement).getPropertyValue("--anim").trim();
+      const fast = document.querySelector('.speed-toggle button[data-speed="fast"]');
+      fast.click();
+      const animFast = getComputedStyle(document.documentElement).getPropertyValue("--anim").trim();
+      const slowOn = slow.classList.contains("on") === false;
+      const fastOn = fast.classList.contains("on");
+      dyn = ` animSlow=${animSlow} animFast=${animFast} slowOn=${slowOn} fastOn=${fastOn}`;
+    }
+
+    if (location.search.includes("check=11")) {
       state.selectedCard = 0;
-      placeTower(2, 5);
-      const t1 = state.towers.length;
-      // 같은 카드 다시 누름 — placed라 클릭 무시
-      onCardClick(0);
-      const stillNullSel = state.selectedCard === null;
-      // 같은 자리에 다시 배치 시도 → 다른 카드로
-      state.selectedCard = 1;
-      placeTower(2, 5);
-      const t2 = state.towers.length;
-      dyn = ` towersAfterReplace=${t2} (expected ${t1}) cardLocked=${stillNullSel}`;
+      render();
+      const card0Selected = $("card-broad").classList.contains("selected");
+      const escEvent = new KeyboardEvent("keydown", { key: "Escape" });
+      document.dispatchEvent(escEvent);
+      const card0AfterEsc = $("card-broad").classList.contains("selected");
+      dyn = ` selectedBefore=${card0Selected} selectedAfterEsc=${card0AfterEsc}`;
     }
 
     document.title = (errors.length ? "ERR " : "OK ") +
       `gameOn=${onGame} cells=${cells} fur=${fur} pillar=${pillar} cards=${cards} roaches=${initialAlive} u0=${initialUnder0} u1=${initialUnder1}${dyn}` +
       (errors.length ? " | " + errors.join("; ") : "");
   } catch(e) {
-    document.title = "FAIL " + e.message + " stack=" + (e.stack ? e.stack.split("\n")[1] : "?");
+    document.title = "FAIL " + e.message + " | " + (e.stack ? e.stack.split("\n").slice(0, 3).join(" / ") : "?");
   }
 }
 </script>
