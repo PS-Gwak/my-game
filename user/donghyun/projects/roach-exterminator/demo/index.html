@@ -412,9 +412,6 @@ function renderBoard() {
     else if (inS) cell.classList.add("range-single");
     if (state.selectedCard !== null && !state.locked && !cellBlocked(r,c,-1)) {
       cell.classList.add("placeable");
-      cell.addEventListener("click", () => placeTower(r,c));
-      cell.addEventListener("mouseenter", () => { state.hoverCell = {r,c}; render(); });
-      cell.addEventListener("mouseleave", () => { if (state.hoverCell && state.hoverCell.r===r && state.hoverCell.c===c) { state.hoverCell = null; render(); } });
     }
     board.appendChild(cell);
   }
@@ -793,7 +790,42 @@ function resetGame() {
   render();
 }
 
+function cellFromMouse(e) {
+  const board = $("board");
+  const rect = board.getBoundingClientRect();
+  const x = e.clientX - rect.left - PAD;
+  const y = e.clientY - rect.top - PAD;
+  const c = Math.floor(x / (CELL + GAP));
+  const r = Math.floor(y / (CELL + GAP));
+  if (r < 0 || r >= GRID || c < 0 || c >= GRID) return null;
+  return { r, c };
+}
+
 function bindEvents() {
+  const board = $("board");
+  board.addEventListener("mousemove", (e) => {
+    if (state.locked) return;
+    if (state.selectedCard === null) return;
+    const cell = cellFromMouse(e);
+    if (!cell || cellBlocked(cell.r, cell.c, -1)) {
+      if (state.hoverCell) { state.hoverCell = null; render(); }
+      return;
+    }
+    if (!state.hoverCell || state.hoverCell.r !== cell.r || state.hoverCell.c !== cell.c) {
+      state.hoverCell = cell;
+      render();
+    }
+  });
+  board.addEventListener("mouseleave", () => {
+    if (state.hoverCell) { state.hoverCell = null; render(); }
+  });
+  board.addEventListener("click", (e) => {
+    if (state.locked) return;
+    if (state.selectedCard === null) return;
+    const cell = cellFromMouse(e);
+    if (!cell || cellBlocked(cell.r, cell.c, -1)) return;
+    placeTower(cell.r, cell.c);
+  });
   $("btn-start").addEventListener("click", () => { showScreen("game"); setAnimVars(); render(); });
   $("btn-execute").addEventListener("click", () => { if (state.selectedFur !== null && state.chosenDir !== null) applyTurn(); });
   $("btn-reset").addEventListener("click", resetGame);
@@ -914,6 +946,20 @@ if (location.search.includes("check=")) {
       document.querySelector('.speed-toggle button[data-speed="fast"]').click();
       const fast = getComputedStyle(document.documentElement).getPropertyValue("--cell-anim").trim();
       dyn = ` slowAnim=${slow} fastAnim=${fast}`;
+    }
+
+    if (location.search.includes("check=place")) {
+      state.selectedCard = 0;
+      render();
+      const board = $("board");
+      const rect = board.getBoundingClientRect();
+      const targetR = 4, targetC = 4;
+      const x = rect.left + PAD + targetC * (CELL + GAP) + CELL/2;
+      const y = rect.top + PAD + targetR * (CELL + GAP) + CELL/2;
+      board.dispatchEvent(new MouseEvent("mousemove", { clientX:x, clientY:y, bubbles:true }));
+      board.dispatchEvent(new MouseEvent("click", { clientX:x, clientY:y, bubbles:true }));
+      const placed = state.towers.length === 1 && state.towers[0].row === targetR && state.towers[0].col === targetC;
+      dyn = ` towers=${state.towers.length} placedAt=(${state.towers[0]?.row},${state.towers[0]?.col}) success=${placed}`;
     }
 
     if (location.search.includes("check=ghost")) {
