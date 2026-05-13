@@ -247,10 +247,9 @@ function slideFurniture(fur, dr, dc) {
 function euclid(r1, c1, r2, c2) { return Math.sqrt((r1-r2)**2 + (c1-c2)**2); }
 
 function pickHidingFurniture(roach) {
-  const candidates = state.furniture.filter(f => f.id!==roach.under);
-  if (candidates.length===0) return null;
+  if (state.furniture.length===0) return null;
   let best = null;
-  for (const f of candidates) {
+  for (const f of state.furniture) {
     let nearestCell=null, nearestDist=Infinity;
     for (const [fr,fc] of f.cells) {
       const d = euclid(roach.row, roach.col, fr, fc);
@@ -953,6 +952,19 @@ if (location.search.includes("check=")) {
       document.querySelector('.speed-toggle button[data-speed="fast"]').click();
       const fast = getComputedStyle(document.documentElement).getPropertyValue("--cell-anim").trim();
       dyn = ` slowAnim=${slow} fastAnim=${fast}`;
+    }
+
+    if (location.search.includes("check=hideRule")) {
+      // 시나리오: 가구2를 (3,5) → (5,5)로 이동, 바퀴는 (3,5) 노출, under=1
+      state.furniture[1].cells = [[5,5]];
+      const r = state.roaches[2];
+      r.hidden = false; r.row = 3; r.col = 5; r.under = 1;
+      const hide = pickHidingFurniture(r);
+      const targetFurId = hide ? hide.fur.id : null;
+      const targetCell = hide ? hide.cell : null;
+      const targetDist = hide ? hide.dist.toFixed(2) : null;
+      // 기대: 가구2 새 위치 (5,5) 거리 2가 가구1 (5,2) 거리 sqrt(13)≈3.6보다 가까움 → 가구2 선택
+      dyn = ` targetFurId=${targetFurId} targetCell=${targetCell} dist=${targetDist} (expect fur 1 cell 5,5 dist 2.00)`;
     }
 
     if (location.search.includes("check=clickcell")) {
