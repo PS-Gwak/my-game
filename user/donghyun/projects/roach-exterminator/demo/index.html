@@ -412,6 +412,13 @@ function renderBoard() {
     else if (inS) cell.classList.add("range-single");
     if (state.selectedCard !== null && !state.locked && !cellBlocked(r,c,-1)) {
       cell.classList.add("placeable");
+      cell.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (state.locked) return;
+        if (state.selectedCard === null) return;
+        if (cellBlocked(r, c, -1)) return;
+        placeTower(r, c);
+      });
     }
     board.appendChild(cell);
   }
@@ -946,6 +953,19 @@ if (location.search.includes("check=")) {
       document.querySelector('.speed-toggle button[data-speed="fast"]').click();
       const fast = getComputedStyle(document.documentElement).getPropertyValue("--cell-anim").trim();
       dyn = ` slowAnim=${slow} fastAnim=${fast}`;
+    }
+
+    if (location.search.includes("check=clickcell")) {
+      state.selectedCard = 0;
+      render();
+      const board = $("board");
+      const cells = board.querySelectorAll(".cell");
+      const targetIdx = 4*GRID + 4;
+      const cell = cells[targetIdx];
+      const hasPlaceable = cell.classList.contains("placeable");
+      cell.click();
+      const placed = state.towers.length === 1;
+      dyn = ` placeable=${hasPlaceable} towers=${state.towers.length} placedAt=(${state.towers[0]?.row},${state.towers[0]?.col}) success=${placed}`;
     }
 
     if (location.search.includes("check=place")) {
