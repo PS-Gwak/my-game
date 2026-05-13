@@ -162,7 +162,6 @@ const ROACH_HP = 2;
 const RANGE = 2;
 const SINGLE_DMG = 2;
 const BROAD_DMG = 1;
-const SINGLE_SHOTS_PER_TURN = 2;
 const PATH_PREVIEW_MS = 1000;
 const LINE_DELAY_MS = 200;
 
@@ -592,7 +591,7 @@ function placeTower(r, c) {
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-function applyDamageAtCell(roach, towerSingleBudget) {
+function applyDamageAtCell(roach, towerSingleFired) {
   const events = [];
   for (const t of state.towers) {
     if (!roach.alive) break;
@@ -603,11 +602,30 @@ function applyDamageAtCell(roach, towerSingleBudget) {
       if (roach.hp <= 0) roach.alive = false;
     } else if (t.type === "single") {
       const key = t.row+","+t.col;
-      if ((towerSingleBudget[key] || 0) >= SINGLE_SHOTS_PER_TURN) continue;
-      towerSingleBudget[key] = (towerSingleBudget[key] || 0) + 1;
+      if (towerSingleFired[key]) continue;
+      towerSingleFired[key] = true;
       roach.hp -= SINGLE_DMG;
       events.push({ type:"single", tower:t, target:roach });
       if (roach.hp <= 0) roach.alive = false;
+      if (!roach.alive) {
+        const others = state.roaches.filter(r2 => r2.alive && !r2.hidden && r2.id !== roach.id && towerInRange(t, r2.row, r2.col));
+        if (others.length > 0) {
+          others.sort((a,b) => {
+            const da = euclid(t.row, t.col, a.row, a.col);
+            const db = euclid(t.row, t.col, b.row, b.col);
+            if (da !== db) return da - db;
+            return a.id - b.id;
+          });
+          const next = others[0];
+          next.hp -= SINGLE_DMG;
+          events.push({ type:"single", tower:t, target:next });
+          if (next.hp <= 0) next.alive = false;
+        }
+      } else {
+        roach.hp -= SINGLE_DMG;
+        events.push({ type:"single", tower:t, target:roach });
+        if (roach.hp <= 0) roach.alive = false;
+      }
     }
   }
   return events;
@@ -923,11 +941,23 @@ if (location.search.includes("check=")) {
       r.hidden = false; r.row = 2; r.col = 4; r.hp = ROACH_HP;
       const budget = {};
       applyDamageAtCell(r, budget);
-      const after = r.hp;
-      const alive = r.alive;
-      const budgetKey = "2,5";
-      const used = budget[budgetKey];
-      dyn = ` afterSingleHit_hp=${after} alive=${alive} budgetUsed=${used}`;
+      dyn = ` afterSingleHit_hp=${r.hp} alive=${r.alive} fired=${budget["2,5"]}`;
+    }
+
+    if (location.search.includes("check=lockon")) {
+      // 두 바퀴 동시 사거리 안: 단일이 한 발만 첫 바퀴에, 자동 전환으로 두 번째 바퀴에 1발
+      state.towers.push({ type:"single", row:3, col:3 });
+      const r1 = state.roaches[0]; r1.hidden=false; r1.row=3; r1.col=4; r1.hp=ROACH_HP;
+      const r2 = state.roaches[1]; r2.hidden=false; r2.row=3; r2.col=2; r2.hp=ROACH_HP;
+      const r3 = state.roaches[2]; r3.hidden=false; r3.row=4; r3.col=3; r3.hp=ROACH_HP;
+      const budget = {};
+      // r1이 첫 도착: 자동 전환으로 r2 또는 r3 중 하나에 2발째
+      applyDamageAtCell(r1, budget);
+      const r1_after = r1.hp, r2_after = r2.hp, r3_after = r3.hp;
+      // 그 후 r2가 도착: 단일 이미 발사라 무시
+      applyDamageAtCell(r2, budget);
+      const r2_after2 = r2.hp;
+      dyn = ` r1=${r1_after} r2_afterR1=${r2_after} r3_afterR1=${r3_after} r2_afterR2=${r2_after2} fired=${budget["3,3"]} (expect: r1=0, 자동전환1마리만 데미지, r2_afterR2 변화X)`;
     }
 
     if (location.search.includes("check=esc")) {
