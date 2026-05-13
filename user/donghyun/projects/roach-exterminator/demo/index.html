@@ -60,7 +60,7 @@
   .tower { position:absolute; pointer-events:none; font-size:26px; text-shadow:0 0 4px black; z-index:5; display:flex; align-items:center; justify-content:center; transition:transform 0.18s ease; }
   .tower.broad { color:#ff5c5c; }
   .tower.single { color:#5cc4ff; }
-  .tower.firing { transform:scale(1.6) !important; }
+  .tower.firing { transform:scale(1.5) !important; }
   .tower.preview { opacity:0.45; }
 
   .roach { position:absolute; font-size:22px; pointer-events:none; z-index:6; display:flex; align-items:center; justify-content:center; transition:left var(--cell-anim) linear, top var(--cell-anim) linear, opacity 0.3s; }
@@ -271,10 +271,6 @@ function astar(startR, startC, goalR, goalC) {
     if (isTower(r,c)) return false;
     if (state.furniture.some(f => f.cells.some(([fr,fc]) => fr===r && fc===c))) return false;
     return true;
-  }
-  if (!passable(startR, startC) && !(startR===goalR && startC===goalC)) {
-    if (isPillar(startR,startC) || isTower(startR,startC) || state.furniture.some(f => f.cells.some(([fr,fc]) => fr===startR && fc===startC))) {
-    }
   }
   const open = [{ r:startR, c:startC, g:0, h:Math.abs(startR-goalR)+Math.abs(startC-goalC), parent:null }];
   const visited = new Map();
@@ -876,9 +872,9 @@ if (location.search.includes("check=")) {
       const r = state.roaches[0];
       r.hidden = false; r.row = 2; r.col = 4; r.hp = ROACH_HP;
       const budget = {};
-      const events1 = applyDamageAtCell(r, budget);
+      applyDamageAtCell(r, budget);
       const hp1 = r.hp;
-      const events2 = applyDamageAtCell(r, budget);
+      applyDamageAtCell(r, budget);
       const hp2 = r.hp;
       dyn = ` afterShot1_hp=${hp1} afterShot2_hp=${hp2} alive=${r.alive}`;
     }
