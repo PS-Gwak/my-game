@@ -370,16 +370,25 @@ function renderBoard() {
     }
   }
 
+  const sameCell = new Map();
   for (const roach of state.roaches) {
     if (!roach.alive) continue;
-    const { left, top } = cellPx(roach.row, roach.col);
-    const r = document.createElement("div");
-    r.className = "roach";
-    r.textContent = "🪳";
-    r.id = `roach-${roach.id}`;
-    const visible = !roach.hidden || state.tabHeld;
-    r.style.cssText = `left:${left}px;top:${top}px;width:${CELL}px;height:${CELL}px;opacity:${visible ? 1 : 0};`;
-    board.appendChild(r);
+    const key = `${roach.row},${roach.col}`;
+    if (!sameCell.has(key)) sameCell.set(key, []);
+    sameCell.get(key).push(roach);
+  }
+  for (const [key, list] of sameCell) {
+    list.forEach((roach, i) => {
+      const { left, top } = cellPx(roach.row, roach.col);
+      const r = document.createElement("div");
+      r.className = "roach";
+      r.textContent = "🪳";
+      r.id = `roach-${roach.id}`;
+      const visible = !roach.hidden || state.tabHeld;
+      const dx = list.length > 1 ? (i - (list.length - 1) / 2) * 12 : 0;
+      r.style.cssText = `left:${left + dx}px;top:${top}px;width:${CELL}px;height:${CELL}px;opacity:${visible ? 1 : 0};`;
+      board.appendChild(r);
+    });
   }
 }
 
@@ -555,16 +564,23 @@ async function applyTurn() {
     return;
   }
 
-  const oldCells = fur.cells;
-  fur.cells = target;
-  render();
   const s = SPEED[state.speed];
+  const furEl = document.getElementById(`fur-${fur.id}`);
+  const bb = furBoundingBox(target);
+  if (furEl) {
+    furEl.style.left = bb.left + "px";
+    furEl.style.top = bb.top + "px";
+  }
+  fur.cells = target;
   await sleep(s.anim * 1000 + 50);
 
   const exposed = state.roaches.filter(r => r.alive && r.under === fur.id && !target.some(([nr, nc]) => nr === r.row && nc === r.col));
-  for (const r of exposed) r.hidden = false;
-  render();
-  await sleep(120);
+  for (const r of exposed) {
+    r.hidden = false;
+    const re = document.getElementById(`roach-${r.id}`);
+    if (re) re.style.opacity = "1";
+  }
+  await sleep(150);
 
   const moveResults = [];
   for (const r of exposed) {
@@ -576,8 +592,13 @@ async function applyTurn() {
     mv.roach.row = mv.target.cell[0];
     mv.roach.col = mv.target.cell[1];
     mv.roach.under = null;
+    const re = document.getElementById(`roach-${mv.roach.id}`);
+    if (re) {
+      const { left, top } = cellPx(mv.roach.row, mv.roach.col);
+      re.style.left = left + "px";
+      re.style.top = top + "px";
+    }
   }
-  render();
   await sleep(s.anim * 1000 + 50);
 
   const events = fireTowers();
@@ -587,10 +608,13 @@ async function applyTurn() {
     if (mv.roach.alive) {
       mv.roach.under = mv.target.fur.id;
       mv.roach.hidden = true;
+      const re = document.getElementById(`roach-${mv.roach.id}`);
+      if (re) re.style.opacity = "0";
     } else {
       mv.roach.under = null;
     }
   }
+  await sleep(300);
 
   state.moves += 1;
   state.selectedFur = null;
