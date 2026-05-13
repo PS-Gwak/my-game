@@ -2,86 +2,90 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>Roach Exterminator — 데모 1판 v2</title>
+<title>Roach Exterminator — 데모 1판 v3</title>
 <style>
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; font-family: "Apple SD Gothic Neo", "Helvetica Neue", system-ui, sans-serif; background: #1a1a1a; color: #f5f5f0; }
-  body { display: flex; justify-content: center; min-height: 100vh; padding: 12px; }
-  .app { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 10px; }
+  html, body { margin:0; padding:0; font-family:"Apple SD Gothic Neo","Helvetica Neue",system-ui,sans-serif; background:#1a1a1a; color:#f5f5f0; }
+  body { display:flex; justify-content:center; min-height:100vh; padding:12px; }
+  .app { width:100%; max-width:560px; display:flex; flex-direction:column; gap:10px; }
 
-  .screen { display: none; flex-direction: column; gap: 12px; }
-  .screen.on { display: flex; }
+  .screen { display:none; flex-direction:column; gap:12px; }
+  .screen.on { display:flex; }
 
-  #screen-start { align-items: center; justify-content: center; min-height: 80vh; }
-  #screen-start h1 { font-size: 28px; margin: 0; text-align: center; }
-  #screen-start p { color: #aaa; text-align: center; max-width: 380px; }
-  .btn { background: #c25434; color: white; border: 0; padding: 10px 18px; border-radius: 6px; font-size: 14px; cursor: pointer; font-family: inherit; position: relative; }
-  .btn:hover { background: #d96344; }
-  .btn:disabled { background: #555; cursor: not-allowed; }
-  .btn.ghost { background: transparent; border: 1px solid #555; color: #ccc; }
-  .btn.ghost:hover { background: #2a2a2a; }
-  .btn .key { display: block; font-size: 9px; color: #fbd0bb; margin-top: 2px; letter-spacing: 1px; }
+  #screen-start { align-items:center; justify-content:center; min-height:80vh; }
+  #screen-start h1 { font-size:28px; margin:0; text-align:center; }
+  #screen-start p { color:#aaa; text-align:center; max-width:380px; }
+  .btn { background:#c25434; color:white; border:0; padding:10px 18px; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit; position:relative; }
+  .btn:hover { background:#d96344; }
+  .btn:disabled { background:#555; cursor:not-allowed; }
+  .btn.ghost { background:transparent; border:1px solid #555; color:#ccc; }
+  .btn .key { display:block; font-size:9px; color:#fbd0bb; margin-top:2px; letter-spacing:1px; }
 
-  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #262626; border-radius: 6px; font-size: 14px; flex-wrap: wrap; gap: 6px; }
-  .topbar .info { display: flex; gap: 16px; flex-wrap: wrap; }
-  .topbar .info span { color: #ddd; }
-  .topbar .info b { color: #fff; font-weight: 600; }
-  .topbar .right { display: flex; gap: 10px; align-items: center; }
-  .speed-toggle { display: flex; gap: 2px; background: #1a1a1a; border-radius: 4px; padding: 2px; }
-  .speed-toggle button { background: transparent; color: #888; border: 0; padding: 3px 8px; font-size: 11px; cursor: pointer; font-family: inherit; border-radius: 3px; }
-  .speed-toggle button.on { background: #c25434; color: white; }
-  .tabhint { color: #888; font-size: 12px; }
-  .tabhint.on { color: #f5d272; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#262626; border-radius:6px; font-size:14px; flex-wrap:wrap; gap:6px; }
+  .topbar .info { display:flex; gap:14px; flex-wrap:wrap; }
+  .topbar .info span { color:#ddd; }
+  .topbar .info b { color:#fff; font-weight:600; }
+  .topbar .right { display:flex; gap:10px; align-items:center; }
+  .speed-toggle { display:flex; gap:2px; background:#1a1a1a; border-radius:4px; padding:2px; }
+  .speed-toggle button { background:transparent; color:#888; border:0; padding:3px 8px; font-size:11px; cursor:pointer; font-family:inherit; border-radius:3px; }
+  .speed-toggle button.on { background:#c25434; color:white; }
+  .tabhint { color:#888; font-size:12px; }
+  .tabhint.on { color:#f5d272; }
 
-  .guide-bar { background: #1f2840; color: #6cc4ff; padding: 8px 12px; border-radius: 6px; font-size: 13px; text-align: center; border: 1px solid #2a3a5a; min-height: 18px; }
-  .guide-bar.lock { background: #3a2a1a; color: #f5a26c; border-color: #5a3a1a; }
+  .guide-bar { background:#1f2840; color:#6cc4ff; padding:8px 12px; border-radius:6px; font-size:13px; text-align:center; border:1px solid #2a3a5a; min-height:18px; }
+  .guide-bar.lock { background:#3a2a1a; color:#f5a26c; border-color:#5a3a1a; }
 
-  .board-wrap { display: flex; justify-content: center; }
-  .board { display: grid; grid-template-columns: repeat(6, 56px); grid-template-rows: repeat(6, 56px); gap: 3px; background: #2a2a2a; padding: 6px; border-radius: 8px; position: relative; user-select: none; }
-  .cell { background: #3a3a36; border-radius: 4px; position: relative; display: flex; align-items: center; justify-content: center; }
-  .cell.placeable { cursor: pointer; outline: 2px solid #6cc4ff; outline-offset: -2px; }
-  .cell.placeable:hover { background: #45554a; }
-  .pillar { width: 70%; height: 70%; background: #6e6c5c; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #2a2a2a; }
+  .board-wrap { display:flex; justify-content:center; }
+  .board { display:grid; grid-template-columns:repeat(6,56px); grid-template-rows:repeat(6,56px); gap:3px; background:#2a2a2a; padding:6px; border-radius:8px; position:relative; user-select:none; }
+  .cell { background:#3a3a36; border-radius:4px; position:relative; display:flex; align-items:center; justify-content:center; }
+  .cell.placeable { cursor:pointer; outline:2px solid #6cc4ff; outline-offset:-2px; }
+  .cell.placeable:hover { background:#45554a; }
+  .cell.range-broad { background:#4a2828; }
+  .cell.range-single { background:#1f3a48; }
+  .cell.range-both { background:#3a2e3e; }
+  .pillar { width:70%; height:70%; background:#6e6c5c; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:22px; color:#2a2a2a; }
 
-  .furniture { position: absolute; background: #8b5a3c; border: 2px solid #6e4327; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff5e0; font-size: 22px; cursor: pointer; z-index: 3; transition: left var(--anim) ease, top var(--anim) ease, opacity 0.15s; }
-  .furniture:hover { box-shadow: 0 0 0 2px #c25434; }
-  .furniture.selected { box-shadow: 0 0 0 3px #f5d272; opacity: 0.55; }
-  .furniture.hidden-by-tab { opacity: 0; }
+  .range-svg { position:absolute; pointer-events:none; z-index:2; left:0; top:0; overflow:visible; }
+  .path-svg { position:absolute; pointer-events:none; z-index:7; left:0; top:0; overflow:visible; }
 
-  .ghost-arrow { position: absolute; background: rgba(245,210,114,0.18); border: 2px dashed #f5d272; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #f5d272; font-size: 24px; font-weight: bold; z-index: 4; cursor: pointer; animation: pulse 1.4s infinite; }
-  .ghost-arrow:hover { background: rgba(245,210,114,0.4); }
-  @keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+  .furniture { position:absolute; background:#8b5a3c; border:2px solid #6e4327; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff5e0; font-size:22px; cursor:pointer; z-index:3; transition:left var(--anim) ease, top var(--anim) ease, opacity 0.15s; }
+  .furniture:hover { box-shadow:0 0 0 2px #c25434; }
+  .furniture.selected { box-shadow:0 0 0 3px #f5d272; opacity:0.55; }
+  .furniture.hidden-by-tab { opacity:0; }
 
-  .tower { position: absolute; pointer-events: none; font-size: 26px; text-shadow: 0 0 4px black; z-index: 5; display: flex; align-items: center; justify-content: center; }
-  .tower.broad { color: #ff5c5c; }
-  .tower.single { color: #5cc4ff; }
-  .tower.firing { animation: firing 0.2s ease; }
-  @keyframes firing { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.4); } }
+  .ghost-arrow { position:absolute; background:rgba(245,210,114,0.18); border:2px dashed #f5d272; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#f5d272; font-size:24px; font-weight:bold; z-index:4; cursor:pointer; animation:pulse 1.4s infinite; }
+  .ghost-arrow:hover { background:rgba(245,210,114,0.4); }
+  @keyframes pulse { 0%,100% { opacity:0.7; } 50% { opacity:1; } }
 
-  .roach { position: absolute; font-size: 22px; pointer-events: none; z-index: 6; display: flex; align-items: center; justify-content: center; transition: left var(--anim) ease, top var(--anim) ease, opacity 0.3s; }
-  .roach.dying { opacity: 0; transform: translateY(-30px); transition: opacity 0.4s, transform 0.4s; }
+  .tower { position:absolute; pointer-events:none; font-size:26px; text-shadow:0 0 4px black; z-index:5; display:flex; align-items:center; justify-content:center; transition:transform 0.18s ease; }
+  .tower.broad { color:#ff5c5c; }
+  .tower.single { color:#5cc4ff; }
+  .tower.firing { transform:scale(1.6) !important; }
+  .tower.preview { opacity:0.45; }
 
-  .broad-pulse { position: absolute; border: 3px solid #ff5c5c; border-radius: 50%; pointer-events: none; z-index: 4; animation: broadPulse 0.4s ease-out forwards; }
-  @keyframes broadPulse { 0% { transform: scale(0.3); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
+  .roach { position:absolute; font-size:22px; pointer-events:none; z-index:6; display:flex; align-items:center; justify-content:center; transition:left var(--cell-anim) linear, top var(--cell-anim) linear, opacity 0.3s; }
+  .roach.dying { opacity:0; transform:translateY(-30px); transition:opacity 0.4s, transform 0.4s; }
+  .roach .hp { position:absolute; font-size:9px; background:#c25434; color:#fff; padding:0 4px; border-radius:8px; top:-4px; right:-6px; z-index:8; }
 
-  .single-shot { position: absolute; height: 2px; background: #5cc4ff; pointer-events: none; z-index: 4; transform-origin: 0 50%; animation: singleShot 0.15s ease-out forwards; }
-  @keyframes singleShot { 0% { opacity: 1; } 100% { opacity: 0; } }
+  .bullet { position:absolute; width:10px; height:10px; background:#5cc4ff; border-radius:50%; z-index:7; box-shadow:0 0 10px #5cc4ff; pointer-events:none; transition:left 0.15s linear, top 0.15s linear; }
+  .explosion { position:absolute; pointer-events:none; z-index:4; border-radius:50%; background:radial-gradient(circle, rgba(255,200,80,0.95) 0%, rgba(255,140,40,0.85) 30%, rgba(255,80,40,0.7) 60%, rgba(80,0,0,0) 100%); animation:explode 0.45s ease-out forwards; }
+  @keyframes explode { 0% { transform:scale(0.4); opacity:1; } 100% { transform:scale(1.3); opacity:0; } }
 
-  .bottombar { display: flex; gap: 8px; padding: 10px; background: #262626; border-radius: 6px; align-items: stretch; }
-  .card { background: #353532; border: 2px solid #555; border-radius: 6px; padding: 8px 10px; flex: 1; text-align: center; cursor: pointer; }
-  .card.selected { border-color: #f5d272; background: #4a4232; }
-  .card.disabled { opacity: 0.4; cursor: not-allowed; }
-  .card.placed { opacity: 0.3; cursor: not-allowed; text-decoration: line-through; }
-  .card .name { font-size: 13px; color: #fff; font-weight: 600; }
-  .card .desc { font-size: 10px; color: #aaa; margin-top: 2px; }
-  .btn-stack { display: flex; flex-direction: column; gap: 4px; min-width: 84px; }
-  .btn-stack .btn { padding: 7px 10px; }
+  .bottombar { display:flex; gap:8px; padding:10px; background:#262626; border-radius:6px; align-items:stretch; }
+  .card { background:#353532; border:2px solid #555; border-radius:6px; padding:8px 10px; flex:1; text-align:center; cursor:pointer; }
+  .card.selected { border-color:#f5d272; background:#4a4232; }
+  .card.disabled { opacity:0.4; cursor:not-allowed; }
+  .card.placed { opacity:0.3; cursor:not-allowed; text-decoration:line-through; }
+  .card .name { font-size:13px; color:#fff; font-weight:600; }
+  .card .desc { font-size:10px; color:#aaa; margin-top:2px; }
+  .btn-stack { display:flex; flex-direction:column; gap:4px; min-width:84px; }
+  .btn-stack .btn { padding:7px 10px; }
 
-  #screen-cleared { align-items: center; justify-content: center; min-height: 70vh; gap: 16px; }
-  #screen-cleared .big { font-size: 48px; }
-  #screen-cleared h2 { font-size: 26px; margin: 0; }
-  #screen-cleared .stat { color: #f5d272; font-size: 18px; }
-  #screen-cleared .bonus { color: #6cffaa; font-size: 14px; }
+  #screen-cleared { align-items:center; justify-content:center; min-height:70vh; gap:16px; }
+  #screen-cleared .big { font-size:48px; }
+  #screen-cleared h2 { font-size:26px; margin:0; }
+  #screen-cleared .stat { color:#f5d272; font-size:18px; }
+  #screen-cleared .bonus { color:#6cffaa; font-size:14px; }
 </style>
 </head>
 <body>
@@ -89,9 +93,9 @@
 
   <div id="screen-start" class="screen on">
     <h1>🪳 Roach Exterminator</h1>
-    <p>가구를 밀어 바퀴벌레를 한곳에 몰아넣고 박멸하라.<br>데모 1판 v2 (3판 중 1판)</p>
+    <p>가구를 밀어 바퀴벌레를 한곳에 몰아넣고 박멸하라.<br>데모 1판 v3 (3판 중 1판)</p>
     <button class="btn" id="btn-start">Start</button>
-    <p style="font-size:12px;color:#666;margin-top:24px;">Tab 키를 누르고 있으면 가구가 사라지고 숨은 바퀴가 보입니다.</p>
+    <p style="font-size:12px;color:#666;margin-top:24px;">Tab=가구 숨김 (보임) · Enter=실행 · ESC=선택 해제</p>
   </div>
 
   <div id="screen-game" class="screen">
@@ -112,7 +116,7 @@
       </div>
     </div>
 
-    <div class="guide-bar" id="guide">가구를 클릭해 도착 칸을 선택하세요 (또는 타워 카드 먼저)</div>
+    <div class="guide-bar" id="guide">타워 카드 또는 가구를 클릭하세요</div>
 
     <div class="board-wrap">
       <div class="board" id="board"></div>
@@ -121,11 +125,11 @@
     <div class="bottombar">
       <div class="card" id="card-broad">
         <div class="name">▲ 광범위 (2)</div>
-        <div class="desc">사거리2·동시타격</div>
+        <div class="desc">사거리2·동시·데미지1</div>
       </div>
       <div class="card" id="card-single">
         <div class="name">▲ 단일연사 (1)</div>
-        <div class="desc">사거리2·1턴 2발</div>
+        <div class="desc">사거리2·1턴 2발·데미지2</div>
       </div>
       <div class="btn-stack">
         <button class="btn" id="btn-execute" disabled>실행<span class="key">Enter</span></button>
@@ -154,11 +158,18 @@ const BONUS_THRESHOLD = 3;
 const CELL = 56;
 const GAP = 3;
 const PAD = 6;
+const ROACH_HP = 2;
+const RANGE = 2;
+const SINGLE_DMG = 2;
+const BROAD_DMG = 1;
+const SINGLE_SHOTS_PER_TURN = 2;
+const PATH_PREVIEW_MS = 1000;
+const LINE_DELAY_MS = 200;
 
 const SPEED = {
-  slow:   { anim: 0.7,  attack: 0.4 },
-  normal: { anim: 0.35, attack: 0.2 },
-  fast:   { anim: 0.18, attack: 0.1 }
+  slow:   { cell: 0.5, attack: 0.4 },
+  normal: { cell: 0.25, attack: 0.2 },
+  fast:   { cell: 0.12, attack: 0.1 }
 };
 
 function initialState() {
@@ -167,19 +178,19 @@ function initialState() {
     moves: 0,
     costUsed: 0,
     furniture: [
-      { id: 0, cells: [[1,1],[1,2]] },
-      { id: 1, cells: [[3,5]] }
+      { id:0, cells:[[1,1],[1,2]] },
+      { id:1, cells:[[3,5]] }
     ],
     pillars: [[2,3]],
     roaches: [
-      { id: 0, alive: true, hidden: true, under: 0, row: 1, col: 1 },
-      { id: 1, alive: true, hidden: true, under: 0, row: 1, col: 2 },
-      { id: 2, alive: true, hidden: true, under: 1, row: 3, col: 5 },
-      { id: 3, alive: true, hidden: true, under: 1, row: 3, col: 5 }
+      { id:0, alive:true, hidden:true, under:0, row:1, col:1, hp:ROACH_HP },
+      { id:1, alive:true, hidden:true, under:0, row:1, col:2, hp:ROACH_HP },
+      { id:2, alive:true, hidden:true, under:1, row:3, col:5, hp:ROACH_HP },
+      { id:3, alive:true, hidden:true, under:1, row:3, col:5, hp:ROACH_HP }
     ],
     hand: [
-      { type: "broad", cost: 2, placed: false },
-      { type: "single", cost: 1, placed: false }
+      { type:"broad", cost:2, placed:false },
+      { type:"single", cost:1, placed:false }
     ],
     towers: [],
     tabHeld: false,
@@ -187,7 +198,8 @@ function initialState() {
     selectedFur: null,
     chosenDir: null,
     speed: "normal",
-    locked: false
+    locked: false,
+    hoverCell: null
   };
 }
 
@@ -199,30 +211,30 @@ function showScreen(name) {
   $("screen-"+name).classList.add("on");
 }
 
-function isPillar(r, c) { return state.pillars.some(([pr, pc]) => pr === r && pc === c); }
-function isTower(r, c) { return state.towers.some(t => t.row === r && t.col === c); }
+function isPillar(r, c) { return state.pillars.some(([pr,pc]) => pr===r && pc===c); }
+function isTower(r, c) { return state.towers.some(t => t.row===r && t.col===c); }
 function furnitureAt(r, c, exceptId) {
-  return state.furniture.find(f => f.id !== exceptId && f.cells.some(([fr, fc]) => fr === r && fc === c));
+  return state.furniture.find(f => f.id!==exceptId && f.cells.some(([fr,fc]) => fr===r && fc===c));
 }
-function inBounds(r, c) { return r >= 0 && r < GRID && c >= 0 && c < GRID; }
-function cellBlocked(r, c, exceptFurId) {
-  if (!inBounds(r, c)) return true;
-  if (isPillar(r, c)) return true;
-  if (isTower(r, c)) return true;
-  if (furnitureAt(r, c, exceptFurId)) return true;
+function inBounds(r, c) { return r>=0 && r<GRID && c>=0 && c<GRID; }
+function cellBlocked(r, c, exceptFurId=-1) {
+  if (!inBounds(r,c)) return true;
+  if (isPillar(r,c)) return true;
+  if (isTower(r,c)) return true;
+  if (furnitureAt(r,c,exceptFurId)) return true;
   return false;
 }
 
 function slideFurniture(fur, dr, dc) {
-  if (dr === 0 && dc === 0) return fur.cells.map(([r, c]) => [r, c]);
-  let cells = fur.cells.map(([r, c]) => [r, c]);
+  if (dr===0 && dc===0) return fur.cells.map(([r,c])=>[r,c]);
+  let cells = fur.cells.map(([r,c])=>[r,c]);
   while (true) {
-    const next = cells.map(([r, c]) => [r + dr, c + dc]);
-    const blocked = next.some(([r, c]) => {
-      if (!inBounds(r, c)) return true;
-      if (isPillar(r, c)) return true;
-      if (isTower(r, c)) return true;
-      const owner = state.furniture.find(f => f.id !== fur.id && f.cells.some(([fr, fc]) => fr === r && fc === c));
+    const next = cells.map(([r,c])=>[r+dr, c+dc]);
+    const blocked = next.some(([r,c]) => {
+      if (!inBounds(r,c)) return true;
+      if (isPillar(r,c)) return true;
+      if (isTower(r,c)) return true;
+      const owner = state.furniture.find(f => f.id!==fur.id && f.cells.some(([fr,fc]) => fr===r && fc===c));
       if (owner) return true;
       return false;
     });
@@ -235,67 +247,132 @@ function slideFurniture(fur, dr, dc) {
 function euclid(r1, c1, r2, c2) { return Math.sqrt((r1-r2)**2 + (c1-c2)**2); }
 
 function pickHidingFurniture(roach) {
-  const candidates = state.furniture.filter(f => f.id !== roach.under);
-  if (candidates.length === 0) return null;
+  const candidates = state.furniture.filter(f => f.id!==roach.under);
+  if (candidates.length===0) return null;
   let best = null;
   for (const f of candidates) {
-    let nearestCell = null, nearestDist = Infinity;
-    for (const [fr, fc] of f.cells) {
+    let nearestCell=null, nearestDist=Infinity;
+    for (const [fr,fc] of f.cells) {
       const d = euclid(roach.row, roach.col, fr, fc);
-      if (d < nearestDist) { nearestDist = d; nearestCell = [fr, fc]; }
+      if (d < nearestDist) { nearestDist=d; nearestCell=[fr,fc]; }
     }
-    if (!best || nearestDist < best.dist || (nearestDist === best.dist && f.id < best.fur.id)) {
-      best = { fur: f, cell: nearestCell, dist: nearestDist };
+    if (!best || nearestDist < best.dist || (nearestDist===best.dist && f.id < best.fur.id)) {
+      best = { fur:f, cell:nearestCell, dist:nearestDist };
     }
   }
   return best;
 }
 
-function towerInRange(tower, roach) {
-  return euclid(tower.row, tower.col, roach.row, roach.col) <= 2;
+function astar(startR, startC, goalR, goalC) {
+  function passable(r, c) {
+    if (!inBounds(r,c)) return false;
+    if (r===goalR && c===goalC) return true;
+    if (isPillar(r,c)) return false;
+    if (isTower(r,c)) return false;
+    if (state.furniture.some(f => f.cells.some(([fr,fc]) => fr===r && fc===c))) return false;
+    return true;
+  }
+  if (!passable(startR, startC) && !(startR===goalR && startC===goalC)) {
+    if (isPillar(startR,startC) || isTower(startR,startC) || state.furniture.some(f => f.cells.some(([fr,fc]) => fr===startR && fc===startC))) {
+    }
+  }
+  const open = [{ r:startR, c:startC, g:0, h:Math.abs(startR-goalR)+Math.abs(startC-goalC), parent:null }];
+  const visited = new Map();
+  while (open.length > 0) {
+    open.sort((a,b) => (a.g+a.h)-(b.g+b.h));
+    const cur = open.shift();
+    const key = cur.r+","+cur.c;
+    if (visited.has(key)) continue;
+    visited.set(key, cur);
+    if (cur.r===goalR && cur.c===goalC) {
+      const path = [];
+      let n = cur;
+      while (n) { path.unshift([n.r, n.c]); n = n.parent; }
+      return path;
+    }
+    const neighbors = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (const [dr,dc] of neighbors) {
+      const nr=cur.r+dr, nc=cur.c+dc;
+      if (!passable(nr,nc)) continue;
+      const nkey = nr+","+nc;
+      if (visited.has(nkey)) continue;
+      open.push({ r:nr, c:nc, g:cur.g+1, h:Math.abs(nr-goalR)+Math.abs(nc-goalC), parent:cur });
+    }
+  }
+  return null;
+}
+
+function towerInRange(tower, r, c) {
+  return euclid(tower.row, tower.col, r, c) <= RANGE;
+}
+
+function rangeCellSet(tower) {
+  const set = new Set();
+  for (let r=0;r<GRID;r++) for (let c=0;c<GRID;c++) {
+    if (towerInRange(tower, r, c)) set.add(r+","+c);
+  }
+  return set;
+}
+
+function setAnimVars() {
+  const s = SPEED[state.speed];
+  document.documentElement.style.setProperty("--anim", s.cell+"s");
+  document.documentElement.style.setProperty("--cell-anim", s.cell+"s");
 }
 
 function showBanner(text, cls) {
   const g = $("guide");
   g.textContent = text;
-  g.className = "guide-bar" + (cls ? " " + cls : "");
+  g.className = "guide-bar" + (cls ? " "+cls : "");
 }
 
-function cellPx(r, c) {
-  return {
-    left: PAD + c * (CELL + GAP),
-    top: PAD + r * (CELL + GAP)
-  };
-}
+function cellPx(r, c) { return { left:PAD + c*(CELL+GAP), top:PAD + r*(CELL+GAP) }; }
 
 function furBoundingBox(cells) {
-  const rs = cells.map(([r]) => r);
-  const cs = cells.map(([, c]) => c);
-  const minR = Math.min(...rs), maxR = Math.max(...rs);
-  const minC = Math.min(...cs), maxC = Math.max(...cs);
+  const rs = cells.map(([r])=>r), cs = cells.map(([,c])=>c);
+  const minR=Math.min(...rs), maxR=Math.max(...rs);
+  const minC=Math.min(...cs), maxC=Math.max(...cs);
   return {
-    left: PAD + minC * (CELL + GAP),
-    top: PAD + minR * (CELL + GAP),
-    width: (maxC - minC + 1) * CELL + (maxC - minC) * GAP,
-    height: (maxR - minR + 1) * CELL + (maxR - minR) * GAP
+    left: PAD + minC*(CELL+GAP),
+    top: PAD + minR*(CELL+GAP),
+    width: (maxC-minC+1)*CELL + (maxC-minC)*GAP,
+    height: (maxR-minR+1)*CELL + (maxR-minR)*GAP
   };
 }
 
-function setAnimVar() {
-  const s = SPEED[state.speed];
-  document.documentElement.style.setProperty("--anim", s.anim + "s");
+function drawRangeEdges(svg, cellSet, color) {
+  for (let r=0;r<GRID;r++) for (let c=0;c<GRID;c++) {
+    if (!cellSet.has(r+","+c)) continue;
+    const x = PAD + c*(CELL+GAP), y = PAD + r*(CELL+GAP);
+    const edges = [
+      { has:cellSet.has((r-1)+","+c), x1:x, y1:y, x2:x+CELL, y2:y },
+      { has:cellSet.has((r+1)+","+c), x1:x, y1:y+CELL, x2:x+CELL, y2:y+CELL },
+      { has:cellSet.has(r+","+(c-1)), x1:x, y1:y, x2:x, y2:y+CELL },
+      { has:cellSet.has(r+","+(c+1)), x1:x+CELL, y1:y, x2:x+CELL, y2:y+CELL }
+    ];
+    for (const e of edges) {
+      if (!e.has) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", e.x1); line.setAttribute("y1", e.y1);
+        line.setAttribute("x2", e.x2); line.setAttribute("y2", e.y2);
+        line.setAttribute("stroke", color);
+        line.setAttribute("stroke-width", "2");
+        line.setAttribute("stroke-dasharray", "5 3");
+        svg.appendChild(line);
+      }
+    }
+  }
 }
 
 function renderTopbar() {
   $("hud-round").textContent = state.round;
   $("hud-moves").textContent = state.moves;
   $("hud-cost").textContent = state.costUsed;
-  const aliveCount = state.roaches.filter(r => r.alive).length;
-  $("hud-roach").textContent = aliveCount;
+  $("hud-roach").textContent = state.roaches.filter(r => r.alive).length;
   $("hud-tab").textContent = state.tabHeld ? "Tab=보임" : "Tab=숨김";
   $("hud-tab").classList.toggle("on", state.tabHeld);
   document.querySelectorAll(".speed-toggle button").forEach(b => {
-    b.classList.toggle("on", b.dataset.speed === state.speed);
+    b.classList.toggle("on", b.dataset.speed===state.speed);
   });
 }
 
@@ -303,25 +380,59 @@ function renderBoard() {
   const board = $("board");
   board.innerHTML = "";
 
-  for (let r = 0; r < GRID; r++) {
-    for (let c = 0; c < GRID; c++) {
-      const cell = document.createElement("div");
-      cell.className = "cell";
-      if (isPillar(r, c)) {
-        const p = document.createElement("div");
-        p.className = "pillar";
-        p.textContent = "▣";
-        cell.appendChild(p);
-      }
-      if (state.selectedCard !== null && !state.locked) {
-        if (!cellBlocked(r, c, -1)) {
-          cell.classList.add("placeable");
-          cell.addEventListener("click", () => placeTower(r, c));
-        }
-      }
-      board.appendChild(cell);
+  const broadRangeSet = new Set();
+  const singleRangeSet = new Set();
+  for (const t of state.towers) {
+    const set = rangeCellSet(t);
+    if (t.type==="broad") for (const k of set) broadRangeSet.add(k);
+    else for (const k of set) singleRangeSet.add(k);
+  }
+  let previewSet = null, previewColor = null, previewType = null;
+  if (state.selectedCard !== null && state.hoverCell && !state.locked) {
+    const card = state.hand[state.selectedCard];
+    if (!card.placed && !cellBlocked(state.hoverCell.r, state.hoverCell.c, -1)) {
+      previewType = card.type;
+      previewColor = card.type==="broad" ? "#ff5c5c" : "#5cc4ff";
+      previewSet = rangeCellSet({ row:state.hoverCell.r, col:state.hoverCell.c });
+      if (previewType==="broad") for (const k of previewSet) broadRangeSet.add(k);
+      else for (const k of previewSet) singleRangeSet.add(k);
     }
   }
+
+  for (let r=0;r<GRID;r++) for (let c=0;c<GRID;c++) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    if (isPillar(r,c)) {
+      const p = document.createElement("div");
+      p.className = "pillar";
+      p.textContent = "▣";
+      cell.appendChild(p);
+    }
+    const key = r+","+c;
+    const inB = broadRangeSet.has(key);
+    const inS = singleRangeSet.has(key);
+    if (inB && inS) cell.classList.add("range-both");
+    else if (inB) cell.classList.add("range-broad");
+    else if (inS) cell.classList.add("range-single");
+    if (state.selectedCard !== null && !state.locked && !cellBlocked(r,c,-1)) {
+      cell.classList.add("placeable");
+      cell.addEventListener("click", () => placeTower(r,c));
+      cell.addEventListener("mouseenter", () => { state.hoverCell = {r,c}; render(); });
+      cell.addEventListener("mouseleave", () => { if (state.hoverCell && state.hoverCell.r===r && state.hoverCell.c===c) { state.hoverCell = null; render(); } });
+    }
+    board.appendChild(cell);
+  }
+
+  const totalW = GRID*CELL + (GRID-1)*GAP + 2*PAD;
+  const svgRange = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgRange.setAttribute("class", "range-svg");
+  svgRange.setAttribute("width", totalW); svgRange.setAttribute("height", totalW);
+  for (const t of state.towers) {
+    const color = t.type==="broad" ? "#ff5c5c" : "#5cc4ff";
+    drawRangeEdges(svgRange, rangeCellSet(t), color);
+  }
+  if (previewSet) drawRangeEdges(svgRange, previewSet, previewColor);
+  board.appendChild(svgRange);
 
   for (const t of state.towers) {
     const tw = document.createElement("div");
@@ -330,6 +441,14 @@ function renderBoard() {
     const { left, top } = cellPx(t.row, t.col);
     tw.style.cssText = `left:${left}px;top:${top}px;width:${CELL}px;height:${CELL}px;`;
     tw.id = `tower-${t.row}-${t.col}`;
+    board.appendChild(tw);
+  }
+  if (previewType && state.hoverCell) {
+    const tw = document.createElement("div");
+    tw.className = "tower " + previewType + " preview";
+    tw.textContent = "▲";
+    const { left, top } = cellPx(state.hoverCell.r, state.hoverCell.c);
+    tw.style.cssText = `left:${left}px;top:${top}px;width:${CELL}px;height:${CELL}px;`;
     board.appendChild(tw);
   }
 
@@ -342,26 +461,23 @@ function renderBoard() {
     div.style.cssText = `left:${bb.left}px;top:${bb.top}px;width:${bb.width}px;height:${bb.height}px;`;
     div.textContent = "□";
     div.id = `fur-${fur.id}`;
-    if (!state.locked) {
-      div.addEventListener("click", (e) => { e.stopPropagation(); selectFurniture(fur.id); });
-    }
+    if (!state.locked) div.addEventListener("click", (e) => { e.stopPropagation(); selectFurniture(fur.id); });
     board.appendChild(div);
   }
 
   if (state.selectedFur !== null && !state.locked) {
-    const fur = state.furniture.find(f => f.id === state.selectedFur);
+    const fur = state.furniture.find(f => f.id===state.selectedFur);
     const dirs = [[-1,0,"↑"],[1,0,"↓"],[0,-1,"←"],[0,1,"→"]];
-    for (const [dr, dc, arrow] of dirs) {
+    for (const [dr,dc,arrow] of dirs) {
       const target = slideFurniture(fur, dr, dc);
-      if (JSON.stringify(target) === JSON.stringify(fur.cells)) continue;
+      if (JSON.stringify(target)===JSON.stringify(fur.cells)) continue;
       const bb = furBoundingBox(target);
       const ghost = document.createElement("div");
       ghost.className = "ghost-arrow";
       ghost.style.cssText = `left:${bb.left}px;top:${bb.top}px;width:${bb.width}px;height:${bb.height}px;`;
       ghost.textContent = arrow;
-      const key = `${dr},${dc}`;
-      ghost.dataset.dir = key;
-      ghost.addEventListener("click", (e) => { e.stopPropagation(); chooseDestination(dr, dc); });
+      ghost.dataset.dir = dr+","+dc;
+      ghost.addEventListener("click", (e) => { e.stopPropagation(); chooseDestination(dr,dc); });
       board.appendChild(ghost);
     }
   }
@@ -369,7 +485,7 @@ function renderBoard() {
   const sameCell = new Map();
   for (const roach of state.roaches) {
     if (!roach.alive) continue;
-    const key = `${roach.row},${roach.col}`;
+    const key = roach.row+","+roach.col;
     if (!sameCell.has(key)) sameCell.set(key, []);
     sameCell.get(key).push(roach);
   }
@@ -381,62 +497,61 @@ function renderBoard() {
       r.textContent = "🪳";
       r.id = `roach-${roach.id}`;
       const visible = !roach.hidden || state.tabHeld;
-      const dx = list.length > 1 ? (i - (list.length - 1) / 2) * 12 : 0;
-      r.style.cssText = `left:${left + dx}px;top:${top}px;width:${CELL}px;height:${CELL}px;opacity:${visible ? 1 : 0};`;
+      const dx = list.length > 1 ? (i - (list.length-1)/2) * 14 : 0;
+      r.style.cssText = `left:${left+dx}px;top:${top}px;width:${CELL}px;height:${CELL}px;opacity:${visible?1:0};`;
+      if (visible && roach.hp < ROACH_HP) {
+        const hp = document.createElement("div");
+        hp.className = "hp";
+        hp.textContent = "♥"+roach.hp;
+        r.appendChild(hp);
+      }
       board.appendChild(r);
     });
   }
 }
 
-function render() {
-  setAnimVar();
-  renderTopbar();
-  renderBoard();
-  renderCards();
-  updateGuide();
-}
-
 function renderCards() {
-  const broadCard = $("card-broad");
-  const singleCard = $("card-single");
-  broadCard.classList.toggle("placed", state.hand[0].placed);
-  singleCard.classList.toggle("placed", state.hand[1].placed);
-  broadCard.classList.toggle("selected", state.selectedCard === 0);
-  singleCard.classList.toggle("selected", state.selectedCard === 1);
-  broadCard.classList.toggle("disabled", !state.hand[0].placed && state.costUsed + 2 > COST_LIMIT);
-  singleCard.classList.toggle("disabled", !state.hand[1].placed && state.costUsed + 1 > COST_LIMIT);
+  const b = $("card-broad"), s = $("card-single");
+  b.classList.toggle("placed", state.hand[0].placed);
+  s.classList.toggle("placed", state.hand[1].placed);
+  b.classList.toggle("selected", state.selectedCard===0);
+  s.classList.toggle("selected", state.selectedCard===1);
+  b.classList.toggle("disabled", !state.hand[0].placed && state.costUsed+2 > COST_LIMIT);
+  s.classList.toggle("disabled", !state.hand[1].placed && state.costUsed+1 > COST_LIMIT);
   $("btn-execute").disabled = !(state.selectedFur !== null && state.chosenDir !== null) || state.locked;
 }
 
 function updateGuide() {
   if (state.locked) { showBanner("진행 중... 잠시만요", "lock"); return; }
   if (state.selectedCard !== null) {
-    const t = state.selectedCard === 0 ? "광범위" : "단일연사";
-    showBanner(`타워(${t}) 둘 칸을 클릭하세요 — ESC로 취소`);
+    const t = state.selectedCard===0 ? "광범위" : "단일연사";
+    showBanner(`${t} 타워 둘 자리 클릭 (ESC 취소)`);
     return;
   }
   if (state.selectedFur !== null) {
-    if (state.chosenDir !== null) {
-      showBanner("도착 위치 확정 — Enter 또는 실행 버튼");
-    } else {
+    if (state.chosenDir !== null) showBanner("도착 확정 — Enter 또는 실행 버튼");
+    else {
       const n = state.selectedFur + 1;
-      showBanner(`가구 ${n} 선택됨 — 4방향 도착 칸 중 하나 클릭 (ESC 취소)`);
+      showBanner(`가구 ${n} 선택 — 4방향 도착 칸 클릭 (ESC 취소)`);
     }
     return;
   }
-  showBanner("가구를 클릭해 도착 칸을 선택하세요 (또는 타워 카드 먼저)");
+  showBanner("타워 카드 또는 가구를 클릭하세요");
+}
+
+function render() {
+  setAnimVars();
+  renderTopbar();
+  renderBoard();
+  renderCards();
+  updateGuide();
 }
 
 function selectFurniture(id) {
   if (state.locked) return;
   if (state.selectedCard !== null) return;
-  if (state.selectedFur === id) {
-    state.selectedFur = null;
-    state.chosenDir = null;
-  } else {
-    state.selectedFur = id;
-    state.chosenDir = null;
-  }
+  if (state.selectedFur===id) { state.selectedFur=null; state.chosenDir=null; }
+  else { state.selectedFur=id; state.chosenDir=null; }
   render();
 }
 
@@ -456,7 +571,8 @@ function onCardClick(idx) {
     return;
   }
   if (state.selectedFur !== null) state.selectedFur = null;
-  state.selectedCard = (state.selectedCard === idx) ? null : idx;
+  state.selectedCard = (state.selectedCard===idx) ? null : idx;
+  state.hoverCell = null;
   render();
 }
 
@@ -466,83 +582,119 @@ function placeTower(r, c) {
   const card = state.hand[state.selectedCard];
   if (card.placed) return;
   if (state.costUsed + card.cost > COST_LIMIT) return;
-  if (cellBlocked(r, c, -1)) return;
-  state.towers.push({ type: card.type, row: r, col: c });
+  if (cellBlocked(r,c,-1)) return;
+  state.towers.push({ type:card.type, row:r, col:c });
   state.costUsed += card.cost;
   card.placed = true;
   state.selectedCard = null;
+  state.hoverCell = null;
   render();
 }
 
-function fireTowers() {
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function applyDamageAtCell(roach, towerSingleBudget) {
   const events = [];
   for (const t of state.towers) {
+    if (!roach.alive) break;
+    if (!towerInRange(t, roach.row, roach.col)) continue;
     if (t.type === "broad") {
-      const targets = state.roaches.filter(r => r.alive && !r.hidden && towerInRange(t, r));
-      events.push({ type: "broad", tower: t, targets: targets.slice() });
-      for (const r of targets) r.alive = false;
+      roach.hp -= BROAD_DMG;
+      events.push({ type:"broad", tower:t, target:roach });
+      if (roach.hp <= 0) roach.alive = false;
     } else if (t.type === "single") {
-      const shots = [];
-      for (let shot = 0; shot < 2; shot++) {
-        const targets = state.roaches.filter(r => r.alive && !r.hidden && towerInRange(t, r));
-        if (targets.length === 0) break;
-        targets.sort((a, b) => {
-          const da = euclid(t.row, t.col, a.row, a.col);
-          const db = euclid(t.row, t.col, b.row, b.col);
-          if (da !== db) return da - db;
-          return a.id - b.id;
-        });
-        targets[0].alive = false;
-        shots.push(targets[0]);
-      }
-      if (shots.length > 0) events.push({ type: "single", tower: t, shots });
+      const key = t.row+","+t.col;
+      if ((towerSingleBudget[key] || 0) >= SINGLE_SHOTS_PER_TURN) continue;
+      towerSingleBudget[key] = (towerSingleBudget[key] || 0) + 1;
+      roach.hp -= SINGLE_DMG;
+      events.push({ type:"single", tower:t, target:roach });
+      if (roach.hp <= 0) roach.alive = false;
     }
   }
   return events;
 }
 
-async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-async function animateAttacks(events) {
+async function animateAttackEvents(events) {
+  if (events.length === 0) return;
   const board = $("board");
   const s = SPEED[state.speed];
   for (const ev of events) {
     if (ev.type === "broad") {
-      const { left, top } = cellPx(ev.tower.row, ev.tower.col);
-      const pulse = document.createElement("div");
-      pulse.className = "broad-pulse";
-      pulse.style.cssText = `left:${left - CELL}px;top:${top - CELL}px;width:${CELL*3}px;height:${CELL*3}px;`;
-      pulse.style.animationDuration = (s.attack * 2) + "s";
-      board.appendChild(pulse);
+      const c = cellPx(ev.tower.row, ev.tower.col);
+      const ex = document.createElement("div");
+      ex.className = "explosion";
+      const size = (RANGE*2 + 1) * (CELL+GAP);
+      ex.style.cssText = `left:${c.left + CELL/2 - size/2}px;top:${c.top + CELL/2 - size/2}px;width:${size}px;height:${size}px;`;
+      ex.style.animationDuration = (s.attack * 2) + "s";
+      board.appendChild(ex);
       const tw = document.getElementById(`tower-${ev.tower.row}-${ev.tower.col}`);
-      if (tw) { tw.classList.add("firing"); setTimeout(() => tw.classList.remove("firing"), s.attack * 1000); }
-      for (const target of ev.targets) {
-        const re = document.getElementById(`roach-${target.id}`);
-        if (re) re.classList.add("dying");
-      }
-      await sleep(s.attack * 1000);
+      if (tw) { tw.classList.add("firing"); setTimeout(() => tw.classList.remove("firing"), s.attack*1000); }
+      setTimeout(() => ex.remove(), s.attack * 2000 + 100);
     } else if (ev.type === "single") {
-      for (const target of ev.shots) {
-        const tp = cellPx(ev.tower.row, ev.tower.col);
-        const rp = cellPx(target.row, target.col);
-        const dx = (rp.left + CELL/2) - (tp.left + CELL/2);
-        const dy = (rp.top + CELL/2) - (tp.top + CELL/2);
-        const len = Math.hypot(dx, dy);
-        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-        const beam = document.createElement("div");
-        beam.className = "single-shot";
-        beam.style.cssText = `left:${tp.left + CELL/2}px;top:${tp.top + CELL/2}px;width:${len}px;transform:rotate(${angle}deg);`;
-        beam.style.animationDuration = (s.attack * 1.5) + "s";
-        board.appendChild(beam);
-        const tw = document.getElementById(`tower-${ev.tower.row}-${ev.tower.col}`);
-        if (tw) { tw.classList.add("firing"); setTimeout(() => tw.classList.remove("firing"), s.attack * 800); }
-        const re = document.getElementById(`roach-${target.id}`);
-        if (re) re.classList.add("dying");
-        await sleep(s.attack * 500);
-      }
+      const tp = cellPx(ev.tower.row, ev.tower.col);
+      const rp = cellPx(ev.target.row, ev.target.col);
+      const bullet = document.createElement("div");
+      bullet.className = "bullet";
+      bullet.style.cssText = `left:${tp.left + CELL/2 - 5}px;top:${tp.top + CELL/2 - 5}px;transition:left ${s.attack}s linear, top ${s.attack}s linear;`;
+      board.appendChild(bullet);
+      const tw = document.getElementById(`tower-${ev.tower.row}-${ev.tower.col}`);
+      if (tw) { tw.classList.add("firing"); setTimeout(() => tw.classList.remove("firing"), s.attack*1000); }
+      requestAnimationFrame(() => {
+        bullet.style.left = (rp.left + CELL/2 - 5) + "px";
+        bullet.style.top = (rp.top + CELL/2 - 5) + "px";
+      });
+      setTimeout(() => bullet.remove(), s.attack * 1000 + 100);
     }
   }
-  await sleep(s.attack * 500);
+  await sleep(s.attack * 1000);
+  for (const ev of events) {
+    if (!ev.target.alive) {
+      const re = document.getElementById(`roach-${ev.target.id}`);
+      if (re) re.classList.add("dying");
+    }
+  }
+}
+
+function drawPathPreview(roachMoves) {
+  const board = $("board");
+  const totalW = GRID*CELL + (GRID-1)*GAP + 2*PAD;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "path-svg");
+  svg.setAttribute("width", totalW); svg.setAttribute("height", totalW);
+  svg.id = "path-preview-svg";
+  for (const mv of roachMoves) {
+    const path = mv.path;
+    if (!path || path.length < 2) continue;
+    for (let i=0; i<path.length-1; i++) {
+      const [r1,c1] = path[i], [r2,c2] = path[i+1];
+      const p1 = cellPx(r1,c1), p2 = cellPx(r2,c2);
+      const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1", p1.left + CELL/2);
+      line.setAttribute("y1", p1.top + CELL/2);
+      line.setAttribute("x2", p2.left + CELL/2);
+      line.setAttribute("y2", p2.top + CELL/2);
+      line.setAttribute("stroke", "#ff7a7a");
+      line.setAttribute("stroke-width", "1.8");
+      line.setAttribute("stroke-dasharray", "4 3");
+      svg.appendChild(line);
+    }
+    const [lr,lc] = path[path.length-1];
+    const [pr,pc] = path[path.length-2];
+    const pl = cellPx(pr,pc), pe = cellPx(lr,lc);
+    const ang = Math.atan2((pe.top-pl.top), (pe.left-pl.left));
+    const tipX = pe.left + CELL/2 - Math.cos(ang) * 22;
+    const tipY = pe.top + CELL/2 - Math.sin(ang) * 22;
+    const size = 7;
+    const a1x = tipX - size*Math.cos(ang) + size*0.5*Math.sin(ang);
+    const a1y = tipY - size*Math.sin(ang) - size*0.5*Math.cos(ang);
+    const a2x = tipX - size*Math.cos(ang) - size*0.5*Math.sin(ang);
+    const a2y = tipY - size*Math.sin(ang) + size*0.5*Math.cos(ang);
+    const poly = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+    poly.setAttribute("points", `${tipX},${tipY} ${a1x},${a1y} ${a2x},${a2y}`);
+    poly.setAttribute("fill", "#ff7a7a");
+    svg.appendChild(poly);
+  }
+  board.appendChild(svg);
 }
 
 async function applyTurn() {
@@ -550,27 +702,21 @@ async function applyTurn() {
   state.locked = true;
   render();
 
-  const fur = state.furniture.find(f => f.id === state.selectedFur);
+  const fur = state.furniture.find(f => f.id===state.selectedFur);
   const target = slideFurniture(fur, state.chosenDir.dr, state.chosenDir.dc);
-  if (JSON.stringify(target) === JSON.stringify(fur.cells)) {
-    state.locked = false;
-    state.chosenDir = null;
-    state.selectedFur = null;
-    render();
-    return;
+  if (JSON.stringify(target)===JSON.stringify(fur.cells)) {
+    state.locked = false; state.chosenDir = null; state.selectedFur = null; render(); return;
   }
 
   const s = SPEED[state.speed];
+
   const furEl = document.getElementById(`fur-${fur.id}`);
   const bb = furBoundingBox(target);
-  if (furEl) {
-    furEl.style.left = bb.left + "px";
-    furEl.style.top = bb.top + "px";
-  }
+  if (furEl) { furEl.style.left = bb.left+"px"; furEl.style.top = bb.top+"px"; }
   fur.cells = target;
-  await sleep(s.anim * 1000 + 50);
+  await sleep(s.cell * 1000 + 50);
 
-  const exposed = state.roaches.filter(r => r.alive && r.under === fur.id && !target.some(([nr, nc]) => nr === r.row && nc === r.col));
+  const exposed = state.roaches.filter(r => r.alive && r.under===fur.id && !target.some(([nr,nc]) => nr===r.row && nc===r.col));
   for (const r of exposed) {
     r.hidden = false;
     const re = document.getElementById(`roach-${r.id}`);
@@ -578,29 +724,46 @@ async function applyTurn() {
   }
   await sleep(150);
 
-  const moveResults = [];
+  const roachMoves = [];
   for (const r of exposed) {
     const hide = pickHidingFurniture(r);
-    if (hide) moveResults.push({ roach: r, target: hide });
+    if (!hide) continue;
+    const path = astar(r.row, r.col, hide.cell[0], hide.cell[1]);
+    if (path && path.length >= 1) roachMoves.push({ roach:r, target:hide, path });
   }
 
-  for (const mv of moveResults) {
-    mv.roach.row = mv.target.cell[0];
-    mv.roach.col = mv.target.cell[1];
-    mv.roach.under = null;
-    const re = document.getElementById(`roach-${mv.roach.id}`);
-    if (re) {
-      const { left, top } = cellPx(mv.roach.row, mv.roach.col);
-      re.style.left = left + "px";
-      re.style.top = top + "px";
+  if (roachMoves.length > 0) {
+    drawPathPreview(roachMoves);
+    await sleep(PATH_PREVIEW_MS);
+    const previewSvg = document.getElementById("path-preview-svg");
+    if (previewSvg) previewSvg.remove();
+  }
+
+  document.documentElement.style.setProperty("--cell-anim", s.cell + "s");
+
+  const towerSingleBudget = {};
+  const movePromises = roachMoves.map(async (mv, idx) => {
+    await sleep(idx * LINE_DELAY_MS);
+    const path = mv.path;
+    for (let i=1; i<path.length; i++) {
+      const [nr, nc] = path[i];
+      mv.roach.row = nr;
+      mv.roach.col = nc;
+      const re = document.getElementById(`roach-${mv.roach.id}`);
+      if (re) {
+        const { left, top } = cellPx(nr, nc);
+        re.style.left = left + "px";
+        re.style.top = top + "px";
+      }
+      await sleep(s.cell * 1000);
+      if (!mv.roach.alive) break;
+      const events = applyDamageAtCell(mv.roach, towerSingleBudget);
+      if (events.length > 0) {
+        await animateAttackEvents(events);
+        renderTopbar();
+      }
+      if (!mv.roach.alive) break;
     }
-  }
-  await sleep(s.anim * 1000 + 50);
-
-  const events = fireTowers();
-  await animateAttacks(events);
-
-  for (const mv of moveResults) {
     if (mv.roach.alive) {
       mv.roach.under = mv.target.fur.id;
       mv.roach.hidden = true;
@@ -609,8 +772,8 @@ async function applyTurn() {
     } else {
       mv.roach.under = null;
     }
-  }
-  await sleep(300);
+  });
+  await Promise.all(movePromises);
 
   state.moves += 1;
   state.selectedFur = null;
@@ -624,56 +787,43 @@ async function applyTurn() {
     $("result-bonus").textContent = (state.moves <= BONUS_THRESHOLD) ? "보너스! 절반 이하 사용으로 클리어 (카드팩 +1)" : " ";
     return;
   }
-
   render();
 }
 
 function resetGame() {
   state = initialState();
   showScreen("game");
-  setAnimVar();
+  setAnimVars();
   render();
 }
 
 function bindEvents() {
-  $("btn-start").addEventListener("click", () => {
-    showScreen("game");
-    setAnimVar();
-    render();
-  });
+  $("btn-start").addEventListener("click", () => { showScreen("game"); setAnimVars(); render(); });
   $("btn-execute").addEventListener("click", () => { if (state.selectedFur !== null && state.chosenDir !== null) applyTurn(); });
   $("btn-reset").addEventListener("click", resetGame);
   $("btn-retry").addEventListener("click", resetGame);
   $("card-broad").addEventListener("click", () => onCardClick(0));
   $("card-single").addEventListener("click", () => onCardClick(1));
   document.querySelectorAll(".speed-toggle button").forEach(b => {
-    b.addEventListener("click", () => { state.speed = b.dataset.speed; setAnimVar(); render(); });
+    b.addEventListener("click", () => { state.speed = b.dataset.speed; setAnimVars(); render(); });
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Tab") {
-      e.preventDefault();
-      if (!state.tabHeld) { state.tabHeld = true; render(); }
-    } else if (e.key === "Enter") {
-      if (state.selectedFur !== null && state.chosenDir !== null && !state.locked) applyTurn();
-    } else if (e.key === "Escape") {
+    if (e.key === "Tab") { e.preventDefault(); if (!state.tabHeld) { state.tabHeld = true; render(); } }
+    else if (e.key === "Enter") { if (state.selectedFur !== null && state.chosenDir !== null && !state.locked) applyTurn(); }
+    else if (e.key === "Escape") {
       if (state.locked) return;
-      state.selectedCard = null;
-      state.selectedFur = null;
-      state.chosenDir = null;
+      state.selectedCard = null; state.selectedFur = null; state.chosenDir = null; state.hoverCell = null;
       render();
     }
   });
   document.addEventListener("keyup", (e) => {
-    if (e.key === "Tab") {
-      e.preventDefault();
-      if (state.tabHeld) { state.tabHeld = false; render(); }
-    }
+    if (e.key === "Tab") { e.preventDefault(); if (state.tabHeld) { state.tabHeld = false; render(); } }
   });
   window.addEventListener("blur", () => { if (state.tabHeld) { state.tabHeld = false; render(); } });
 }
 
 bindEvents();
-setAnimVar();
+setAnimVars();
 showScreen("start");
 
 if (location.search.includes("check=")) {
@@ -687,142 +837,100 @@ if (location.search.includes("check=")) {
     const pillar = $("board").querySelectorAll(".pillar").length;
     const cards = document.querySelectorAll(".card").length;
     const initialAlive = state.roaches.filter(r => r.alive).length;
-    const initialUnder0 = state.roaches.filter(r => r.under === 0 && r.alive).length;
-    const initialUnder1 = state.roaches.filter(r => r.under === 1 && r.alive).length;
-
+    const initialU0 = state.roaches.filter(r => r.under===0 && r.alive).length;
+    const initialU1 = state.roaches.filter(r => r.under===1 && r.alive).length;
     let dyn = "";
-
-    if (location.search.includes("check=2")) {
-      state.selectedCard = 0;
-      placeTower(2, 5);
-      const broadPlaced = state.towers.length === 1 && state.towers[0].type === "broad";
-      const cost = state.costUsed;
-      state.selectedFur = 0;
-      state.chosenDir = { dr: 1, dc: 0 };
-      const fur = state.furniture[0];
-      const newCells = slideFurniture(fur, 1, 0);
-      fur.cells = newCells;
-      const exposed = state.roaches.filter(r => r.alive && r.under === 0 && !newCells.some(([nr, nc]) => nr === r.row && nc === r.col));
-      for (const r of exposed) r.hidden = false;
-      const moveResults = [];
-      for (const r of exposed) {
-        const hide = pickHidingFurniture(r);
-        if (hide) moveResults.push({ roach: r, target: hide });
-      }
-      for (const mv of moveResults) {
-        mv.roach.row = mv.target.cell[0];
-        mv.roach.col = mv.target.cell[1];
-        mv.roach.under = null;
-      }
-      fireTowers();
-      for (const mv of moveResults) {
-        if (mv.roach.alive) { mv.roach.under = mv.target.fur.id; mv.roach.hidden = true; }
-      }
-      const aliveAfter = state.roaches.filter(r => r.alive).length;
-      dyn = ` broadPlaced=${broadPlaced} cost=${cost} aliveAfter=${aliveAfter}`;
-    }
-
-    if (location.search.includes("check=6")) {
-      state.selectedCard = 1;
-      placeTower(4, 5);
-      const singlePlaced = state.towers.length === 1 && state.towers[0].type === "single";
-      const fur = state.furniture[0];
-      const newCells = slideFurniture(fur, 1, 0);
-      fur.cells = newCells;
-      const exposed = state.roaches.filter(r => r.alive && r.under === 0 && !newCells.some(([nr, nc]) => nr === r.row && nc === r.col));
-      for (const r of exposed) r.hidden = false;
-      const moveResults = [];
-      for (const r of exposed) {
-        const hide = pickHidingFurniture(r);
-        if (hide) moveResults.push({ roach: r, target: hide });
-      }
-      for (const mv of moveResults) {
-        mv.roach.row = mv.target.cell[0];
-        mv.roach.col = mv.target.cell[1];
-        mv.roach.under = null;
-      }
-      fireTowers();
-      for (const mv of moveResults) {
-        if (mv.roach.alive) { mv.roach.under = mv.target.fur.id; mv.roach.hidden = true; }
-      }
-      const aliveAfter = state.roaches.filter(r => r.alive).length;
-      dyn = ` singlePlaced=${singlePlaced} aliveAfter=${aliveAfter} (expected 2)`;
-    }
 
     if (location.search.includes("check=7")) {
       const board = $("board");
       const furEls = board.querySelectorAll(".furniture");
-      const f0 = furEls[0];
-      const f1 = furEls[1];
-      const f0left = parseFloat(f0.style.left), f0top = parseFloat(f0.style.top);
-      const f1left = parseFloat(f1.style.left), f1top = parseFloat(f1.style.top);
-      const expectedF0left = PAD + 1 * (CELL + GAP);
-      const expectedF0top = PAD + 1 * (CELL + GAP);
-      const expectedF1left = PAD + 5 * (CELL + GAP);
-      const expectedF1top = PAD + 3 * (CELL + GAP);
-      const f0w = parseFloat(f0.style.width), f0h = parseFloat(f0.style.height);
-      const f1w = parseFloat(f1.style.width), f1h = parseFloat(f1.style.height);
-      const expectedF0w = 2*CELL + GAP;
-      const onGrid = f0left === expectedF0left && f0top === expectedF0top && f1left === expectedF1left && f1top === expectedF1top;
-      const correctSize = f0w === expectedF0w && f0h === CELL && f1w === CELL && f1h === CELL;
-      dyn = ` furOnGrid=${onGrid} furSize=${correctSize} f0=(${f0left},${f0top},${f0w}x${f0h}) f1=(${f1left},${f1top},${f1w}x${f1h})`;
+      const f0 = furEls[0], f1 = furEls[1];
+      const f0l = parseFloat(f0.style.left), f0t = parseFloat(f0.style.top);
+      const f1l = parseFloat(f1.style.left), f1t = parseFloat(f1.style.top);
+      const eF0l = PAD + 1*(CELL+GAP), eF0t = PAD + 1*(CELL+GAP);
+      const eF1l = PAD + 5*(CELL+GAP), eF1t = PAD + 3*(CELL+GAP);
+      const onGrid = f0l===eF0l && f0t===eF0t && f1l===eF1l && f1t===eF1t;
+      dyn = ` onGrid=${onGrid} hp=${state.roaches[0].hp}`;
     }
 
-    if (location.search.includes("check=8")) {
-      state.selectedFur = 0;
-      render();
-      const ghosts = $("board").querySelectorAll(".ghost-arrow");
-      const ghostCount = ghosts.length;
-      const dirs = new Set();
-      ghosts.forEach(g => dirs.add(g.dataset.dir));
-      const sizes = Array.from(ghosts).map(g => `${parseFloat(g.style.width)}x${parseFloat(g.style.height)}`);
-      const allSame2x1 = sizes.every(s => s === `${2*CELL+GAP}x${CELL}`);
-      dyn = ` ghostCount=${ghostCount} dirs=${Array.from(dirs).sort().join("|")} allSame2x1=${allSame2x1}`;
+    if (location.search.includes("check=astar")) {
+      const p1 = astar(1,1,3,5);
+      const passesPillar = p1 && p1.some(([r,c]) => r===2 && c===3);
+      const p2 = astar(3,5,1,1);
+      dyn = ` astar_1_1_to_3_5_len=${p1?p1.length:0} passesPillar=${passesPillar} reverse_len=${p2?p2.length:0}`;
     }
 
-    if (location.search.includes("check=9")) {
-      const aliveCountText = $("hud-roach").textContent;
-      state.tabHeld = true;
-      render();
-      const tabhintOn = $("hud-tab").classList.contains("on");
-      const fur0 = document.getElementById("fur-0");
-      const hiddenByTab = fur0 && fur0.classList.contains("hidden-by-tab");
-      const roachVisible = Array.from(document.querySelectorAll(".roach")).every(r => parseFloat(r.style.opacity) === 1);
-      state.tabHeld = false;
-      render();
-      const tabhintOff = !$("hud-tab").classList.contains("on");
-      const fur0After = document.getElementById("fur-0");
-      const hiddenAfter = fur0After && fur0After.classList.contains("hidden-by-tab");
-      dyn = ` roachCounter=${aliveCountText}/4 tabOn=${tabhintOn} hiddenByTab=${hiddenByTab} roachVisible=${roachVisible} tabOff=${tabhintOff} hiddenAfter=${hiddenAfter}`;
-    }
-
-    if (location.search.includes("check=10")) {
-      const slow = document.querySelector('.speed-toggle button[data-speed="slow"]');
-      slow.click();
-      const animSlow = getComputedStyle(document.documentElement).getPropertyValue("--anim").trim();
-      const fast = document.querySelector('.speed-toggle button[data-speed="fast"]');
-      fast.click();
-      const animFast = getComputedStyle(document.documentElement).getPropertyValue("--anim").trim();
-      const slowOn = slow.classList.contains("on") === false;
-      const fastOn = fast.classList.contains("on");
-      dyn = ` animSlow=${animSlow} animFast=${animFast} slowOn=${slowOn} fastOn=${fastOn}`;
-    }
-
-    if (location.search.includes("check=11")) {
+    if (location.search.includes("check=range")) {
       state.selectedCard = 0;
+      state.hoverCell = { r:3, c:3 };
       render();
-      const card0Selected = $("card-broad").classList.contains("selected");
-      const escEvent = new KeyboardEvent("keydown", { key: "Escape" });
-      document.dispatchEvent(escEvent);
-      const card0AfterEsc = $("card-broad").classList.contains("selected");
-      dyn = ` selectedBefore=${card0Selected} selectedAfterEsc=${card0AfterEsc}`;
+      const broadCells = document.querySelectorAll(".cell.range-broad").length;
+      const svg = document.querySelector(".range-svg");
+      const lines = svg ? svg.querySelectorAll("line").length : 0;
+      const previewTower = document.querySelectorAll(".tower.preview").length;
+      dyn = ` broadCells=${broadCells} svgLines=${lines} previewTower=${previewTower}`;
+    }
+
+    if (location.search.includes("check=fire")) {
+      state.towers.push({ type:"broad", row:2, col:5 });
+      const r = state.roaches[0];
+      r.hidden = false; r.row = 2; r.col = 4; r.hp = ROACH_HP;
+      const budget = {};
+      const events1 = applyDamageAtCell(r, budget);
+      const hp1 = r.hp;
+      const events2 = applyDamageAtCell(r, budget);
+      const hp2 = r.hp;
+      dyn = ` afterShot1_hp=${hp1} afterShot2_hp=${hp2} alive=${r.alive}`;
+    }
+
+    if (location.search.includes("check=single")) {
+      state.towers.push({ type:"single", row:2, col:5 });
+      const r = state.roaches[0];
+      r.hidden = false; r.row = 2; r.col = 4; r.hp = ROACH_HP;
+      const budget = {};
+      applyDamageAtCell(r, budget);
+      const after = r.hp;
+      const alive = r.alive;
+      const budgetKey = "2,5";
+      const used = budget[budgetKey];
+      dyn = ` afterSingleHit_hp=${after} alive=${alive} budgetUsed=${used}`;
+    }
+
+    if (location.search.includes("check=esc")) {
+      state.selectedCard = 0; render();
+      const before = $("card-broad").classList.contains("selected");
+      document.dispatchEvent(new KeyboardEvent("keydown", { key:"Escape" }));
+      const after = $("card-broad").classList.contains("selected");
+      dyn = ` beforeEsc=${before} afterEsc=${after}`;
+    }
+
+    if (location.search.includes("check=tab")) {
+      state.tabHeld = true; render();
+      const tabOn = $("hud-tab").classList.contains("on");
+      const f0 = document.getElementById("fur-0");
+      const hidden = f0 && f0.classList.contains("hidden-by-tab");
+      dyn = ` tabOn=${tabOn} hiddenByTab=${hidden}`;
+    }
+
+    if (location.search.includes("check=speed")) {
+      document.querySelector('.speed-toggle button[data-speed="slow"]').click();
+      const slow = getComputedStyle(document.documentElement).getPropertyValue("--cell-anim").trim();
+      document.querySelector('.speed-toggle button[data-speed="fast"]').click();
+      const fast = getComputedStyle(document.documentElement).getPropertyValue("--cell-anim").trim();
+      dyn = ` slowAnim=${slow} fastAnim=${fast}`;
+    }
+
+    if (location.search.includes("check=ghost")) {
+      state.selectedFur = 0; render();
+      const ghosts = document.querySelectorAll(".ghost-arrow");
+      dyn = ` ghostCount=${ghosts.length}`;
     }
 
     document.title = (errors.length ? "ERR " : "OK ") +
-      `gameOn=${onGame} cells=${cells} fur=${fur} pillar=${pillar} cards=${cards} roaches=${initialAlive} u0=${initialUnder0} u1=${initialUnder1}${dyn}` +
-      (errors.length ? " | " + errors.join("; ") : "");
+      `gameOn=${onGame} cells=${cells} fur=${fur} pillar=${pillar} cards=${cards} roaches=${initialAlive} u0=${initialU0} u1=${initialU1}${dyn}` +
+      (errors.length ? " | "+errors.join("; ") : "");
   } catch(e) {
-    document.title = "FAIL " + e.message + " | " + (e.stack ? e.stack.split("\n").slice(0, 3).join(" / ") : "?");
+    document.title = "FAIL " + e.message + " | " + (e.stack ? e.stack.split("\n").slice(0,3).join(" / ") : "?");
   }
 }
 </script>
