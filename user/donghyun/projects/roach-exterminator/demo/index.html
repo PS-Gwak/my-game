@@ -35,7 +35,6 @@
 
   .guide-bar { background: #1f2840; color: #6cc4ff; padding: 8px 12px; border-radius: 6px; font-size: 13px; text-align: center; border: 1px solid #2a3a5a; min-height: 18px; }
   .guide-bar.lock { background: #3a2a1a; color: #f5a26c; border-color: #5a3a1a; }
-  .guide-bar.cleared { background: #1a3a2a; color: #6cffaa; }
 
   .board-wrap { display: flex; justify-content: center; }
   .board { display: grid; grid-template-columns: repeat(6, 56px); grid-template-rows: repeat(6, 56px); gap: 3px; background: #2a2a2a; padding: 6px; border-radius: 8px; position: relative; user-select: none; }
@@ -164,7 +163,6 @@ const SPEED = {
 
 function initialState() {
   return {
-    phase: "playing",
     round: 1,
     moves: 0,
     costUsed: 0,
@@ -189,8 +187,7 @@ function initialState() {
     selectedFur: null,
     chosenDir: null,
     speed: "normal",
-    locked: false,
-    initialRoachCount: 4
+    locked: false
   };
 }
 
@@ -280,8 +277,7 @@ function furBoundingBox(cells) {
     left: PAD + minC * (CELL + GAP),
     top: PAD + minR * (CELL + GAP),
     width: (maxC - minC + 1) * CELL + (maxC - minC) * GAP,
-    height: (maxR - minR + 1) * CELL + (maxR - minR) * GAP,
-    minR, maxR, minC, maxC
+    height: (maxR - minR + 1) * CELL + (maxR - minR) * GAP
   };
 }
 
@@ -377,7 +373,7 @@ function renderBoard() {
     if (!sameCell.has(key)) sameCell.set(key, []);
     sameCell.get(key).push(roach);
   }
-  for (const [key, list] of sameCell) {
+  for (const list of sameCell.values()) {
     list.forEach((roach, i) => {
       const { left, top } = cellPx(roach.row, roach.col);
       const r = document.createElement("div");
@@ -622,7 +618,6 @@ async function applyTurn() {
   state.locked = false;
 
   if (state.roaches.every(r => !r.alive)) {
-    state.phase = "cleared";
     showScreen("cleared");
     const remain = MOVES_LIMIT - state.moves;
     $("result-remain").textContent = remain;
