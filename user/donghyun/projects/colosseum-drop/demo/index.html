@@ -1,0 +1,1555 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>🏛 콜로세움 드롭 v2</title>
+<style>
+/* === 전역 레이아웃 === */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Helvetica Neue", system-ui, sans-serif;
+  background: #1a1510;
+  color: #f5f0e8;
+  overflow-x: hidden;
+}
+body {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 8px;
+}
+.app {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* === 화면 전환 === */
+.screen { display: none; flex-direction: column; gap: 8px; }
+.screen.on { display: flex; }
+
+/* === 시작 화면 === */
+#screen-start {
+  align-items: center;
+  justify-content: center;
+  min-height: 90vh;
+  gap: 16px;
+  text-align: center;
+}
+#screen-start h1 { font-size: 32px; margin: 0; letter-spacing: -1px; }
+#screen-start .subtitle { color: #a09070; font-size: 14px; max-width: 360px; line-height: 1.6; }
+#screen-start .rule-box {
+  background: #261f14;
+  border: 1px solid #4a3c22;
+  border-radius: 8px;
+  padding: 16px 20px;
+  text-align: left;
+  width: 100%;
+  max-width: 380px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: #d0c4a0;
+}
+#screen-start .rule-box b { color: #f5d272; }
+
+/* === 버튼 === */
+.btn {
+  background: #8b4513;
+  color: white;
+  border: 0;
+  padding: 11px 22px;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.btn:hover { background: #a0531a; }
+.btn:disabled { background: #444; color: #888; cursor: not-allowed; }
+.btn.accent { background: #c25434; }
+.btn.accent:hover { background: #d96344; }
+.btn.ghost {
+  background: transparent;
+  border: 1px solid #555;
+  color: #bbb;
+  font-size: 13px;
+  padding: 8px 16px;
+}
+.btn.ghost:hover { background: #2a2a2a; }
+.btn.discard-btn { background: #5a3a7a; }
+.btn.discard-btn:hover { background: #6e4d90; }
+.btn.discard-btn:disabled { background: #444; color: #888; }
+
+/* === 상단 제목바 === */
+.titlebar {
+  background: #261f14;
+  border: 1px solid #4a3c22;
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.titlebar h2 { margin: 0; font-size: 16px; letter-spacing: -0.5px; }
+.titlebar .phase-label {
+  font-size: 12px;
+  color: #a09070;
+  background: #1a1510;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid #4a3c22;
+}
+
+/* === 상태 표시줄 === */
+.status-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.status-badge {
+  background: #261f14;
+  border: 1px solid #4a3c22;
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: #d0c4a0;
+}
+.status-badge.active { border-color: #f5d272; color: #f5d272; }
+.status-badge.depleted { border-color: #c25434; color: #c25434; }
+
+/* === 컨트롤 버튼 바 === */
+.control-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* === 안내 메시지 === */
+.guide-bar {
+  background: #1c2a1c;
+  border: 1px solid #2a4a2a;
+  color: #80d080;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.guide-bar.warn { background: #2a1c1c; border-color: #4a2a2a; color: #d08080; }
+.guide-bar.info { background: #1c1c2a; border-color: #2a2a4a; color: #8080d0; }
+
+/* === 손 패 영역 === */
+.hand-section {
+  background: #201a10;
+  border: 1px solid #4a3c22;
+  border-radius: 8px;
+  padding: 10px;
+}
+.hand-section .section-title {
+  font-size: 11px;
+  color: #806050;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.hand-cards {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* === 카드 === */
+.card {
+  background: #2a2218;
+  border: 2px solid #4a3c22;
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-width: 58px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s, transform 0.1s;
+  user-select: none;
+  position: relative;
+}
+.card:hover { border-color: #8a7050; background: #352a1e; transform: translateY(-2px); }
+.card.selected-slot { border-color: #f5d272; background: #3a3020; }
+/* v2: 디스카드 선택 상태 */
+.card.selected-discard { border-color: #a060d0; background: #2a1a3a; }
+.card.in-slot { border-color: #5c8cc4; background: #1e2a3a; cursor: default; transform: none; }
+.card .card-emoji { font-size: 20px; line-height: 1; }
+.card .card-name { font-size: 10px; color: #a09070; margin-top: 2px; }
+.card .card-mult { font-size: 9px; color: #806050; }
+.card.swordsman { border-color: #605850; }
+.card.swordsman.selected-slot { border-color: #f5d272; }
+.card.swordsman.selected-discard { border-color: #a060d0; }
+.card.knight { border-color: #3a5a7a; }
+.card.knight .card-emoji { color: #5c8cc4; }
+.card.knight.selected-slot { border-color: #f5d272; }
+.card.knight.selected-discard { border-color: #a060d0; }
+.card.amazon { border-color: #7a3a2a; }
+.card.amazon .card-emoji { color: #c25434; }
+.card.amazon.selected-slot { border-color: #f5d272; }
+.card.amazon.selected-discard { border-color: #a060d0; }
+
+/* === 슬롯 영역 === */
+.slot-section {
+  background: #201a10;
+  border: 1px solid #4a3c22;
+  border-radius: 8px;
+  padding: 10px;
+}
+.slot-section .section-title {
+  font-size: 11px;
+  color: #806050;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.slot-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.slot {
+  width: 58px;
+  height: 68px;
+  background: #1a1510;
+  border: 2px dashed #4a3c22;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+.slot:hover { border-color: #8a7050; background: #221c12; }
+.slot.filled { border-style: solid; border-color: #5c8cc4; background: #1e2a3a; cursor: pointer; }
+.slot.filled:hover { border-color: #f5d272; background: #2a2418; }
+.slot .slot-num {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 9px;
+  color: #504030;
+}
+.slot-num { user-select: none; }
+.hand-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hand-result .combo-label { font-size: 13px; font-weight: 700; color: #f5d272; }
+.hand-result .squad-label { font-size: 12px; color: #a09070; }
+
+/* === 대기 분대 표시 === */
+.squads-waiting {
+  background: #201a10;
+  border: 1px solid #4a3c22;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #a09070;
+}
+.squads-waiting b { color: #f5d272; }
+
+/* === 콜로세움 영역 (v2: 세로 긴 캔버스) === */
+.arena-wrap {
+  position: relative;
+  border: 2px solid #4a3c22;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #100e08;
+  display: flex;
+  justify-content: center;
+}
+#arena-canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* === 결과 화면 === */
+#screen-result {
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  gap: 14px;
+  text-align: center;
+}
+#screen-result .result-emoji { font-size: 56px; line-height: 1; }
+#screen-result h2 { margin: 0; font-size: 28px; }
+.result-stats {
+  background: #261f14;
+  border: 1px solid #4a3c22;
+  border-radius: 8px;
+  padding: 14px 24px;
+  font-size: 15px;
+  line-height: 2;
+  color: #d0c4a0;
+  text-align: center;
+}
+.result-stats b { color: #f5f0e8; }
+
+/* === 상점 화면 === */
+#screen-shop {
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+}
+#screen-shop h2 { margin: 0; font-size: 24px; }
+.shop-subtitle { color: #a09070; font-size: 13px; }
+.shop-pack-area {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.shop-card {
+  background: #2a2218;
+  border: 2px solid #4a3c22;
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 80px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.shop-card:hover { border-color: #f5d272; transform: translateY(-3px); }
+.shop-card.picked { border-color: #f5d272; background: #3a3020; }
+.shop-card .sc-emoji { font-size: 28px; }
+.shop-card .sc-name { font-size: 12px; color: #a09070; margin-top: 4px; }
+.shop-card .sc-mult { font-size: 11px; color: #f5d272; }
+.shop-btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ======== 시작 화면 ======== -->
+<div id="screen-start" class="screen on">
+  <h1>🏛 콜로세움 드롭</h1>
+  <p class="subtitle">포커 패로 검투사 분대를 만들고<br>세로로 긴 핀볼 함정 트랙을 뚫어라!</p>
+  <div class="rule-box">
+    <b>한 판 흐름</b><br>
+    ① 자동으로 7장 드로우<br>
+    ② 디스카드(최대 3번) · 슬롯 5장 채워 패 낸다(최대 3번)<br>
+    ③ 패 3번 다 내면 → 출전! (3분대 합쳐서 동시 출전)<br>
+    ④ 세로 긴 핀볼 트랙 — 카메라가 1등 따라가며 함정 통과<br>
+    ⑤ 결승선 도달한 검투사가 점수 → 상점 → 다음 라운드<br><br>
+    <b>검투사 종류</b><br>
+    🗡 검사 1.0× (흰색, 20장) &nbsp;|&nbsp; 🛡 기사 2.5× (파랑, 10장)<br>
+    🪓 아마존 5.0× (빨강, 5장)
+  </div>
+  <button class="btn accent" id="btn-start" style="font-size:18px;padding:14px 40px;">게임 시작</button>
+</div>
+
+<!-- ======== 게임 화면 ======== -->
+<div id="screen-game" class="screen">
+  <!-- 제목 + 라운드 표시 (US-V2-010) -->
+  <div class="titlebar">
+    <h2>🏛 콜로세움 드롭</h2>
+    <span class="phase-label" id="phase-label">준비 중</span>
+  </div>
+
+  <!-- 상태 배지 (US-V2-002, 003) -->
+  <div class="status-row">
+    <span class="status-badge" id="badge-round">라운드 1</span>
+    <span class="status-badge" id="badge-discard">디스카드 0/3</span>
+    <span class="status-badge" id="badge-play">패 0/3</span>
+    <span class="status-badge" id="badge-deck">덱 35장</span>
+  </div>
+
+  <!-- 컨트롤 바 -->
+  <div class="control-bar">
+    <!-- v2: 드로우 버튼 제거 (자동 드로우 US-V2-004) -->
+    <button class="btn discard-btn" id="btn-discard" disabled>🗑 버리기</button>
+    <button class="btn" id="btn-play-hand" disabled>🃏 패 내기</button>
+    <button class="btn accent" id="btn-deploy" disabled>⚔️ 출전!</button>
+    <button class="btn ghost" id="btn-retry-game">다시 도전</button>
+  </div>
+
+  <div class="guide-bar info" id="guide-bar">카드를 드로우 중...</div>
+
+  <!-- 손 패 (v2: 디스카드 다중 선택) -->
+  <div class="hand-section">
+    <div class="section-title">
+      <span>손 패</span>
+      <span style="color:#a060d0;font-size:10px;">카드 클릭 = 슬롯 / 버리기 모드에서 클릭 = 선택</span>
+    </div>
+    <div class="hand-cards" id="hand-cards"></div>
+  </div>
+
+  <!-- 슬롯 (5칸) -->
+  <div class="slot-section">
+    <div class="section-title">선택 슬롯 (5칸) — 채우면 족보 판정</div>
+    <div class="slot-row" id="slot-row">
+      <div class="slot" data-idx="0"><span class="slot-num">1</span></div>
+      <div class="slot" data-idx="1"><span class="slot-num">2</span></div>
+      <div class="slot" data-idx="2"><span class="slot-num">3</span></div>
+      <div class="slot" data-idx="3"><span class="slot-num">4</span></div>
+      <div class="slot" data-idx="4"><span class="slot-num">5</span></div>
+    </div>
+    <div class="hand-result">
+      <span class="combo-label" id="combo-label">---</span>
+      <span class="squad-label" id="squad-label">슬롯을 채워주세요</span>
+    </div>
+  </div>
+
+  <!-- 대기 중인 분대 (US-V2-003) -->
+  <div class="squads-waiting" id="squads-waiting" style="display:none;">
+    ⏳ 대기 분대: <span id="squads-waiting-text"></span>
+  </div>
+
+  <!-- 콜로세움 캔버스 (US-V2-005: 세로 긴 핀볼 트랙) -->
+  <div class="arena-wrap">
+    <canvas id="arena-canvas"></canvas>
+  </div>
+
+  <div class="guide-bar" id="result-live" style="display:none;">생존 대기 중...</div>
+</div>
+
+<!-- ======== 결과 화면 ======== -->
+<div id="screen-result" class="screen">
+  <div class="result-emoji" id="result-emoji">🏆</div>
+  <h2 id="result-title">결과</h2>
+  <div class="result-stats" id="result-stats"></div>
+  <button class="btn accent" id="btn-to-shop" style="font-size:16px;padding:12px 32px;">상점으로 →</button>
+</div>
+
+<!-- ======== 상점 화면 (US-V2-009) ======== -->
+<div id="screen-shop" class="screen">
+  <h2>🏪 상점</h2>
+  <p class="shop-subtitle">카드 팩을 까서 덱에 카드를 추가하세요</p>
+  <div id="shop-pack-btn-wrap">
+    <button class="btn" id="btn-open-pack" style="font-size:16px;padding:12px 28px;">📦 카드 팩 까기</button>
+  </div>
+  <div class="shop-pack-area" id="shop-pack-area" style="display:none;"></div>
+  <p id="shop-guide" style="font-size:13px;color:#a09070;text-align:center;"></p>
+  <div class="shop-btn-row" id="shop-btn-row" style="display:none;">
+    <button class="btn accent" id="btn-shop-confirm" disabled>선택 추가 → 다음 라운드</button>
+    <button class="btn ghost" id="btn-shop-pass">다 패스 → 다음 라운드</button>
+  </div>
+</div>
+
+</div><!-- .app -->
+
+<!-- matter.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+
+<script>
+"use strict";
+
+// ============================================================
+// === v2: 상수 ===
+// ============================================================
+// US-V2-005: 세로 긴 핀볼 트랙 캔버스 (폭 300, 높이 1400)
+const CANVAS_W = 300;
+const CANVAS_H = 1400;
+// 화면에 보이는 뷰포트 높이 (카메라 창)
+const VIEW_H   = 560;
+
+// ============================================================
+// === v2 US-V2-001: 카드 풀 35장 (검사 20 / 기사 10 / 아마존 5) ===
+// ============================================================
+function makePool() {
+  const pool = [];
+  // 검사 20장 — 1.0× / 흰색
+  for (let i = 0; i < 20; i++) {
+    pool.push({ type: "swordsman", emoji: "🗡", label: "검사", color: "#d0cfc8", quality: 1.0 });
+  }
+  // 기사 10장 — 2.5× / 파란색
+  for (let i = 0; i < 10; i++) {
+    pool.push({ type: "knight", emoji: "🛡", label: "기사", color: "#5c8cc4", quality: 2.5 });
+  }
+  // 아마존 5장 — 5.0× / 빨간색
+  for (let i = 0; i < 5; i++) {
+    pool.push({ type: "amazon", emoji: "🪓", label: "아마존", color: "#c25434", quality: 5.0 });
+  }
+  return pool;
+}
+
+const BASE_POOL = makePool(); // 원형 보관
+
+// ============================================================
+// === v2: 게임 상태 ===
+// ============================================================
+let gs = makeInitialState();
+
+function makeInitialState() {
+  return {
+    // US-V2-010: 라운드 카운터
+    round: 1,
+    // 카드 덱 (셔플된 35장 + 상점에서 추가된 카드 포함)
+    deck: [],
+    // 손 패
+    hand: [],
+    // 슬롯 5칸
+    slots: [null, null, null, null, null],
+    // 족보 결과
+    combo: null,
+    // v2 US-V2-002: 디스카드 횟수 (3회 한도)
+    discardCount: 0,
+    // v2 US-V2-003: 패 낸 횟수 (3회 한도) + 누적 분대
+    playCount: 0,
+    waitingSquads: [],   // 패 낼 때마다 쌓이는 분대 목록 [{cards, squadSize, combo}]
+    // 모드: "normal" | "discard" (디스카드 카드 선택 중)
+    mode: "normal",
+    // 디스카드 선택된 손 패 인덱스들
+    discardSelected: new Set(),
+    // 단계: "prep" | "battle" | "result"
+    phase: "prep",
+    // 검투사
+    gladiators: [],
+    survivors: [],
+    score: 0,
+    // matter.js
+    engine: null,
+    render: null,
+    runner: null,
+    deadBodies: new Set(),
+    // v2 US-V2-006: 카메라 Y 오프셋
+    cameraY: 0,
+    targetCameraY: 0,
+    animFrameId: null,
+    // 맵 파라미터 (US-V2-010: 라운드별 변형)
+    mapSeed: Math.random(),
+  };
+}
+
+// ============================================================
+// === 유틸 ===
+// ============================================================
+function $(id) { return document.getElementById(id); }
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  $(name).classList.add("on");
+}
+function setGuide(text, cls) {
+  const el = $("guide-bar");
+  el.textContent = text;
+  el.className = "guide-bar" + (cls ? " " + cls : " info");
+}
+function setPhaseLabel(text) {
+  $("phase-label").textContent = text;
+}
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ============================================================
+// === v2 US-V2-004: 덱 초기화 + 자동 드로우 ===
+// ============================================================
+function initDeck() {
+  // 상점에서 추가한 카드 포함한 덱 구성 (첫 라운드는 BASE_POOL 35장)
+  gs.deck = shuffle([...gs.deck]);
+}
+
+// 손 패를 7장으로 자동 보충 (덱이 부족하면 있는 만큼만)
+function autoFillHand() {
+  const needed = 7 - gs.hand.length;
+  for (let i = 0; i < needed; i++) {
+    if (gs.deck.length === 0) break;
+    gs.hand.push({ ...gs.deck.shift(), handIdx: gs.hand.length, inSlot: false, discardSel: false });
+  }
+  // handIdx 재번호
+  gs.hand.forEach((c, i) => { c.handIdx = i; });
+}
+
+// ============================================================
+// === 족보 판정 ===
+// ============================================================
+function judgeCombo(cards) {
+  if (cards.length !== 5) return null;
+  const counts = {};
+  for (const c of cards) counts[c.type] = (counts[c.type] || 0) + 1;
+  const vals = Object.values(counts).sort((a, b) => b - a);
+  const maxSame = vals[0], secondSame = vals[1] || 0;
+  if (maxSame === 5) return { name: "파이브카드 ⭐", squadSize: 15 };
+  if (maxSame === 4) return { name: "포카드", squadSize: 12 };
+  if (maxSame === 3 && secondSame === 2) return { name: "풀하우스", squadSize: 10 };
+  if (maxSame === 3) return { name: "트리플", squadSize: 7 };
+  if (maxSame === 2 && secondSame === 2) return { name: "투페어", squadSize: 6 };
+  if (maxSame === 2) return { name: "원페어", squadSize: 5 };
+  return { name: "족보 없음", squadSize: 5 };
+}
+
+// 슬롯 카드 기준으로 검투사 목록 생성
+function buildSquad(slotCards, squadSize) {
+  const typeCounts = {};
+  for (const c of slotCards) typeCounts[c.type] = (typeCounts[c.type] || 0) + 1;
+  const gladiators = [];
+  const cardRef = {};
+  for (const c of BASE_POOL) { if (!cardRef[c.type]) cardRef[c.type] = c; }
+  const typeList = Object.keys(typeCounts);
+  let assigned = 0;
+  const typeArr = [];
+  for (const t of typeList) {
+    const ratio = typeCounts[t] / 5;
+    const n = Math.round(squadSize * ratio);
+    typeArr.push({ type: t, n });
+    assigned += n;
+  }
+  // 반올림 오차 보정
+  if (typeArr.length > 0) typeArr[0].n += (squadSize - assigned);
+  for (const { type, n } of typeArr) {
+    const ref = cardRef[type];
+    for (let i = 0; i < n; i++) {
+      gladiators.push({ type, emoji: ref.emoji, label: ref.label, color: ref.color, quality: ref.quality, alive: true, survived: false, body: null });
+    }
+  }
+  return gladiators;
+}
+
+// ============================================================
+// === UI 렌더 함수들 ===
+// ============================================================
+function updateStatusBadges() {
+  $("badge-round").textContent = `라운드 ${gs.round}`;
+  const discBadge = $("badge-discard");
+  discBadge.textContent = `디스카드 ${gs.discardCount}/3`;
+  discBadge.className = "status-badge" + (gs.discardCount >= 3 ? " depleted" : gs.discardCount > 0 ? " active" : "");
+  const playBadge = $("badge-play");
+  playBadge.textContent = `패 ${gs.playCount}/3`;
+  playBadge.className = "status-badge" + (gs.playCount >= 3 ? " depleted" : gs.playCount > 0 ? " active" : "");
+  $("badge-deck").textContent = `덱 ${gs.deck.length}장`;
+}
+
+function renderHand() {
+  const container = $("hand-cards");
+  container.innerHTML = "";
+  for (let i = 0; i < gs.hand.length; i++) {
+    const c = gs.hand[i];
+    const div = document.createElement("div");
+    div.className = `card ${c.type}`;
+    if (c.inSlot) {
+      div.style.opacity = "0.35";
+      div.style.cursor = "not-allowed";
+    } else if (gs.mode === "discard" && gs.discardSelected.has(i)) {
+      div.className += " selected-discard";
+    } else if (gs.mode === "normal" && !c.inSlot) {
+      // 슬롯 선택 상태는 in-slot 여부로 표현
+    }
+    const qualLabel = c.type === "swordsman" ? "1.0×" : c.type === "knight" ? "2.5×" : "5.0×";
+    div.innerHTML = `<div class="card-emoji">${c.emoji}</div><div class="card-name">${c.label}</div><div class="card-mult">${qualLabel}</div>`;
+    if (!c.inSlot) {
+      div.addEventListener("click", () => onHandCardClick(i));
+    }
+    container.appendChild(div);
+  }
+}
+
+function renderSlots() {
+  const slotEls = document.querySelectorAll("#slot-row .slot");
+  for (let i = 0; i < 5; i++) {
+    const el = slotEls[i];
+    const card = gs.slots[i];
+    el.innerHTML = `<span class="slot-num">${i + 1}</span>`;
+    if (card) {
+      el.classList.add("filled");
+      const qualLabel = card.type === "swordsman" ? "1.0×" : card.type === "knight" ? "2.5×" : "5.0×";
+      const inner = document.createElement("div");
+      inner.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:1px;";
+      inner.innerHTML = `<span style="font-size:20px;">${card.emoji}</span><span style="font-size:9px;color:#a09070;">${card.label}</span><span style="font-size:8px;color:#f5d272;">${qualLabel}</span>`;
+      el.appendChild(inner);
+    } else {
+      el.classList.remove("filled");
+    }
+  }
+}
+
+function renderCombo() {
+  const filledSlots = gs.slots.filter(Boolean);
+  if (filledSlots.length === 5) {
+    gs.combo = judgeCombo(filledSlots);
+    $("combo-label").textContent = gs.combo.name;
+    $("squad-label").textContent = `→ ${gs.combo.squadSize}명 분대`;
+  } else {
+    gs.combo = null;
+    $("combo-label").textContent = `${filledSlots.length}/5 선택됨`;
+    $("squad-label").textContent = "5장 채우면 족보 판정";
+  }
+}
+
+function renderWaitingSquads() {
+  if (gs.waitingSquads.length === 0) {
+    $("squads-waiting").style.display = "none";
+    return;
+  }
+  $("squads-waiting").style.display = "block";
+  const txt = gs.waitingSquads.map((s, i) =>
+    `[분대${i + 1}: ${s.combo} ${s.squadSize}명]`
+  ).join(" ");
+  $("squads-waiting-text").textContent = txt;
+}
+
+function updateButtons() {
+  const inPrep = gs.phase === "prep";
+  // 버리기 버튼: 디스카드 모드 진입 또는 확정
+  const discardBtn = $("btn-discard");
+  if (gs.mode === "discard") {
+    discardBtn.textContent = gs.discardSelected.size > 0 ? `🗑 버리기 (${gs.discardSelected.size}장)` : "✖ 취소";
+    discardBtn.disabled = false;
+    discardBtn.className = "btn discard-btn";
+  } else {
+    discardBtn.textContent = "🗑 버리기 모드";
+    discardBtn.disabled = !inPrep || gs.discardCount >= 3 || gs.hand.length === 0;
+    discardBtn.className = "btn discard-btn";
+  }
+  // 패 내기: 슬롯 5장 다 찼을 때
+  const playBtn = $("btn-play-hand");
+  const slotFull = gs.slots.filter(Boolean).length === 5;
+  playBtn.disabled = !inPrep || !slotFull || gs.playCount >= 3 || gs.mode === "discard";
+  // 출전: 패 3번 다 냈을 때
+  const deployBtn = $("btn-deploy");
+  deployBtn.disabled = !(inPrep && gs.playCount === 3);
+}
+
+function updateGuide() {
+  if (gs.phase === "prep") {
+    if (gs.playCount >= 3) {
+      setGuide("패 3번 완료! → '출전!' 버튼으로 시뮬레이션 시작", "");
+      setPhaseLabel("출전 대기");
+    } else if (gs.mode === "discard") {
+      setGuide("버릴 카드를 선택하고 '버리기' 버튼을 누르세요 (선택 0장이면 취소)", "warn");
+      setPhaseLabel("디스카드 중");
+    } else {
+      const filled = gs.slots.filter(Boolean).length;
+      if (filled < 5) {
+        setGuide(`카드 클릭 → 슬롯에 배치 (${filled}/5) | 버리기 모드: 버릴 카드 선택 후 '버리기'`, "info");
+        setPhaseLabel("패 선택 중");
+      } else {
+        setGuide(`족보: ${gs.combo ? gs.combo.name : "??"} → '패 내기'로 분대 확정 (${gs.playCount}/3)`, "");
+        setPhaseLabel("패 낼 준비");
+      }
+    }
+  } else if (gs.phase === "battle") {
+    setGuide("검투사들이 핀볼 트랙 통과 중...", "warn");
+    setPhaseLabel("전투 중");
+  }
+}
+
+// ============================================================
+// === v2 US-V2-002: 디스카드 로직 ===
+// ============================================================
+function onHandCardClick(idx) {
+  if (gs.phase !== "prep") return;
+  const card = gs.hand[idx];
+  if (card.inSlot) return;
+
+  if (gs.mode === "discard") {
+    // 디스카드 모드: 토글 선택
+    if (gs.discardSelected.has(idx)) {
+      gs.discardSelected.delete(idx);
+    } else {
+      gs.discardSelected.add(idx);
+    }
+    renderHand();
+    updateButtons();
+    return;
+  }
+
+  // 일반 모드: 빈 슬롯에 배치
+  const emptySlotIdx = gs.slots.findIndex(s => s === null);
+  if (emptySlotIdx !== -1) {
+    gs.slots[emptySlotIdx] = card;
+    card.inSlot = true;
+  }
+  renderHand();
+  renderSlots();
+  renderCombo();
+  updateButtons();
+  updateGuide();
+}
+
+function onSlotClick(idx) {
+  if (gs.phase !== "prep" || gs.mode === "discard") return;
+  const card = gs.slots[idx];
+  if (!card) return;
+  card.inSlot = false;
+  gs.slots[idx] = null;
+  renderHand();
+  renderSlots();
+  renderCombo();
+  updateButtons();
+  updateGuide();
+}
+
+// 버리기 버튼 핸들러
+function onDiscardBtn() {
+  if (gs.mode !== "discard") {
+    // 디스카드 모드 진입
+    gs.mode = "discard";
+    gs.discardSelected.clear();
+    renderHand();
+    updateButtons();
+    updateGuide();
+    return;
+  }
+  // 디스카드 모드 확정
+  if (gs.discardSelected.size === 0) {
+    // 취소
+    gs.mode = "normal";
+    renderHand();
+    updateButtons();
+    updateGuide();
+    return;
+  }
+  // 선택된 카드 제거 + 보충 드로우
+  const discardIdxs = [...gs.discardSelected].sort((a, b) => b - a);
+  for (const idx of discardIdxs) {
+    gs.hand[idx].inSlot = false;
+    // 슬롯에 있던 카드라면 슬롯에서도 제거
+    const slotIdx = gs.slots.indexOf(gs.hand[idx]);
+    if (slotIdx !== -1) gs.slots[slotIdx] = null;
+    gs.hand.splice(idx, 1);
+  }
+  gs.discardCount++;
+  gs.discardSelected.clear();
+  gs.mode = "normal";
+  // 자동 보충
+  autoFillHand();
+  renderHand();
+  renderSlots();
+  renderCombo();
+  updateStatusBadges();
+  updateButtons();
+  updateGuide();
+}
+
+// ============================================================
+// === v2 US-V2-003: 패 내기 로직 ===
+// ============================================================
+function onPlayHand() {
+  if (gs.phase !== "prep") return;
+  const slotCards = gs.slots.filter(Boolean);
+  if (slotCards.length < 5) return;
+  if (gs.playCount >= 3) return;
+
+  gs.combo = judgeCombo(slotCards);
+  if (!gs.combo) return;
+
+  // 분대 대기열에 추가
+  gs.waitingSquads.push({
+    cards: [...slotCards],
+    squadSize: gs.combo.squadSize,
+    combo: gs.combo.name,
+  });
+  gs.playCount++;
+
+  // 슬롯 비우기 + 손 패 복귀
+  for (let i = 0; i < 5; i++) {
+    if (gs.slots[i]) {
+      gs.slots[i].inSlot = false;
+      gs.slots[i] = null;
+    }
+  }
+  gs.combo = null;
+
+  // 자동 보충
+  autoFillHand();
+  renderHand();
+  renderSlots();
+  renderCombo();
+  renderWaitingSquads();
+  updateStatusBadges();
+  updateButtons();
+  updateGuide();
+}
+
+// ============================================================
+// === v2 US-V2-005 + 008: 맵 구성 (세로 긴 핀볼 트랙) ===
+// ============================================================
+// US-V2-010: 라운드별 맵 파라미터 (Math.random 변형)
+function getMapParams(seed) {
+  // seed 0~1 기반 파라미터
+  const r = (base, range) => base + (seed * range - range / 2);
+  return {
+    // 지그재그 S자 첫 번째 꺾임 방향 (0=왼쪽, 1=오른쪽)
+    zigFirst: seed > 0.5 ? 1 : 0,
+    // 다이아몬드 함정 X 오프셋
+    diamondOffsetX: (seed - 0.5) * 60,
+    // 핀 배치 Y 오프셋
+    pinOffsetY: (seed * 2 % 1) * 30 - 15,
+    // 최종 관문 톱니 회전 속도
+    finalSawSpeed: 0.04 + seed * 0.04,
+    // 톱니 영역 회전 방향 (1 또는 -1)
+    sawDir: seed > 0.5 ? 1 : -1,
+  };
+}
+
+function buildMapBodies(W, H, params) {
+  const { Bodies, Body } = Matter;
+  const walls = [];
+  const traps = [];
+  const sensors = [];
+  const WALL_T = 20;
+  const FINISH_Y = H - 60;
+
+  // ── 외벽 ──
+  walls.push(Bodies.rectangle(-WALL_T / 2, H / 2, WALL_T, H * 2, { isStatic: true, label: "wall", render: { fillStyle: "#2a2018" } }));
+  walls.push(Bodies.rectangle(W + WALL_T / 2, H / 2, WALL_T, H * 2, { isStatic: true, label: "wall", render: { fillStyle: "#2a2018" } }));
+  walls.push(Bodies.rectangle(W / 2, -WALL_T / 2, W, WALL_T, { isStatic: true, label: "wall", render: { fillStyle: "#2a2018" } }));
+
+  // ── 영역 1: 상단 좁은 입구 (Y: 0~100) ──
+  // 좌우 가이드 벽 (중앙 80px 폭만 통과)
+  walls.push(Bodies.rectangle(W * 0.2 / 2, 60, W * 0.2, 80, { isStatic: true, label: "wall", render: { fillStyle: "#3a3028" } }));
+  walls.push(Bodies.rectangle(W - W * 0.2 / 2, 60, W * 0.2, 80, { isStatic: true, label: "wall", render: { fillStyle: "#3a3028" } }));
+
+  // ── 영역 2: 지그재그 S자 (Y: 100~380) ──
+  // 좌우 번갈아 가며 사선 블록
+  const zigY = [120, 180, 240, 300, 360];
+  for (let i = 0; i < zigY.length; i++) {
+    const leftSide = params.zigFirst === 1 ? i % 2 === 0 : i % 2 !== 0;
+    const xPos = leftSide ? W * 0.25 : W * 0.75;
+    traps.push(Bodies.rectangle(xPos, zigY[i], W * 0.55, 14, {
+      isStatic: true,
+      label: "wall",
+      angle: leftSide ? -0.18 : 0.18,
+      render: { fillStyle: "#5a5048" },
+    }));
+  }
+
+  // ── 영역 3: 다이아몬드(마름모) 함정 (Y: 400~560) ──
+  const diamX = W / 2 + params.diamondOffsetX;
+  const diamY = 480;
+  // 마름모 4면
+  const dAngle = Math.PI / 4;
+  const dW = 60, dT = 12;
+  [
+    [diamX, diamY - 50, dAngle],
+    [diamX, diamY + 50, -dAngle],
+    [diamX - 50, diamY, dAngle + Math.PI / 2],
+    [diamX + 50, diamY, dAngle - Math.PI / 2],
+  ].forEach(([x, y, a]) => {
+    traps.push(Bodies.rectangle(x, y, dW, dT, {
+      isStatic: true,
+      label: "spike",
+      angle: a,
+      render: { fillStyle: "#a04040" },
+    }));
+  });
+
+  // ── 영역 4: 톱니 영역 (Y: 580~760) ──
+  // 좌우 들쭉날쭉 V자 벽
+  const teethY = [600, 640, 680, 720, 760];
+  for (let i = 0; i < teethY.length; i++) {
+    const side = i % 2 === 0 ? "left" : "right";
+    const xPos = side === "left" ? W * 0.2 : W * 0.8;
+    traps.push(Bodies.rectangle(xPos, teethY[i], W * 0.35, 10, {
+      isStatic: true,
+      label: "wall",
+      angle: side === "left" ? 0.3 : -0.3,
+      render: { fillStyle: "#6a4a3a" },
+    }));
+  }
+  // 회전 톱니 2개
+  const saw1 = Bodies.circle(W * 0.33, 660, 22, {
+    isStatic: true, label: "saw",
+    render: { fillStyle: "#777", strokeStyle: "#bbb", lineWidth: 2 },
+    frictionStatic: 0, friction: 0,
+  });
+  const saw2 = Bodies.circle(W * 0.67, 710, 22, {
+    isStatic: true, label: "saw",
+    render: { fillStyle: "#777", strokeStyle: "#bbb", lineWidth: 2 },
+    frictionStatic: 0, friction: 0,
+  });
+  traps.push(saw1, saw2);
+
+  // ── 영역 5: 핀(원형) 플린코 영역 (Y: 780~960) ──
+  const pinRows = [
+    [W * 0.5,                800],
+    [W * 0.25, 840], [W * 0.75, 840],
+    [W * 0.5,  880], [W * 0.17, 880], [W * 0.83, 880],
+    [W * 0.33, 920], [W * 0.67, 920],
+    [W * 0.5,  960],
+  ];
+  for (const [px, py] of pinRows) {
+    traps.push(Bodies.circle(px, py + params.pinOffsetY, 10, {
+      isStatic: true, label: "pin",
+      render: { fillStyle: "#555" },
+    }));
+  }
+
+  // ── 영역 6: 깔때기 수렴 (Y: 980~1120) ──
+  // 좌측 사면
+  walls.push(Bodies.rectangle(W * 0.2, 1040, W * 0.5, 12, {
+    isStatic: true, label: "wall", angle: 0.45,
+    render: { fillStyle: "#4a3c22" },
+  }));
+  // 우측 사면
+  walls.push(Bodies.rectangle(W * 0.8, 1040, W * 0.5, 12, {
+    isStatic: true, label: "wall", angle: -0.45,
+    render: { fillStyle: "#4a3c22" },
+  }));
+
+  // ── 영역 7: 최종 관문 기믹 (US-V2-008) — 출구 직전 강력 함정 ──
+  // 빠른 회전 가로 톱니 3개 (좌·중·우)
+  const finalY = 1160;
+  const fSaw1 = Bodies.circle(W * 0.2, finalY, 26, {
+    isStatic: true, label: "saw",
+    render: { fillStyle: "#cc4444", strokeStyle: "#ff6666", lineWidth: 3 },
+    frictionStatic: 0, friction: 0,
+  });
+  const fSaw2 = Bodies.circle(W / 2, finalY - 20, 30, {
+    isStatic: true, label: "saw",
+    render: { fillStyle: "#cc4444", strokeStyle: "#ff6666", lineWidth: 3 },
+    frictionStatic: 0, friction: 0,
+  });
+  const fSaw3 = Bodies.circle(W * 0.8, finalY, 26, {
+    isStatic: true, label: "saw",
+    render: { fillStyle: "#cc4444", strokeStyle: "#ff6666", lineWidth: 3 },
+    frictionStatic: 0, friction: 0,
+  });
+  traps.push(fSaw1, fSaw2, fSaw3);
+
+  // ── 결승선 센서 (Y: FINISH_Y) ──
+  sensors.push(Bodies.rectangle(W / 2, FINISH_Y, W, 4, {
+    isStatic: true, isSensor: true, label: "finish",
+    render: { fillStyle: "#f5d272", opacity: 0.7 },
+  }));
+
+  // ── 바닥 (결승선 아래) ──
+  walls.push(Bodies.rectangle(W / 2, H + 10, W * 2, 20, {
+    isStatic: true, label: "ground",
+    render: { fillStyle: "#4a3c22" },
+  }));
+
+  return {
+    all: [...walls, ...traps, ...sensors],
+    saw1, saw2, fSaw1, fSaw2, fSaw3,
+    params,
+    FINISH_Y,
+  };
+}
+
+// ============================================================
+// === v2 US-V2-005/006/007: matter.js 초기화 + 카메라 렌더 ===
+// ============================================================
+function initMatter() {
+  const { Engine, Render, Runner, Bodies, Body, Events, Composite } = Matter;
+
+  // 기존 엔진 정리
+  if (gs.engine) {
+    if (gs.animFrameId) { cancelAnimationFrame(gs.animFrameId); gs.animFrameId = null; }
+    Events.off(gs.engine);
+    Events.off(gs.render);
+    Runner.stop(gs.runner);
+    Render.stop(gs.render);
+    Composite.clear(gs.engine.world);
+    Engine.clear(gs.engine);
+    gs.deadBodies.clear();
+  }
+
+  // US-V2-007: 중력 1/3 (v1은 1.2, v2는 0.4)
+  const engine = Engine.create({ gravity: { y: 0.4 } });
+
+  // v2 US-V2-005/006: 캔버스는 VIEW_H 크기, matter.js 렌더러도 VIEW_H
+  // bounds를 통해 world(1400px) 중 어느 영역을 보여줄지 카메라로 제어
+  const canvas = $("arena-canvas");
+  canvas.width = CANVAS_W;
+  canvas.height = VIEW_H;
+  canvas.style.height = "";  // CSS 덮어쓰기 제거
+
+  const render = Render.create({
+    canvas,
+    engine,
+    options: {
+      width: CANVAS_W,
+      height: VIEW_H,
+      wireframes: false,
+      background: "#100e08",
+      hasBounds: true,
+    },
+  });
+
+  // 초기 뷰: world 상단 (Y: 0 ~ VIEW_H)
+  render.bounds.min.x = 0;
+  render.bounds.min.y = 0;
+  render.bounds.max.x = CANVAS_W;
+  render.bounds.max.y = VIEW_H;
+
+  const runner = Runner.create();
+  gs.engine = engine;
+  gs.render = render;
+  gs.runner = runner;
+  gs.cameraY = 0;
+  gs.targetCameraY = 0;
+
+  return { Engine, Render, Runner, Bodies, Body, Events, Composite, engine, render, runner };
+}
+
+// ============================================================
+// === v2: 출전 → 시뮬레이션 시작 ===
+// ============================================================
+function deploy() {
+  if (gs.waitingSquads.length === 0) return;
+  gs.phase = "battle";
+
+  // 3분대 합쳐서 검투사 전체 목록 만들기
+  gs.gladiators = [];
+  for (const squad of gs.waitingSquads) {
+    const sqGlads = buildSquad(squad.cards, squad.squadSize);
+    gs.gladiators.push(...sqGlads);
+  }
+  gs.survivors = [];
+  gs.score = 0;
+  gs.deadBodies.clear();
+
+  const { Engine, Render, Runner, Bodies, Body, Events, Composite, engine, render, runner } = initMatter();
+  const W = CANVAS_W;
+  const H = CANVAS_H;
+  const params = getMapParams(gs.mapSeed);
+
+  // 맵 바디 생성 및 월드에 추가
+  const map = buildMapBodies(W, H, params);
+  Composite.add(engine.world, map.all);
+  const FINISH_Y = map.FINISH_Y;
+
+  // 검투사 바디 생성 (천장에서 랜덤 X, 시차 드롭)
+  const GLAD_R = 7;
+  const colors = { swordsman: "#d0cfc8", knight: "#5c8cc4", amazon: "#c25434" };
+  for (let i = 0; i < gs.gladiators.length; i++) {
+    const g = gs.gladiators[i];
+    const startX = GLAD_R + 10 + Math.random() * (W - GLAD_R * 2 - 20);
+    const startY = -(i * 6 + Math.random() * 15);
+    const body = Bodies.circle(startX, startY, GLAD_R, {
+      restitution: 0.25,
+      friction: 0.05,
+      frictionAir: 0.008,
+      label: "gladiator_" + i,
+      render: { fillStyle: colors[g.type] },
+    });
+    Body.setVelocity(body, { x: (Math.random() - 0.5) * 1.5, y: 0 });
+    g.body = body;
+    Composite.add(engine.world, body);
+  }
+
+  // 회전 톱니 상태 추적
+  let sawAngle = 0;
+
+  // ── 콜리전: 함정(spike/saw) 충돌 시 검투사 제거 ──
+  Events.on(engine, "collisionStart", (event) => {
+    for (const pair of event.pairs) {
+      const { bodyA, bodyB } = pair;
+      for (const [trap, gBody] of [[bodyA, bodyB], [bodyB, bodyA]]) {
+        if ((trap.label === "spike" || trap.label === "saw") && gBody.label.startsWith("gladiator_")) {
+          const idx = parseInt(gBody.label.split("_")[1]);
+          if (!gs.deadBodies.has(gBody.id) && gs.gladiators[idx] && gs.gladiators[idx].alive) {
+            gs.deadBodies.add(gBody.id);
+            gs.gladiators[idx].alive = false;
+            gBody.render.fillStyle = "#ff3333";
+            setTimeout(() => {
+              if (Composite.get(engine.world, gBody.id, "body")) {
+                Composite.remove(engine.world, gBody);
+              }
+            }, 180);
+          }
+        }
+      }
+    }
+  });
+
+  // ── afterUpdate: 톱니 회전 + 결승선 통과 체크 + 카메라 타겟 계산 ──
+  Events.on(engine, "afterUpdate", () => {
+    sawAngle += 0.04;
+    // 일반 톱니
+    Body.setAngle(map.saw1, sawAngle * params.sawDir);
+    Body.setAngle(map.saw2, -sawAngle * params.sawDir);
+    // 최종 관문 빠른 톱니
+    Body.setAngle(map.fSaw1, sawAngle * params.finalSawSpeed * 25 * params.sawDir);
+    Body.setAngle(map.fSaw2, -sawAngle * params.finalSawSpeed * 25 * params.sawDir);
+    Body.setAngle(map.fSaw3, sawAngle * params.finalSawSpeed * 25 * params.sawDir);
+
+    // 결승선 통과 체크
+    for (let i = 0; i < gs.gladiators.length; i++) {
+      const g = gs.gladiators[i];
+      if (!g.alive || !g.body || gs.deadBodies.has(g.body.id)) continue;
+      if (g.body.position.y >= FINISH_Y && !g.survived) {
+        g.survived = true;
+        gs.survivors.push(g);
+      }
+    }
+
+    // v2 US-V2-006: 카메라 1등 추적 (살아남은 검투사 중 Y 최대)
+    let leaderY = 0;
+    let hasAlive = false;
+    for (const g of gs.gladiators) {
+      if (!g.alive || !g.body || gs.deadBodies.has(g.body.id)) continue;
+      if (g.body.position.y > leaderY) leaderY = g.body.position.y;
+      hasAlive = true;
+    }
+    if (!hasAlive) {
+      gs.targetCameraY = Math.max(0, FINISH_Y - VIEW_H / 2);
+    } else {
+      // 1등 Y를 화면 상단 40% 지점에 오도록 카메라 이동
+      gs.targetCameraY = Math.max(0, Math.min(CANVAS_H - VIEW_H, leaderY - VIEW_H * 0.4));
+    }
+    // 카메라 lerp + bounds 업데이트 (afterUpdate에서 처리해야 다음 프레임 렌더에 반영)
+    gs.cameraY += (gs.targetCameraY - gs.cameraY) * 0.10;
+    render.bounds.min.y = gs.cameraY;
+    render.bounds.max.y = gs.cameraY + VIEW_H;
+  });
+
+  // ── afterRender: 이모지 오버레이 + 결승선 텍스트 ──
+  // matter.js hasBounds:true 이므로 afterRender context는 world 좌표계 기준
+  Events.on(render, "afterRender", () => {
+    const ctx = render.context;
+
+    // 이모지 오버레이: world 좌표 그대로 (afterRender는 world 기준 context)
+    ctx.font = `${GLAD_R * 2}px serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i < gs.gladiators.length; i++) {
+      const g = gs.gladiators[i];
+      if (!g.alive || !g.body || gs.deadBodies.has(g.body.id)) continue;
+      const { x, y } = g.body.position;
+      // 뷰포트 밖이면 스킵 (culling)
+      if (y < gs.cameraY - 30 || y > gs.cameraY + VIEW_H + 30) continue;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(g.body.angle);
+      ctx.fillText(g.emoji, 0, 0);
+      ctx.restore();
+    }
+
+    // 결승선 라벨 (world Y 기준)
+    if (FINISH_Y >= gs.cameraY - 20 && FINISH_Y <= gs.cameraY + VIEW_H + 20) {
+      ctx.font = "bold 11px sans-serif";
+      ctx.fillStyle = "#f5d272";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText("━━ 결승선 ━━", 6, FINISH_Y - 8);
+    }
+
+    // 생존 카운트 오버레이 (화면 좌상단 고정 → world 좌표로 변환)
+    const aliveNow = gs.gladiators.filter(g2 => g2.alive && !gs.deadBodies.has(g2.body ? g2.body.id : -1)).length;
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = "#80d080";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    // 카메라 상단에서 10px 아래 world 좌표
+    ctx.fillText(`생존: ${aliveNow}명 | 통과: ${gs.survivors.length}명`, 6, gs.cameraY + 6);
+
+    // 영역 라벨
+    const areaLabels = [
+      [50, "입구"],
+      [250, "지그재그"],
+      [480, "다이아몬드"],
+      [670, "톱니"],
+      [870, "핀볼"],
+      [1050, "깔때기"],
+      [1160, "🔴 최종 관문"],
+      [FINISH_Y, "결승선"],
+    ];
+    ctx.font = "10px sans-serif";
+    ctx.fillStyle = "rgba(200,180,120,0.6)";
+    ctx.textAlign = "right";
+    for (const [labelY, text] of areaLabels) {
+      if (labelY >= gs.cameraY && labelY <= gs.cameraY + VIEW_H) {
+        ctx.fillText(text, CANVAS_W - 4, labelY);
+      }
+    }
+  });
+
+  Render.run(render);
+  Runner.run(runner, engine);
+  updateGuide();
+  $("btn-discard").disabled = true;
+  $("btn-play-hand").disabled = true;
+  $("btn-deploy").disabled = true;
+  $("result-live").style.display = "flex";
+  $("result-live").textContent = "전투 중...";
+
+  // ── 종료 체크 루프 ──
+  const MAX_WAIT = 35000; // 최대 35초 (v2: 느린 속도 반영)
+  const CHECK_INTERVAL = 400;
+  let elapsed = 0;
+  const checkInterval = setInterval(() => {
+    elapsed += CHECK_INTERVAL;
+    const notDone = gs.gladiators.filter(g2 => g2.alive && !g2.survived && !gs.deadBodies.has(g2.body ? g2.body.id : -1));
+    $("result-live").textContent = `전투 중... 생존 ${gs.survivors.length}명 / 탈락 ${gs.deadBodies.size}명`;
+    if (notDone.length === 0 || elapsed >= MAX_WAIT) {
+      clearInterval(checkInterval);
+      setTimeout(() => {
+        Runner.stop(runner);
+        Render.stop(render);
+        if (gs.animFrameId) { cancelAnimationFrame(gs.animFrameId); gs.animFrameId = null; }
+        showResultScreen();
+      }, 1800);
+    }
+  }, CHECK_INTERVAL);
+}
+
+// ============================================================
+// === v2: 결과 화면 ===
+// ============================================================
+function showResultScreen() {
+  let score = 0;
+  for (const g of gs.survivors) score += g.quality;
+  score = Math.round(score * 10) / 10;
+  gs.score = score;
+
+  const total = gs.gladiators.length;
+  const alive = gs.survivors.length;
+  const dead = total - alive;
+  const emoji = alive === 0 ? "💀" : "⚔️";
+
+  $("result-emoji").textContent = emoji;
+  $("result-title").textContent = alive === 0 ? "전멸..." : "라운드 종료!";
+
+  // 분대 요약
+  const squadSummary = gs.waitingSquads.map((s, i) => `분대${i + 1}(${s.combo} ${s.squadSize}명)`).join(" + ");
+  $("result-stats").innerHTML =
+    `라운드 <b>${gs.round}</b><br>` +
+    `분대: <b>${squadSummary}</b><br>` +
+    `총원: <b>${total}명</b> → 통과: <b>${alive}명</b> / 탈락: ${dead}명<br>` +
+    `최종 점수: <b style="color:#f5d272;font-size:22px;">${score}점</b>`;
+
+  showScreen("screen-result");
+}
+
+// ============================================================
+// === v2 US-V2-009: 상점 페이즈 ===
+// ============================================================
+let shopPickedCard = null;
+let shopPackOpened = false;
+
+function openShopScreen() {
+  shopPickedCard = null;
+  shopPackOpened = false;
+  $("shop-pack-btn-wrap").style.display = "block";
+  $("btn-open-pack").disabled = false;
+  $("shop-pack-area").style.display = "none";
+  $("shop-pack-area").innerHTML = "";
+  $("shop-guide").textContent = "카드 팩을 까면 임의로 3장이 나옵니다. 1장 골라 덱에 추가하거나 다 패스할 수 있습니다.";
+  $("shop-btn-row").style.display = "none";
+  showScreen("screen-shop");
+}
+
+function onOpenPack() {
+  if (shopPackOpened) return;
+  shopPackOpened = true;
+  $("btn-open-pack").disabled = true;
+  $("shop-pack-btn-wrap").style.display = "none";
+
+  // 임의 3장 (중복 가능)
+  const packCards = [];
+  for (let i = 0; i < 3; i++) {
+    const idx = Math.floor(Math.random() * BASE_POOL.length);
+    packCards.push({ ...BASE_POOL[idx] });
+  }
+
+  const area = $("shop-pack-area");
+  area.style.display = "flex";
+  area.innerHTML = "";
+  for (let i = 0; i < 3; i++) {
+    const c = packCards[i];
+    const qualLabel = c.type === "swordsman" ? "1.0×" : c.type === "knight" ? "2.5×" : "5.0×";
+    const div = document.createElement("div");
+    div.className = "shop-card";
+    div.innerHTML = `<div class="sc-emoji">${c.emoji}</div><div class="sc-name">${c.label}</div><div class="sc-mult">${qualLabel}</div>`;
+    div.addEventListener("click", () => {
+      // 이미 픽한 카드 토글
+      document.querySelectorAll(".shop-card").forEach(el => el.classList.remove("picked"));
+      if (shopPickedCard === packCards[i]) {
+        shopPickedCard = null;
+        $("btn-shop-confirm").disabled = true;
+      } else {
+        shopPickedCard = packCards[i];
+        div.classList.add("picked");
+        $("btn-shop-confirm").disabled = false;
+      }
+    });
+    area.appendChild(div);
+  }
+
+  $("shop-guide").textContent = "1장을 클릭해 선택하거나 '다 패스'를 누르세요.";
+  $("shop-btn-row").style.display = "flex";
+  $("btn-shop-confirm").disabled = true;
+}
+
+function onShopConfirm() {
+  if (shopPickedCard) {
+    gs.deck.push({ ...shopPickedCard });
+  }
+  goNextRound();
+}
+
+function onShopPass() {
+  goNextRound();
+}
+
+// ============================================================
+// === v2 US-V2-010: 다음 라운드 진입 ===
+// ============================================================
+function goNextRound() {
+  gs.round++;
+  // 맵 기믹 임의 변형 (Math.random)
+  gs.mapSeed = Math.random();
+  // 상태 초기화 (덱은 유지 + 추가된 카드 포함)
+  gs.hand = [];
+  gs.slots = [null, null, null, null, null];
+  gs.combo = null;
+  gs.discardCount = 0;
+  gs.playCount = 0;
+  gs.waitingSquads = [];
+  gs.mode = "normal";
+  gs.discardSelected.clear();
+  gs.phase = "prep";
+  gs.gladiators = [];
+  gs.survivors = [];
+  gs.score = 0;
+
+  // matter.js 정리
+  const { Runner, Render, Composite, Engine, Events } = Matter;
+  if (gs.engine) {
+    if (gs.animFrameId) { cancelAnimationFrame(gs.animFrameId); gs.animFrameId = null; }
+    Events.off(gs.engine);
+    if (gs.render) Events.off(gs.render);
+    Runner.stop(gs.runner);
+    Render.stop(gs.render);
+    Composite.clear(gs.engine.world);
+    Engine.clear(gs.engine);
+    gs.engine = null; gs.render = null; gs.runner = null;
+  }
+
+  // 덱 셔플 (상점 추가 카드 포함)
+  // 덱 카드가 7장 미만이면 BASE_POOL 복사본으로 리필 (상점 추가분은 기존 것에 합산)
+  if (gs.deck.length < 7) {
+    gs.deck = [...BASE_POOL, ...gs.deck];
+  }
+  gs.deck = shuffle(gs.deck);
+
+  // UI 리셋
+  showScreen("screen-game");
+  resetGameUI();
+
+  // US-V2-004: 자동 7장 드로우
+  autoFillHand();
+  renderHand();
+  renderSlots();
+  renderCombo();
+  renderWaitingSquads();
+  updateStatusBadges();
+  updateButtons();
+  updateGuide();
+}
+
+// ============================================================
+// === 게임 리셋 (처음부터) ===
+// ============================================================
+function resetGame() {
+  const { Runner, Render, Composite, Engine, Events } = Matter;
+  if (gs.engine) {
+    if (gs.animFrameId) { cancelAnimationFrame(gs.animFrameId); gs.animFrameId = null; }
+    Events.off(gs.engine);
+    if (gs.render) Events.off(gs.render);
+    Runner.stop(gs.runner);
+    Render.stop(gs.render);
+    Composite.clear(gs.engine.world);
+    Engine.clear(gs.engine);
+  }
+  gs = makeInitialState();
+
+  // 덱 초기화 (BASE_POOL 35장)
+  gs.deck = [...BASE_POOL];
+  initDeck();
+
+  resetGameUI();
+  showScreen("screen-game");
+
+  // US-V2-004: 자동 7장 드로우
+  autoFillHand();
+  renderHand();
+  renderSlots();
+  renderCombo();
+  renderWaitingSquads();
+  updateStatusBadges();
+  updateButtons();
+  updateGuide();
+}
+
+function resetGameUI() {
+  $("hand-cards").innerHTML = "";
+  document.querySelectorAll("#slot-row .slot").forEach((el, i) => {
+    el.innerHTML = `<span class="slot-num">${i + 1}</span>`;
+    el.classList.remove("filled");
+  });
+  $("combo-label").textContent = "---";
+  $("squad-label").textContent = "슬롯을 채워주세요";
+  $("squads-waiting").style.display = "none";
+  $("result-live").style.display = "none";
+
+  // 빈 캔버스 초기화 (VIEW_H 크기로)
+  const canvas = $("arena-canvas");
+  canvas.width = CANVAS_W;
+  canvas.height = VIEW_H;
+  canvas.style.height = "";
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#100e08";
+  ctx.fillRect(0, 0, CANVAS_W, VIEW_H);
+  ctx.fillStyle = "#4a3c22";
+  ctx.font = "14px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("출전 후 시뮬레이션 시작", CANVAS_W / 2, VIEW_H / 2);
+}
+
+// ============================================================
+// === 이벤트 바인딩 ===
+// ============================================================
+function bindEvents() {
+  $("btn-start").addEventListener("click", () => {
+    resetGame();
+  });
+
+  // v2: 버리기 버튼 (디스카드 모드 진입/확정)
+  $("btn-discard").addEventListener("click", onDiscardBtn);
+
+  // v2: 패 내기
+  $("btn-play-hand").addEventListener("click", onPlayHand);
+
+  // v2: 출전
+  $("btn-deploy").addEventListener("click", () => {
+    if (gs.phase === "prep" && gs.playCount === 3) deploy();
+  });
+
+  $("btn-retry-game").addEventListener("click", () => resetGame());
+  $("btn-to-shop").addEventListener("click", () => openShopScreen());
+  $("btn-open-pack").addEventListener("click", onOpenPack);
+  $("btn-shop-confirm").addEventListener("click", onShopConfirm);
+  $("btn-shop-pass").addEventListener("click", onShopPass);
+
+  // 슬롯 클릭
+  document.querySelectorAll("#slot-row .slot").forEach((el, i) => {
+    el.addEventListener("click", () => onSlotClick(i));
+  });
+}
+
+// ============================================================
+// === 초기 실행 ===
+// ============================================================
+bindEvents();
+showScreen("screen-start");
+</script>
+</body>
+</html>
