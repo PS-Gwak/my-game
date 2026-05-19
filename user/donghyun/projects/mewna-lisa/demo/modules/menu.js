@@ -23,7 +23,7 @@
 
     container.innerHTML = `
       <div class="menu-card">
-        <h1 class="menu-title">뮤더너츠 v9</h1>
+        <h1 class="menu-title">뮤나리자 v9</h1>
         <p class="menu-tagline">붓질로 명화를 베끼고, 경매장에서 팔고, 박물관까지</p>
 
         <div class="menu-buttons">
