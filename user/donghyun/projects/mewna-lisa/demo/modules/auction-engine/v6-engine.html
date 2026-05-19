@@ -1,0 +1,325 @@
+<!-- v6 경매 엔진 HTML — v8 경매장 진입 시 이 내용을 화면에 불러옵니다.
+     원본: auction-demo-v6/index.html (body 부분)
+     v8 패치 적용: 예상가 공개 라벨 추가, 인격 이름 v7 기준으로 변경 -->
+
+<!-- 시작 화면 -->
+<section id="screen-start" class="screen active">
+  <div class="start-wrap">
+    <h1 class="title-main">경매장</h1>
+    <p class="subtitle">뮤더너츠 v9 경매 모듈 · v6 엔진 탑재 · 인격 v7 기준</p>
+
+    <div class="rules-card">
+      <h2>경매 규칙</h2>
+      <ul class="rules-list">
+        <li>플레이어 1명 + CPU 10명이 경매를 진행합니다.</li>
+        <li>경매 1회 = 그림 A→B→C→D→E 5라운드 경매 + 판매 세션.</li>
+        <li>경매 시작 시 5라운드 경매 종류를 미리 공개합니다.</li>
+        <!-- v8 패치 4: 예상가 공개 룰로 변경 -->
+        <li><b>예상가는 화면에 공개됩니다.</b> 호가 판단 참고하세요.</li>
+        <li><b>본인 재입찰 불가</b> — 누구든 연속으로 두 번 부르지 않습니다.</li>
+        <!-- v8 패치 1: '입찰 포기' → '10배속 보기' 룰 설명 -->
+        <li><b>10배속 보기</b> 누르면 남은 시간이 <b>⏩ ×10 가속</b>. 도중 다시 입찰하면 1배속 복귀.</li>
+        <li><b>자유경매·1회 제한</b>에서 <b>마우스 휠 (위↑) / ↑↓ 방향키</b>로 호가 단계 조절. <b>Enter/Space</b>로 입찰.</li>
+        <li>자유경매는 사회자가 임의로 <b>5~15초 간격</b>으로 호가를 외칩니다. 침묵이 cooldown을 넘기면 종료.</li>
+        <li>모든 화면에서 <b>아무 키 / 아무 클릭</b>으로 다음 단계 진행.</li>
+        <li>판매 세션 종료 시 재산 &lt; 0 이면 게임 오버. 시작 자금 $3,000.</li>
+        <li>CPU 10명도 각자 시작 자금 보유. <b>잔고 부족하면 파산💸 — 입찰 안 함</b>. 자산은 $200~$5000 광분포.</li>
+      </ul>
+    </div>
+
+    <div class="persona-legend">
+      <!-- v8 패치 2: 인격 이름 v7 기준으로 변경 -->
+      <h2>CPU 9종 인격 (v7 라벨 기준)</h2>
+      <div class="persona-grid">
+        <div class="persona-row"><span class="persona-emoji">💼</span><span class="persona-code">APP</span><span class="persona-name">시세형</span><span class="persona-desc">예상가 근처 활발</span></div>
+        <div class="persona-row"><span class="persona-emoji">🛡️</span><span class="persona-code">CON</span><span class="persona-name">절약형</span><span class="persona-desc">안전제일·빠른 10배속</span></div>
+        <div class="persona-row"><span class="persona-emoji">🔥</span><span class="persona-code">MAN</span><span class="persona-name">광기형</span><span class="persona-desc">호가 점프·천장 ×3</span></div>
+        <div class="persona-row"><span class="persona-emoji">🎭</span><span class="persona-code">BLF</span><span class="persona-name">고객형</span><span class="persona-desc">광기 카운터·체크레이즈 80%</span></div>
+        <div class="persona-row"><span class="persona-emoji">🃏</span><span class="persona-code">SHK</span><span class="persona-name">잠복형</span><span class="persona-desc">조용하다 일격</span></div>
+        <div class="persona-row"><span class="persona-emoji">💢</span><span class="persona-code">TLT</span><span class="persona-name">도박형</span><span class="persona-desc">손실 후 무리수</span></div>
+        <div class="persona-row"><span class="persona-emoji">👯</span><span class="persona-code">MIR</span><span class="persona-name">추종형</span><span class="persona-desc">다수 따라가기</span></div>
+        <div class="persona-row"><span class="persona-emoji">🎯</span><span class="persona-code">SNI</span><span class="persona-name">저격형</span><span class="persona-desc">마지막 1초 입찰</span></div>
+        <div class="persona-row"><span class="persona-emoji">🦅</span><span class="persona-code">WTH</span><span class="persona-name">관망형</span><span class="persona-desc">막판 큰 점프 또는 10배속</span></div>
+      </div>
+    </div>
+
+    <button id="btn-start" class="btn-big">경매 시작 (아무 키 가능)</button>
+  </div>
+</section>
+
+<!-- 경매 라인업 미리보기 화면 -->
+<section id="screen-cycle-preview" class="screen">
+  <div class="preview-wrap">
+    <h1 id="preview-cycle-title">경매 라인업</h1>
+    <p class="preview-sub">이번 5라운드 경매 종류</p>
+    <div id="preview-table" class="preview-table"></div>
+    <button id="btn-start-cycle" class="btn-big">시작하기 (아무 키 가능)</button>
+  </div>
+</section>
+
+<!-- 인터미션 화면 -->
+<section id="screen-intermission" class="screen">
+  <div class="intermission-wrap">
+    <div class="top-bar">
+      <span id="inter-cycle-round">라운드 1/5</span>
+      <span id="inter-money">자금: $3,000</span>
+    </div>
+    <div class="painting-stage">
+      <img id="inter-painting-img" class="painting-img" alt="painting">
+      <div class="painting-info">
+        <div id="inter-painting-title" class="painting-title">제목</div>
+        <div id="inter-painting-category" class="painting-category">카테고리 A</div>
+      </div>
+    </div>
+    <div class="auction-rule-card">
+      <h2 id="inter-auction-name">경매 방식</h2>
+      <p id="inter-auction-rule">룰 한 줄</p>
+    </div>
+    <p class="tap-hint">화면 어디든 클릭 / 아무 키로 경매 시작</p>
+  </div>
+</section>
+
+<!-- 경매 화면 -->
+<section id="screen-auction" class="screen">
+  <div class="topbar">
+    <div class="topbar-section">
+      <span class="tb-label">라운드</span><span id="auc-round-num" class="tb-value">1</span>
+    </div>
+    <div id="auc-auction-name" class="tb-mid">경매 방식</div>
+    <div class="topbar-section">
+      <!-- v8 패치 4: 예상가 공개 라벨 추가 -->
+      <span class="tb-label">예상가</span><span id="bid-expected" class="tb-value">$0</span>
+      <span class="tb-label">내 자금</span><span id="auc-money" class="tb-value">$3,000</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="col-left">
+      <div class="art-frame">
+        <div class="art-img">
+          <img id="auc-painting-img" alt="painting"
+               onerror="this.parentNode.style.background='#2a1f0e'">
+        </div>
+        <div id="auc-painting-title" class="art-name">제목</div>
+        <div id="auc-painting-category" class="art-cat">카테고리 A</div>
+        <div id="countdown-overlay" class="countdown-overlay hidden">
+          <div id="countdown-number" class="countdown-number">5</div>
+          <div class="countdown-label">곧 경매 시작</div>
+        </div>
+      </div>
+
+      <div class="price-box">
+        <div class="price-label">현재가 / 최고 입찰자</div>
+        <div id="auc-current-price" class="price-value">$0</div>
+        <div id="auc-top-bidder" class="price-bidder">—</div>
+        <div class="timer-row">
+          <span id="auc-timer" class="timer-big">—</span>
+          <span class="timer-label">남은 시간</span>
+        </div>
+        <!-- v6: P2-16 호가 단계 안내 -->
+        <div id="auc-tick-info" class="tick-info">호가 단위: $5</div>
+      </div>
+    </div>
+
+    <div class="col-mid">
+      <div class="cpu-header">참가자 현황 (CPU 10명)</div>
+      <div id="cpu-list" class="cpu-grid"></div>
+
+      <div id="auc-traffic-wrap" class="candle-mid hidden">
+        <div class="candle-panel">
+          <div class="candle-icon">🕯️</div>
+          <div class="signal-row">
+            <div id="traffic-green" class="signal green"></div>
+            <div id="traffic-yellow" class="signal yellow"></div>
+            <div id="traffic-red" class="signal red"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mid-spacer"></div>
+
+      <div class="bid-section">
+        <div id="bid-buy" class="bid-buy hidden">
+          <button id="bid-btn-buy" class="bid-btn">
+            <span class="bid-btn-main">지금 산다</span>
+            <span class="bid-btn-sub">GO 직전 클릭은 큐잉 → GO 즉시 발사</span>
+          </button>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-btn-give-up" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+        <div id="bid-btn-next-wrap" class="bid-buy hidden">
+          <button id="bid-btn-next" class="bid-btn">
+            <span class="bid-btn-main">다음 가격 입찰</span>
+            <span class="bid-btn-sub">현재가 + 호가 1단계</span>
+          </button>
+          <div class="bid-hotkey-hint">⬆️⬇️ 또는 마우스 휠(위↑) = 호가 조절 · Enter/Space = 입찰</div>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-btn-next-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+        <div id="bid-sealed" class="bid-sealed hidden">
+          <div id="sealed-timer" class="sealed-timer">남은 시간: —</div>
+          <div class="sealed-row">
+            <input type="number" id="bid-sealed-input" min="0" placeholder="비밀 입찰가 입력">
+            <button id="bid-sealed-submit" class="bid-btn-sm">제출</button>
+          </div>
+          <p class="hint">제출 전까지 다른 사람 가격을 볼 수 없습니다. 라운드별 호가 갭 다양화 ($100~$1000). 30초 만료 시 자동 0$.</p>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-sealed-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+        <div id="bid-limited" class="bid-limited hidden">
+          <div id="bid-limited-turn" class="turn-label">선착순 30초 · 한 번만 입찰 가능</div>
+          <div class="limited-row">
+            <input type="number" id="bid-limited-input" min="1" placeholder="입찰가 또는 휠/↑↓ 후 Enter">
+            <button id="bid-limited-submit" class="bid-btn-sm">입찰</button>
+            <!-- v8 패치 1: '패스' → '10배속 보기' -->
+            <button id="bid-limited-pass" class="bid-btn-pass-sm">10배속 보기 (⏩×10)</button>
+          </div>
+          <div class="bid-hotkey-hint">⬆️⬇️ 또는 마우스 휠(위↑) = 호가 조절 · Enter/Space = 입찰</div>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-limited-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+        <div id="bid-btn-dutch-wrap" class="bid-buy hidden">
+          <button id="bid-btn-dutch" class="bid-btn">
+            <span class="bid-btn-main">지금 산다</span>
+            <span class="bid-btn-sub">가격이 0.5초마다 한 단계 하락</span>
+          </button>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-btn-dutch-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="log-header">
+        <span class="log-dot"></span>
+        입찰 로그 / 사회자 멘트
+      </div>
+      <div id="auc-bid-log" class="log-box"></div>
+    </div>
+  </div>
+
+  <div id="fast-forward-badge" class="ff-badge hidden">⏩ ×10 빨리감기</div>
+
+  <div id="debug-panel" class="debug-panel">
+    <span class="debug-tag">?debug=1</span>
+    <div class="slider-box">
+      <div class="slider-name">입찰 속도</div>
+      <input type="range" id="slider-1" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s1-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">×0.5 ~ ×2.0</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">공격성</div>
+      <input type="range" id="slider-2" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s2-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">-10%p ~ +30%p</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">고액 수용</div>
+      <input type="range" id="slider-3" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s3-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">×0.5 ~ ×2.0</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">돌발 한도</div>
+      <input type="range" id="slider-4" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s4-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">0% ~ 100%</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">CPU 자금</div>
+      <input type="range" id="slider-5" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s5-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">평균 $500 ~ $5000</span>
+      </div>
+    </div>
+    <div id="debug-info" class="debug-info"></div>
+  </div>
+</section>
+
+<!-- 라운드 결과창 -->
+<section id="screen-round-result" class="screen">
+  <div class="result-wrap">
+    <h2 id="result-title">라운드 결과</h2>
+    <div class="result-card">
+      <div class="row"><span>낙찰자</span><span id="result-winner">—</span></div>
+      <div class="row"><span>낙찰가</span><span id="result-price">$0</span></div>
+      <div class="row"><span>경매 방식</span><span id="result-auction">—</span></div>
+    </div>
+    <!-- v8 패치 4: 예상가 이미 공개됨 -->
+    <p class="result-hint">예상가: <span id="result-expected">$0</span> (이미 공개됨)</p>
+    <button id="btn-next-round" class="btn-big">다음 라운드 (아무 키 가능)</button>
+  </div>
+</section>
+
+<!-- 판매 세션 화면 -->
+<section id="screen-sale" class="screen">
+  <div class="sale-topbar">
+    <span id="sale-progress">판매 1/5</span>
+    <span id="sale-money">자금: $3,000</span>
+  </div>
+  <div class="sale-main">
+    <div class="sale-left">
+      <h2>판매 세션</h2>
+      <div class="painting-stage">
+        <img id="sale-painting-img" class="painting-img" alt="painting">
+        <div class="painting-info">
+          <div id="sale-painting-title" class="painting-title">제목</div>
+          <div id="sale-painting-category" class="painting-category">낙찰: 나</div>
+        </div>
+      </div>
+      <div class="sale-info">
+        <div class="row"><span>예상가</span><span id="sale-expected">$0</span></div>
+        <div class="row"><span>매수가</span><span id="sale-bought">$0</span></div>
+        <div class="row"><span>차액</span><span id="sale-diff">$0</span></div>
+      </div>
+      <button id="btn-sell" class="btn-big">💰 판매 (Enter/Space)</button>
+      <button id="btn-keep" class="btn-big" style="margin-top:0.5rem;background:#2a5c2a;">📦 보관 (작업실로 이동)</button>
+    </div>
+    <div class="sale-right">
+      <h3>📊 모든 참가자 정산</h3>
+      <div id="cpu-ledger" class="cpu-ledger"></div>
+      <div class="paintings-ledger">
+        <h4>🖼 5라운드 그림별 낙찰자</h4>
+        <div id="paintings-ledger-list"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 게임오버 화면 -->
+<section id="screen-gameover" class="screen">
+  <div class="gameover-wrap">
+    <h1 class="title-main">게임 오버</h1>
+    <div id="go-taunt" class="taunt-box">
+      <div class="taunt-line">당신은 파산했습니다.</div>
+      <div class="taunt-line">당신, 보는 눈이 없네요.</div>
+    </div>
+    <div class="gameover-stats">
+      <div class="row"><span>경매 횟수</span><span id="go-cycle">0</span></div>
+      <div class="row"><span>최종 재산</span><span id="go-money">$0</span></div>
+    </div>
+    <button id="btn-restart" class="btn-big">다시 도전 (아무 키 가능)</button>
+    <!-- v8 패치 8: 경매 끝나도 작업실로 돌아갈 수 있는 버튼 -->
+    <button id="btn-back-studio-go" class="btn-big" style="margin-top:0.5rem;background:#444;">작업실로 돌아가기</button>
+  </div>
+</section>
+
+<section id="screen-final-summary" class="screen">
+  <div class="gameover-wrap">
+    <h1 class="title-main">경매 종료</h1>
+    <div class="gameover-stats">
+      <div class="row"><span>현재 재산</span><span id="ce-money">$0</span></div>
+    </div>
+    <button id="btn-back-studio-fs" class="btn-big" style="margin-top:0.5rem;background:#444;">작업실로 돌아가기</button>
+  </div>
+</section>
