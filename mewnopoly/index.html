@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>뮤노폴리 — Mewnopoly</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 전체 1920x1080 한 화면 안에 3개 컬럼이 가로로 나란히 -->
+<div class="game-wrap" id="game-wrap">
+
+  <!-- ============================================================
+       왼쪽 컬럼: 보드 (0번부터 15번까지 세로로, 아래=시작 위=목표)
+       ============================================================ -->
+  <section class="col-board">
+    <div class="col-header">
+      <h2 class="col-title">보드</h2>
+      <div class="col-subtitle">아래 0칸 → 위 15칸 도달이 목표</div>
+    </div>
+    <div id="board" class="board"></div>
+    <div class="board-legend">
+      <span class="legend-item"><span class="legend-token"></span>나</span>
+      <span class="legend-item"><span class="legend-hole"></span>함정</span>
+      <span class="legend-item"><span class="legend-coin"></span>코인</span>
+      <span class="legend-item legend-radar hidden" id="legend-radar"><span class="legend-radar-dot"></span>레이더</span>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       가운데 컬럼: 주사위 도안 (상단) + 주사위 굴림(중앙) + ROLL 버튼(하단)
+       ============================================================ -->
+  <section class="col-center">
+
+    <!-- 상단: 현재 내 주사위 6면 도안 -->
+    <div class="dice-pattern-wrap">
+      <div class="block-title">내 주사위 (6면 · 확률은 가중치)</div>
+      <div id="dice-pattern" class="dice-pattern"></div>
+    </div>
+
+    <!-- 중앙: 주사위 굴림 영역 (위쪽 한 면만 보임 · 굴리는 동안 면 빠르게 교체) -->
+    <div class="dice-stage-wrap">
+      <div id="dice-stage" class="dice-stage">
+        <div id="dice-face" class="dice-face dice-face-ready">?</div>
+      </div>
+      <div id="roll-readout" class="roll-readout">아래 「주사위 굴리기」 를 눌러 시작</div>
+    </div>
+
+    <!-- 하단: 버튼 영역 -->
+    <div class="roll-controls">
+      <button id="btn-roll" class="btn-roll">주사위 굴리기</button>
+      <button id="btn-reroll" class="btn-reroll hidden">리롤 (2)</button>
+    </div>
+
+    <!-- 진행 상태·이벤트 메시지 줄 -->
+    <div id="event-log" class="event-log"></div>
+
+  </section>
+
+  <!-- ============================================================
+       오른쪽 컬럼: 코인 보유 + 업그레이드 상점 8칸
+       ============================================================ -->
+  <section class="col-shop">
+
+    <div class="coin-banner">
+      <div class="coin-banner-left">
+        <span class="coin-icon">●</span>
+        <span class="coin-label">보유 코인</span>
+      </div>
+      <span id="coin-count" class="coin-count-big">0</span>
+    </div>
+
+    <div class="shop-section">
+      <div class="shop-section-title">COMMON · 3코인</div>
+      <div id="shop-common" class="shop-list"></div>
+    </div>
+
+    <div class="shop-section">
+      <div class="shop-section-title">RARE · 5코인</div>
+      <div id="shop-rare" class="shop-list"></div>
+    </div>
+
+    <div class="shop-section">
+      <div class="shop-section-title">LEGENDARY · 7코인</div>
+      <div id="shop-legendary" class="shop-list"></div>
+    </div>
+
+    <div class="owned-section">
+      <div class="owned-title">보유 업그레이드</div>
+      <div id="owned-list" class="owned-list"><span class="owned-empty">아직 없음</span></div>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- 승리/리셋 알림 (모달 아니고 화면 위에 띄우되 클릭 안 해도 게임 계속 가능) -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="game.js"></script>
+</body>
+</html>
