@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>뮤노폴리 v3 — Probability Climb</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 전체 1920x1080 한 화면. 3-column: 왼쪽 보드 / 가운데 주사위·굴림 / 오른쪽 코인·상점 -->
+<div class="game-wrap" id="game-wrap">
+
+  <!-- ============================================================
+       왼쪽 컬럼: 보드 (16칸, 아래=0=시작, 위=15=목표)
+       ============================================================ -->
+  <section class="col-board">
+    <div class="col-header">
+      <h2 class="col-title">보드</h2>
+      <div class="col-subtitle">아래 0칸 → 위 15칸 도달이 목표</div>
+    </div>
+    <div id="board" class="board"></div>
+    <div class="board-legend">
+      <span class="legend-item"><span class="legend-token"></span>나</span>
+      <span class="legend-item"><span class="legend-hole"></span>함정</span>
+      <span class="legend-item"><span class="legend-coin"></span>코인</span>
+      <span class="legend-item"><span class="legend-coin legend-coin-x2"></span>2배 코인</span>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       가운데 컬럼: 위치별 확률 도면 + 큰 주사위 + Roll 버튼 + 이벤트 로그
+       ============================================================ -->
+  <section class="col-center">
+
+    <!-- 상단: 현재 위치 기준 6면 확률 도면 -->
+    <div class="dice-pattern-wrap">
+      <div class="block-title">
+        <span>현재 위치별 확률</span>
+        <span id="pos-indicator" class="pos-indicator">위치 0</span>
+      </div>
+      <div id="dice-pattern" class="dice-pattern"></div>
+    </div>
+
+    <!-- 중앙: 큰 주사위 굴림 영역 -->
+    <div class="dice-stage-wrap">
+      <div id="dice-stage" class="dice-stage">
+        <div id="dice-face" class="dice-face dice-face-ready">?</div>
+      </div>
+      <div id="roll-readout" class="roll-readout">아래 「주사위 굴리기」를 눌러 시작</div>
+    </div>
+
+    <!-- 하단: Roll 버튼 (리롤은 오른쪽 컬럼으로 분리됨) -->
+    <div class="roll-controls">
+      <button id="btn-roll" class="btn-roll">주사위 굴리기</button>
+    </div>
+
+    <!-- 진행 상태·이벤트 로그 (초기 5줄 공백 — 굴림 시작 뒤 자연스럽게 덮어씀) -->
+    <div id="event-log" class="event-log">
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+    </div>
+
+  </section>
+
+  <!-- ============================================================
+       오른쪽 컬럼: 코인 보유 + 리롤 버튼 + 영구 업그레이드 + 일회성 + 보유 일회성 + 개발자 버튼
+       ============================================================ -->
+  <section class="col-shop">
+
+    <div class="coin-banner">
+      <div class="coin-banner-left">
+        <span class="coin-icon"></span>
+        <span class="coin-label">보유 코인</span>
+      </div>
+      <span id="coin-count" class="coin-count-big">0</span>
+    </div>
+
+    <!-- 리롤 버튼 — Roll 과 멀리 떨어진 위치 (실수 클릭 방지) -->
+    <div class="reroll-wrap">
+      <button id="btn-reroll" class="btn-reroll hidden">리롤 (0)</button>
+    </div>
+
+    <div class="shop-section">
+      <div class="shop-section-title">영구 업그레이드 (잠금 해제 시 등장)</div>
+      <div id="shop-perm" class="shop-list"></div>
+    </div>
+
+    <div class="shop-section">
+      <div class="shop-section-title">일회성 (리셋 시 소멸)</div>
+      <div id="shop-temp" class="shop-list"></div>
+    </div>
+
+    <div class="owned-section">
+      <div class="owned-title">보유 일회성</div>
+      <div id="owned-list" class="owned-list"><span class="owned-empty">아직 없음</span></div>
+    </div>
+
+    <!-- 개발자 전용: 디버그용 +10 코인 -->
+    <div class="dev-zone">
+      <span class="dev-label">DEV ONLY</span>
+      <button id="btn-dev-coin" class="btn-dev">+10 코인</button>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- 진행 알림 토스트 (모달 금지 — 클릭 안 해도 게임 계속) -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="game.js"></script>
+</body>
+</html>
