@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd ~/makesonggreatagain/user/donghyun/baco-games/demo/mewna-lisa/auction-demo-v11.02/modules/auction-engine && echo \\\"=== 자유경매 _tryCpu (1840~1848) vs 촛불 _tryCpu (2295~2303) ===\\\" && diff <...",
+  "error": "Exit code 1\n=== 자유경매 _tryCpu (1840~1848) vs 촛불 _tryCpu (2295~2303) ===\n5c5\n<           const progress = hostCooldownMax > 0 ? (1 - (hostCooldownMs / hostCooldownMax)) : 0;\n---\n>           const progress = elapsedMs / candleTotalMs;",
+  "timestamp": "2026-05-29T17:53:10.186Z",
+  "retry_count": 1
+}

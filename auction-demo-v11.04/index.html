@@ -1,0 +1,1249 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>경매장 시연 — 뮤나리자 v11.04</title>
+
+  <!-- 경매 엔진 스타일시트 — 단독 페이지라 처음부터 항상 켠 상태 (본 게임과 달리 disabled 없음) -->
+  <link rel="stylesheet" href="modules/auction-engine/v6-engine.css">
+
+  <style>
+    /* ── 데모 전용 스타일 ──────────────────────────────────────────── */
+
+    /* 시작·결과 화면을 경매 엔진 위에 덮는 레이어 */
+    /* 시안 A: 반투명(0.97) → 풀 불투명 단색으로 변경.
+       비유: 반투명 커튼이라 뒤(규칙·인격 화면)가 희미하게 비치던 걸,
+             빛이 안 새는 암막 커튼으로 바꿔 설정 팝업만 깔끔히 보이게. */
+    .demo-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: #0c0905;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+    }
+
+    /* 화면 숨기기 토글 */
+    .demo-screen.hidden { display: none !important; }
+
+    /* 시작·결과 화면 안쪽 카드 */
+    .demo-card {
+      background: #1a1208;
+      border: 1px solid #5a3e1b;
+      border-radius: 12px;
+      padding: 40px 48px;
+      min-width: 380px;
+      max-width: 520px;
+      width: 90vw;
+      color: #e8d6a8;
+      font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    }
+
+    .demo-card h1 {
+      font-size: 1.8rem;
+      color: #f0c060;
+      margin: 0 0 6px 0;
+    }
+
+    .demo-card .sub {
+      font-size: 0.9rem;
+      color: #9a8060;
+      margin: 0 0 28px 0;
+    }
+
+    .demo-card label {
+      display: block;
+      font-size: 0.85rem;
+      color: #b09070;
+      margin-bottom: 6px;
+      margin-top: 18px;
+    }
+
+    .demo-card input[type="range"] {
+      width: 100%;
+      accent-color: #c88030;
+      cursor: pointer;
+    }
+
+    .demo-card select {
+      width: 100%;
+      background: #2a1f0e;
+      border: 1px solid #5a3e1b;
+      color: #e8d6a8;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      appearance: auto;
+    }
+
+    .money-display {
+      text-align: right;
+      font-size: 1.2rem;
+      color: #f0c060;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+
+    .btn-big {
+      display: block;
+      width: 100%;
+      margin-top: 24px;
+      padding: 14px 0;
+      background: linear-gradient(135deg, #8b5a1a, #c88030);
+      color: #fff8ec;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.15s;
+    }
+    .btn-big:hover { opacity: 0.88; }
+    .btn-big:active { opacity: 0.75; }
+
+    .demo-card .hint {
+      font-size: 0.78rem;
+      color: #7a6040;
+      margin-top: 14px;
+      text-align: center;
+    }
+
+    /* 시안 A: 규칙·인격 보기 버튼 (설정 팝업 안, 경매 시작 바로 아래) */
+    #demo-rules-btn {
+      width: 100%;
+      margin-top: 10px;
+      background: transparent;
+      border: 1px solid #6a521e;
+      color: #d9c89a;
+      border-radius: 10px;
+      padding: 11px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    /* 규칙 참고 화면을 볼 때는 엔진 자체의 "경매 시작" 버튼을 숨긴다.
+       비유: 참고용으로 잠깐 펼친 규칙판이라 거기 박힌 진짜 시작 버튼은
+             가려두고, 오직 "설정으로 돌아가기"만 쓰게 한다. */
+    body.rules-view-open #btn-start { display: none; }
+
+    /* 시안 A: 규칙 화면(screen-start) 상단 "설정으로 돌아가기" 버튼 */
+    .rules-back-btn {
+      display: block;
+      margin: 0 auto 16px;
+      background: transparent;
+      border: 1px solid #6a521e;
+      color: #d9c89a;
+      border-radius: 10px;
+      padding: 11px 22px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    /* 결과 화면 전용 */
+    .result-card { max-width: 580px; }
+    .result-card h1 { font-size: 1.6rem; }
+    .result-card h2 { font-size: 1.1rem; color: #c8a860; margin: 22px 0 8px 0; }
+
+    .result-summary {
+      background: #2a1f0e;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 8px;
+    }
+    .result-summary .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      font-size: 0.95rem;
+    }
+    .result-summary .row span:last-child { color: #f0c060; font-weight: bold; }
+
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    .result-table th {
+      background: #2a1f0e;
+      color: #b09070;
+      padding: 7px 10px;
+      text-align: left;
+      border-bottom: 1px solid #5a3e1b;
+    }
+    .result-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid #2a1f0e;
+      color: #e8d6a8;
+    }
+    .result-table tr:last-child td { border-bottom: none; }
+
+    /* ── 디버그 패널 (D 키 토글, 우측에서 슬라이드 등장) ─────────── */
+    .demo-debug {
+      position: fixed;
+      top: 0; right: 0;
+      width: 300px;
+      height: 100vh;
+      background: rgba(14, 10, 4, 0.97);
+      border-left: 1px solid #5a3e1b;
+      color: #e8d6a8;
+      padding: 28px 22px;
+      transform: translateX(100%);
+      transition: transform 0.28s ease;
+      z-index: 9999;
+      overflow-y: auto;
+      box-sizing: border-box;
+      font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    }
+    .demo-debug.open { transform: translateX(0); }
+
+    .demo-debug h3 {
+      font-size: 1rem;
+      color: #f0c060;
+      margin: 0 0 20px 0;
+      border-bottom: 1px solid #3a2a10;
+      padding-bottom: 10px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      margin-bottom: 16px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #c8b080;
+    }
+    .toggle-row input[type="checkbox"] {
+      accent-color: #c88030;
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      cursor: pointer;
+    }
+
+    .dbg-btn {
+      display: block;
+      width: 100%;
+      padding: 10px 0;
+      background: #4a2a0a;
+      border: 1px solid #8a4a1a;
+      color: #f0c060;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: background 0.15s;
+    }
+    .dbg-btn:hover { background: #6a3a12; }
+
+    .dbg-hint {
+      font-size: 0.75rem;
+      color: #5a4020;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    /* CPU 성격 라벨 숨기기 (디버그 토글로 제어) */
+    body.hide-persona-label .cpu-type { display: none; }
+
+    /* 경매 컨테이너 — 시작/결과 화면이 overlay로 덮기 때문에 항상 DOM에 존재 */
+    #screen-auction-engine {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* 디렉터 사이클 #3 (다1): intermission 그림 정보 가격 한 줄 */
+    .painting-price-line {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #888;
+    }
+    .painting-price-line .start-num { color: #b08a4f; font-weight: bold; font-size: 16px; }
+    .painting-price-line .expected-num { color: #f0c674; font-weight: bold; font-size: 16px; }
+
+    /* 시안 B: 첫 화면 버전 박스 (버전 숫자는 폴더 버저닝 시 sed로 자동 갱신됨) */
+    .ver-box {
+      display: block;
+      width: fit-content;
+      margin: 6px auto 16px;
+      background: linear-gradient(180deg, #2a1f0e, #1a1408);
+      border: 1px solid #6a521e;
+      border-radius: 10px;
+      padding: 8px 24px;
+      color: #f5a700;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-align: center;
+    }
+    .ver-box small {
+      display: block;
+      color: #aa936a;
+      font-size: 12px;
+      font-weight: normal;
+      margin-top: 3px;
+      letter-spacing: 0;
+    }
+
+    /* APP_ROP 등 긴 라벨 겹침 수정 — persona-code 폭 확대 (전역) */
+    .persona-code { width: 64px !important; }
+
+    /* 규칙 참고 화면: 스크롤 없이 한 화면에 — 압축하되 130% 여유 */
+    body.rules-view-open #screen-start .start-wrap { padding: 14px 40px !important; max-height: 100vh; overflow: hidden !important; }
+    body.rules-view-open .title-main { font-size: 40px !important; margin-bottom: 6px !important; }
+    body.rules-view-open .rules-back-btn { margin: 0 auto 11px !important; }
+    body.rules-view-open .rules-card { padding: 14px 28px !important; margin-bottom: 16px !important; }
+    body.rules-view-open .rules-card h2 { font-size: 20px !important; margin-bottom: 9px !important; }
+    body.rules-view-open .rules-list li { font-size: 16px !important; line-height: 1.55 !important; }
+    body.rules-view-open .persona-legend { padding: 14px 24px !important; margin-bottom: 0 !important; }
+    body.rules-view-open .persona-legend h2 { font-size: 18px !important; margin-bottom: 9px !important; }
+    body.rules-view-open .persona-row { font-size: 15px !important; padding: 3px 8px !important; }
+    body.rules-view-open .persona-grid { gap: 5px 16px !important; }
+
+    /* 디렉터 사이클 #7 (후보 A): intermission 화면 짤림 수정 — 그림 축소(500→340) + 아래 영역 가운데 정렬 */
+    /* 비유: 그림 액자를 적당히 줄여서 한 화면에 다 담고, 설명 카드를 가운데로 모음 */
+    #screen-intermission .painting-img { width: 340px !important; height: 340px !important; }
+    #screen-intermission .painting-stage { width: 380px !important; }
+    #screen-intermission .auction-rule-card {
+      text-align: center;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #screen-intermission .auction-rule-card h2,
+    #screen-intermission .auction-rule-card p { text-align: center; }
+    #screen-intermission .tap-hint { text-align: center; }
+
+    /* 디렉터 사이클 #5 v2 (#5): 이름 강조 — 배경 박스(태그형)로 어떤 기본 색상 위에서도 시각적으로 떠오르게 */
+    /* 비유: 사회자가 말할 때 누구한테 말하는지 이름표 스티커를 붙여놓는 느낌 */
+    .log-msg .name-cpu {
+      color: #ffe680;
+      font-weight: bold;
+      background: rgba(255,138,40,0.32);
+      padding: 0 5px;
+      border-radius: 3px;
+    }
+    .log-msg .name-player {
+      color: #b6f5ff;
+      font-weight: bold;
+      background: rgba(72,178,204,0.32);
+      padding: 0 5px;
+      border-radius: 3px;
+    }
+
+    /* 디렉터 사이클 #5 hotfix v3 (Phase 2): 판매 세션 한 화면 압축 + 그림별 낙찰자 위로 올림 */
+    /* 비유: 식당 영수증을 종이 한 장에 다 담고, "오늘 산 메뉴 목록"을 첫 줄로 옮긴 것 */
+    #screen-sale .sale-main {
+      overflow: hidden !important;
+      grid-template-columns: 1fr 420px !important;
+    }
+    #screen-sale .sale-left {
+      overflow: hidden !important;
+      padding: 12px 18px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+    }
+    #screen-sale .sale-left h2 {
+      margin: 4px 0 8px !important;
+      font-size: 22px !important;
+    }
+    #screen-sale .painting-stage {
+      padding: 8px !important;
+      width: auto !important;
+      max-width: 320px !important;
+    }
+    #screen-sale .painting-img {
+      width: auto !important;
+      max-width: 280px !important;
+      max-height: 30vh !important;
+      height: auto !important;
+    }
+    #screen-sale .painting-title { font-size: 16px !important; }
+    #screen-sale .painting-category { font-size: 12px !important; margin-top: 2px !important; }
+    #screen-sale .sale-info {
+      width: 100% !important;
+      max-width: 460px !important;
+      padding: 10px 14px !important;
+      margin: 8px auto !important;
+    }
+    #screen-sale .sale-info .row {
+      padding: 4px 0 !important;
+      font-size: 14px !important;
+    }
+    #screen-sale #btn-sell, #screen-sale #btn-keep {
+      margin-top: 6px !important;
+      padding: 10px 18px !important;
+      font-size: 14px !important;
+      width: 100% !important;
+      max-width: 320px !important;
+    }
+    /* 오른쪽 컬럼 — 그림별 낙찰자를 위로, CPU 정산을 아래로 */
+    #screen-sale .sale-right {
+      padding: 12px 14px !important;
+      gap: 10px !important;
+      overflow: hidden !important;
+    }
+    #screen-sale .sale-right h3 { font-size: 16px !important; margin-bottom: 2px !important; }
+    #screen-sale .paintings-ledger {
+      order: -1 !important;          /* CPU ledger보다 위로 */
+      padding: 12px 14px !important;
+      flex-shrink: 0 !important;
+      background: #1a1408 !important;
+      border: 1px solid #f5a700 !important;  /* 강조 테두리 */
+    }
+    #screen-sale .paintings-ledger h4 {
+      font-size: 14px !important;
+      margin-bottom: 8px !important;
+      color: #f5a700 !important;
+    }
+    #screen-sale .painting-row {
+      font-size: 13px !important;
+      padding: 4px 0 !important;
+      color: #d9c89a !important;
+    }
+    #screen-sale .cpu-ledger {
+      flex: 1 !important;
+      min-height: 0 !important;
+    }
+    #screen-sale .ledger-row {
+      font-size: 11px !important;
+      padding: 6px 8px !important;
+    }
+
+    /* 디렉터 사이클 #5 (#4): 라운드 성격 태그 */
+    .round-flavor-tag {
+      margin-top: 10px;
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: bold;
+      background: #2a1f0e;
+      color: #f0c674;
+      border: 1px solid #443a25;
+    }
+    .round-flavor-tag.flavor-rush { color: #ff7a3a; border-color: #6a3a14; background: #2a1208; }
+    .round-flavor-tag.flavor-quiet { color: #88c5e0; border-color: #2c4858; background: #0d1822; }
+    .round-flavor-tag.flavor-balanced { color: #d9c89a; border-color: #443a25; background: #1a1408; }
+
+    /* 디렉터 사이클 #4.5 (나안): 디버그 패널 슬라이더 7개 한 줄 + debug-info 아래로 */
+    /* 비유: 책상 위에 펜 7개 일렬로 놓고, 메모지는 책상 아래 칸으로 옮긴 것 */
+    #debug-panel {
+      grid-template-columns: repeat(7, 1fr) !important;
+      height: auto !important;
+      min-height: 130px;
+      padding-bottom: 12px !important;
+    }
+    #debug-panel .debug-info {
+      grid-column: 1 / -1;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid #2a1f0e;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- (A) 시작 화면 ─────────────────────────────────────────────── -->
+  <div id="demo-start" class="demo-screen demo-overlay">
+    <div class="demo-card">
+      <h1>🎪 경매장 — 시연 모드</h1>
+      <div class="ver-box">v11.04<small>뮤나리자 경매 시연</small></div>
+      <p class="sub">플레이어 이름·시작 자금·경매 종류를 정하고 아래 버튼을 누르면 경매가 시작됩니다.</p>
+
+      <!-- 플레이어 이름 -->
+      <label for="demo-player-name">플레이어 이름 (사회자가 부를 이름)</label>
+      <input type="text" id="demo-player-name" maxlength="12" placeholder="예: 동현" style="width:100%;padding:8px;font-size:1rem;margin-bottom:12px;box-sizing:border-box;">
+
+      <!-- 자금 슬라이더 -->
+      <label for="demo-money">경매 시작 자금 (슬라이더로 조절)</label>
+      <input type="range" id="demo-money" min="100" max="50000" step="100" value="3000">
+      <div class="money-display">$<span id="demo-money-val">3,000</span></div>
+
+      <!-- 경매 종류 드롭다운 -->
+      <label for="demo-mode">경매 종류 선택</label>
+      <select id="demo-mode">
+        <option value="MIX">5종 섞기 — 본 게임처럼 5라운드를 다양한 종류로 진행합니다</option>
+        <option value="fixed">지정가 거래 — 정해진 가격에 먼저 산 사람이 가져갑니다</option>
+        <option value="free10_1st">자유경매 (1등가) — 가장 비싸게 부른 사람이 그 가격으로 가져갑니다</option>
+        <option value="free10_2nd">자유경매 (2등가) — 최고가 낙찰, 두 번째 가격으로 결제합니다</option>
+        <option value="dutch">네덜란드식 (내림경매) — 가격이 내려오다 먼저 손 든 사람이 가져갑니다</option>
+        <option value="candle_1st">촛불 경매 (1등가) — 촛불이 꺼지기 전 최고가가 가져갑니다</option>
+        <option value="candle_2nd">촛불 경매 (2등가) — 최고가 낙찰, 두 번째로 비싼 가격으로 결제합니다</option>
+        <option value="limited_1st">1회 제한 경매 — 각자 딱 한 번씩만 가격을 부를 수 있습니다</option>
+        <option value="limited_2nd">1회 제한 경매 (2등가) — 한 번씩만 부르고 두 번째 가격으로 결제합니다</option>
+        <option value="sealed">비밀경매 — 모두 봉투에 가격을 적어 동시에 제출합니다</option>
+      </select>
+
+      <button id="demo-start-btn" class="btn-big">🔔 경매 시작</button>
+      <!-- 시안 A: 경매 시작 바로 아래 규칙·인격 참고 화면 토글 버튼 -->
+      <button id="demo-rules-btn">📖 경매 규칙 · CPU 인격 보기</button>
+      <p class="hint">경매 진행 중 D 키를 누르면 우측에서 자체 검증 패널이 열립니다.</p>
+    </div>
+  </div>
+
+  <!-- (B) v6 경매 엔진 컨테이너 ─────────────────────────────────── -->
+  <!-- index.html과 동일하게 v6-engine.html 내용을 인라인으로 그대로 넣습니다 -->
+  <section id="screen-auction-engine">
+
+<!-- v6-engine.html 인라인 시작 (수정 없이 그대로) ──────────────── -->
+
+<!-- 시작 화면 -->
+<section id="screen-start" class="screen active">
+  <div class="start-wrap">
+    <!-- 시안 A: 설정 팝업으로 돌아가는 버튼 (참고용 규칙 화면 상단) -->
+    <button id="demo-rules-back-btn" class="rules-back-btn">← 설정으로 돌아가기</button>
+    <h1 class="title-main">경매장</h1>
+
+    <div class="rules-card">
+      <h2>경매 규칙</h2>
+      <ul class="rules-list">
+        <li>플레이어 1명 + CPU 10명이 경매를 진행합니다.</li>
+        <li>경매 1회 = 그림 A→B→C→D→E 5라운드 경매 + 판매 세션.</li>
+        <li>경매 시작 시 5라운드 경매 종류를 미리 공개합니다.</li>
+        <!-- v8 패치 4: 감정가 공개 룰로 변경 -->
+        <li><b>감정가는 화면에 공개됩니다.</b> 호가 판단 참고하세요.</li>
+        <li><b>본인 재입찰 불가</b> — 누구든 연속으로 두 번 부르지 않습니다.</li>
+        <!-- v8 패치 1: '입찰 포기' → '10배속 보기' 룰 설명 -->
+        <li><b>10배속 보기</b> 누르면 남은 시간이 <b>⏩ ×10 가속</b>. 도중 다시 입찰하면 1배속 복귀.</li>
+        <li><b>자유경매·1회 제한</b>에서 <b>마우스 휠 (위↑) / ↑↓ 방향키</b>로 호가 단계 조절. <b>Enter/Space</b>로 입찰.</li>
+        <li>자유경매는 사회자가 임의로 <b>5~15초 간격</b>으로 호가를 외칩니다. 침묵이 cooldown을 넘기면 종료.</li>
+        <li>모든 화면에서 <b>아무 키 / 아무 클릭</b>으로 다음 단계 진행.</li>
+        <li>판매 세션 종료 시 재산 &lt; 0 이면 게임 오버. 시작 자금 $3,000.</li>
+        <li>CPU 10명도 각자 시작 자금 보유. <b>잔고 부족하면 파산💸 — 입찰 안 함</b>. 자산은 $200~$5000 광분포.</li>
+      </ul>
+    </div>
+
+    <div class="persona-legend">
+      <!-- v8 패치 2: 인격 이름 v7 기준으로 변경 -->
+      <h2>CPU 11종 인격 (v7 라벨 기준)</h2>
+      <div class="persona-grid">
+        <div class="persona-row"><span class="persona-emoji">💼</span><span class="persona-code">APP</span><span class="persona-name">시세형</span><span class="persona-desc">감정가 근처 활발</span></div>
+        <div class="persona-row"><span class="persona-emoji">🛡️</span><span class="persona-code">CON</span><span class="persona-name">절약형</span><span class="persona-desc">안전제일·빠른 10배속</span></div>
+        <div class="persona-row"><span class="persona-emoji">🔥</span><span class="persona-code">MAN</span><span class="persona-name">광기형</span><span class="persona-desc">호가 점프·천장 ×3</span></div>
+        <div class="persona-row"><span class="persona-emoji">🎭</span><span class="persona-code">BLF</span><span class="persona-name">고객형</span><span class="persona-desc">광기 카운터·체크레이즈 80%</span></div>
+        <div class="persona-row"><span class="persona-emoji">🃏</span><span class="persona-code">SHK</span><span class="persona-name">잠복형</span><span class="persona-desc">조용하다 일격</span></div>
+        <div class="persona-row"><span class="persona-emoji">💢</span><span class="persona-code">TLT</span><span class="persona-name">도박형</span><span class="persona-desc">손실 후 무리수</span></div>
+        <div class="persona-row"><span class="persona-emoji">👯</span><span class="persona-code">MIR</span><span class="persona-name">추종형</span><span class="persona-desc">다수 따라가기</span></div>
+        <div class="persona-row"><span class="persona-emoji">🎯</span><span class="persona-code">SNI</span><span class="persona-name">저격형</span><span class="persona-desc">마지막 1초 입찰</span></div>
+        <div class="persona-row"><span class="persona-emoji">↩️</span><span class="persona-code">WTH</span><span class="persona-name">왔다갔다형</span><span class="persona-desc">2~3회 빠졌다 복귀</span></div>
+        <div class="persona-row"><span class="persona-emoji">⚡</span><span class="persona-code">FSP</span><span class="persona-name">불꽃 스프린터</span><span class="persona-desc">초반 질주·후반 급감</span></div>
+        <div class="persona-row"><span class="persona-emoji">🪢</span><span class="persona-code">APP_ROP</span><span class="persona-name">줄다리기형</span><span class="persona-desc">한 단계씩 끝까지 추격</span></div>
+      </div>
+    </div>
+
+    <button id="btn-start" class="btn-big">경매 시작 (아무 키 가능)</button>
+  </div>
+</section>
+
+<!-- 경매 라인업 미리보기 화면 -->
+<section id="screen-cycle-preview" class="screen">
+  <div class="preview-wrap">
+    <h1 id="preview-cycle-title">경매 라인업</h1>
+    <p class="preview-sub">이번 5라운드 경매 종류</p>
+    <div id="preview-table" class="preview-table"></div>
+    <button id="btn-start-cycle" class="btn-big">시작하기 (아무 키 가능)</button>
+  </div>
+</section>
+
+<!-- 인터미션 화면 -->
+<section id="screen-intermission" class="screen">
+  <div class="intermission-wrap">
+    <div class="top-bar">
+      <span id="inter-cycle-round">라운드 1/5</span>
+      <span id="inter-money">자금: $3,000</span>
+    </div>
+    <div class="painting-stage">
+      <img id="inter-painting-img" class="painting-img" alt="painting">
+      <div class="painting-info">
+        <div id="inter-painting-title" class="painting-title">제목</div>
+        <div id="inter-painting-category" class="painting-category">카테고리 A</div>
+        <!-- 디렉터 사이클 #3 (다1): 그림 제목 아래 시작가·감정가 한 줄 -->
+        <div id="inter-price-line" class="painting-price-line">시작가 <span class="start-num">$0</span> · 감정가 <span class="expected-num">$0</span></div>
+      </div>
+    </div>
+    <div class="auction-rule-card">
+      <h2 id="inter-auction-name">경매 방식</h2>
+      <p id="inter-auction-rule">룰 한 줄</p>
+      <!-- 디렉터 사이클 #5 (#4): 라운드 성격 태그 -->
+      <div id="inter-flavor-tag" class="round-flavor-tag">⚖️ 균형 라운드</div>
+    </div>
+    <p class="tap-hint">화면 어디든 클릭 / 아무 키로 경매 시작</p>
+  </div>
+</section>
+
+<!-- 경매 화면 -->
+<section id="screen-auction" class="screen">
+  <div class="topbar">
+    <div class="topbar-section">
+      <span class="tb-label">라운드</span><span id="auc-round-num" class="tb-value">1</span>
+    </div>
+    <div id="auc-auction-name" class="tb-mid">경매 방식</div>
+    <div class="topbar-section">
+      <!-- 디렉터 사이클 #3 (나2): 시작가도 별도 칸으로 표시 -->
+      <span class="tb-label">시작가</span><span id="bid-start" class="tb-value" style="color:#b08a4f">$0</span>
+      <!-- v8 패치 4: 감정가 공개 라벨 추가 -->
+      <span class="tb-label">감정가</span><span id="bid-expected" class="tb-value">$0</span>
+      <span class="tb-label">내 자금</span><span id="auc-money" class="tb-value">$3,000</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="col-left">
+      <div class="art-frame">
+        <div class="art-img">
+          <img id="auc-painting-img" alt="painting"
+               onerror="this.parentNode.style.background='#2a1f0e'">
+        </div>
+        <div id="auc-painting-title" class="art-name">제목</div>
+        <div id="auc-painting-category" class="art-cat">카테고리 A</div>
+        <div id="countdown-overlay" class="countdown-overlay hidden">
+          <div id="countdown-number" class="countdown-number">5</div>
+          <div class="countdown-label">곧 경매 시작</div>
+        </div>
+      </div>
+
+      <div class="price-box">
+        <div class="price-label">현재가 / 최고 입찰자</div>
+        <div id="auc-current-price" class="price-value">$0</div>
+        <div id="auc-top-bidder" class="price-bidder">—</div>
+        <div class="timer-row">
+          <span id="auc-timer" class="timer-big">—</span>
+          <span class="timer-label">남은 시간</span>
+        </div>
+        <!-- v6: P2-16 호가 단계 안내 -->
+        <div id="auc-tick-info" class="tick-info">호가 단위: $5</div>
+      </div>
+    </div>
+
+    <div class="col-mid">
+      <div class="cpu-header">참가자 현황 (CPU 10명)</div>
+      <div id="cpu-list" class="cpu-grid"></div>
+
+      <div id="auc-traffic-wrap" class="candle-mid hidden">
+        <div class="candle-panel">
+          <div class="candle-icon">🕯️</div>
+          <div class="signal-row">
+            <div id="traffic-green" class="signal green"></div>
+            <div id="traffic-yellow" class="signal yellow"></div>
+            <div id="traffic-red" class="signal red"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mid-spacer"></div>
+
+      <div class="bid-section">
+        <div id="bid-buy" class="bid-buy hidden">
+          <button id="bid-btn-buy" class="bid-btn">
+            <span class="bid-btn-main">지금 산다</span>
+            <span class="bid-btn-sub">GO 직전 클릭은 큐잉 → GO 즉시 발사</span>
+          </button>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-btn-give-up" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+        <div id="bid-btn-next-wrap" class="bid-buy hidden">
+          <button id="bid-btn-next" class="bid-btn">
+            <span class="bid-btn-main">다음 가격 입찰</span>
+            <span class="bid-btn-sub">현재가 + 호가 1단계</span>
+          </button>
+          <div class="bid-hotkey-hint">⬆️⬇️ 또는 마우스 휠(위↑) = 호가 조절 · Enter/Space = 입찰</div>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-btn-next-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+        <div id="bid-sealed" class="bid-sealed hidden">
+          <div id="sealed-timer" class="sealed-timer">남은 시간: —</div>
+          <div class="sealed-row">
+            <input type="number" id="bid-sealed-input" min="0" placeholder="비밀 입찰가 입력">
+            <button id="bid-sealed-submit" class="bid-btn-sm">제출</button>
+          </div>
+          <p class="hint">제출 전까지 다른 사람 가격을 볼 수 없습니다. 라운드별 호가 갭 다양화 ($100~$1000). 30초 만료 시 자동 0$.</p>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-sealed-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+        <div id="bid-limited" class="bid-limited hidden">
+          <div id="bid-limited-turn" class="turn-label">선착순 30초 · 한 번만 입찰 가능</div>
+          <div class="limited-row">
+            <input type="number" id="bid-limited-input" min="1" placeholder="입찰가 또는 휠/↑↓ 후 Enter">
+            <button id="bid-limited-submit" class="bid-btn-sm">입찰</button>
+            <!-- v8 패치 1: '패스' → '10배속 보기' -->
+            <button id="bid-limited-pass" class="bid-btn-pass-sm">10배속 보기 (⏩×10)</button>
+          </div>
+          <div class="bid-hotkey-hint">⬆️⬇️ 또는 마우스 휠(위↑) = 호가 조절 · Enter/Space = 입찰</div>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-limited-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+        <div id="bid-btn-dutch-wrap" class="bid-buy hidden">
+          <button id="bid-btn-dutch" class="bid-btn">
+            <span class="bid-btn-main">지금 산다</span>
+            <span class="bid-btn-sub">가격이 0.5초마다 한 단계 하락</span>
+          </button>
+          <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+          <button id="bid-btn-dutch-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="log-header">
+        <span class="log-dot"></span>
+        입찰 로그 / 사회자 멘트
+      </div>
+      <div id="auc-bid-log" class="log-box"></div>
+    </div>
+  </div>
+
+  <div id="fast-forward-badge" class="ff-badge hidden">⏩ ×10 빨리감기</div>
+
+  <div id="debug-panel" class="debug-panel">
+    <span class="debug-tag">?debug=1</span>
+    <div class="slider-box">
+      <div class="slider-name">입찰 속도</div>
+      <input type="range" id="slider-1" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s1-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">×0.5 ~ ×2.0</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">공격성</div>
+      <input type="range" id="slider-2" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s2-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">-10%p ~ +30%p</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">고액 수용</div>
+      <input type="range" id="slider-3" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s3-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">×0.5 ~ ×2.0</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">돌발 한도</div>
+      <input type="range" id="slider-4" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s4-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">0% ~ 100%</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">CPU 자금</div>
+      <input type="range" id="slider-5" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s5-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">평균 $500 ~ $5000</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">3단계 전환</div>
+      <input type="range" id="slider-6" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s6-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">빠름 ~ 느림</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">사회자 멘트 간격</div>
+      <input type="range" id="slider-7" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s7-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">200ms ~ 1400ms (기본 800ms)</span>
+      </div>
+    </div>
+    <div id="debug-info" class="debug-info"></div>
+  </div>
+</section>
+
+<!-- 라운드 결과창 -->
+<section id="screen-round-result" class="screen">
+  <div class="result-wrap">
+    <h2 id="result-title">라운드 결과</h2>
+    <div class="result-card">
+      <div class="row"><span>낙찰자</span><span id="result-winner">—</span></div>
+      <div class="row"><span>낙찰가</span><span id="result-price">$0</span></div>
+      <div class="row"><span>경매 방식</span><span id="result-auction">—</span></div>
+    </div>
+    <!-- v8 패치 4: 감정가 이미 공개됨 -->
+    <p class="result-hint">감정가: <span id="result-expected">$0</span> (이미 공개됨)</p>
+    <button id="btn-next-round" class="btn-big">다음 라운드 (아무 키 가능)</button>
+  </div>
+</section>
+
+<!-- 판매 세션 화면 -->
+<section id="screen-sale" class="screen">
+  <div class="sale-topbar">
+    <span id="sale-progress">판매 1/5</span>
+    <span id="sale-money">자금: $3,000</span>
+  </div>
+  <div class="sale-main">
+    <div class="sale-left">
+      <h2>판매 세션</h2>
+      <div class="painting-stage">
+        <img id="sale-painting-img" class="painting-img" alt="painting">
+        <div class="painting-info">
+          <div id="sale-painting-title" class="painting-title">제목</div>
+          <div id="sale-painting-category" class="painting-category">낙찰: 나</div>
+        </div>
+      </div>
+      <div class="sale-info">
+        <div class="row"><span>감정가</span><span id="sale-expected">$0</span></div>
+        <div class="row"><span>매수가</span><span id="sale-bought">$0</span></div>
+        <div class="row"><span>차액</span><span id="sale-diff">$0</span></div>
+      </div>
+      <button id="btn-sell" class="btn-big">💰 판매 (Enter/Space)</button>
+      <button id="btn-keep" class="btn-big" style="margin-top:0.5rem;background:#2a5c2a;">📦 보관 (작업실로 이동)</button>
+    </div>
+    <div class="sale-right">
+      <h3>📊 모든 참가자 정산</h3>
+      <div id="cpu-ledger" class="cpu-ledger"></div>
+      <div class="paintings-ledger">
+        <h4>🖼 5라운드 그림별 낙찰자</h4>
+        <div id="paintings-ledger-list"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 게임오버 화면 -->
+<section id="screen-gameover" class="screen">
+  <div class="gameover-wrap">
+    <h1 class="title-main">게임 오버</h1>
+    <div id="go-taunt" class="taunt-box">
+      <div class="taunt-line">당신은 파산했습니다.</div>
+      <div class="taunt-line">당신, 보는 눈이 없네요.</div>
+    </div>
+    <div class="gameover-stats">
+      <div class="row"><span>경매 횟수</span><span id="go-cycle">0</span></div>
+      <div class="row"><span>최종 재산</span><span id="go-money">$0</span></div>
+    </div>
+    <button id="btn-restart" class="btn-big">다시 도전 (아무 키 가능)</button>
+    <!-- v8 패치 8: 경매 끝나도 작업실로 돌아갈 수 있는 버튼 -->
+    <button id="btn-back-studio-go" class="btn-big" style="margin-top:0.5rem;background:#444;">작업실로 돌아가기</button>
+  </div>
+</section>
+
+<section id="screen-final-summary" class="screen">
+  <div class="gameover-wrap">
+    <h1 class="title-main">경매 종료</h1>
+    <div class="gameover-stats">
+      <div class="row"><span>현재 재산</span><span id="ce-money">$0</span></div>
+    </div>
+    <button id="btn-back-studio-fs" class="btn-big" style="margin-top:0.5rem;background:#444;">작업실로 돌아가기</button>
+  </div>
+</section>
+
+<!-- v6-engine.html 인라인 끝 ──────────────────────────────────── -->
+
+  </section><!-- #screen-auction-engine 끝 -->
+
+  <!-- (C) 결과 화면 ─────────────────────────────────────────────── -->
+  <div id="demo-result" class="demo-screen demo-overlay hidden">
+    <div class="demo-card result-card">
+      <h1>📊 경매 결과 정리</h1>
+
+      <div class="result-summary">
+        <div class="row"><span>총 지출 (내가 낙찰한 금액 합계)</span><span id="demo-total-spent">$0</span></div>
+        <div class="row"><span>최종 자금 (남은 돈)</span><span id="demo-final-money">$0</span></div>
+      </div>
+
+      <h2>라운드별 낙찰 내역</h2>
+      <table class="result-table">
+        <thead>
+          <tr>
+            <th>라운드</th>
+            <th>경매 방식</th>
+            <th>낙찰자</th>
+            <th>낙찰가</th>
+          </tr>
+        </thead>
+        <tbody id="demo-result-rows"></tbody>
+      </table>
+
+      <button id="demo-restart-btn" class="btn-big">↩ 처음으로 다시 시작</button>
+    </div>
+  </div>
+
+  <!-- (D) 자체 검증 패널 (D 키로 열기/닫기) ──────────────────────── -->
+  <aside id="demo-debug" class="demo-debug">
+    <h3>🛠 자체 검증 패널 (개발용)</h3>
+
+    <label class="toggle-row">
+      <input type="checkbox" id="dbg-infinite-money">
+      <span>💰 자금 무한 채우기<br><small style="color:#7a6040;">켜면 내 지갑이 마르지 않습니다</small></span>
+    </label>
+
+    <button id="dbg-end-now" class="dbg-btn">⏹ 지금 바로 종료<br><small style="font-size:0.75em;color:#9a7040;">현재까지 진행된 결과로 바로 결과 화면을 봅니다</small></button>
+
+    <label class="toggle-row">
+      <input type="checkbox" id="dbg-show-persona-label" checked>
+      <span>🏷 CPU 성격 이름 표시<br><small style="color:#7a6040;">꺼두면 시연 때 CPU 성격이 가려집니다</small></span>
+    </label>
+
+    <button id="dbg-export-log" class="dbg-btn">📋 로그 내보내기 (.txt)<br><small style="font-size:0.75em;color:#9a7040;">비딩·멘트 기록을 텍스트 파일로 받습니다 (멘트 순서 점검용)</small></button>
+    <button id="dbg-clear-log" class="dbg-btn">🗑 기록 비우기<br><small style="font-size:0.75em;color:#9a7040;">누적된 점검 로그를 모두 지웁니다</small></button>
+
+    <p class="dbg-hint">D 키로 열기 / 닫기</p>
+  </aside>
+
+  <!-- (E) 모듈 로드 (manifest 먼저, 엔진 나중 — 순서 중요) ──────── -->
+  <script src="manifest.js"></script>
+  <script src="modules/auction-engine/v11-engine.js?v=22"></script>
+
+  <!-- (F) 데모 페이지 자체 스크립트 ────────────────────────────── -->
+  <script>
+    // ────────────────────────────────────────────────────────────────
+    // 데모 전용 스크립트 — 본 게임 파일은 건드리지 않습니다
+    // 비유: 이 스크립트는 auction-demo.html 안에서만 살아 있고,
+    //       본 게임 launch.html을 열면 이 코드는 전혀 로드되지 않습니다
+    // ────────────────────────────────────────────────────────────────
+
+    // ── 1) 슬라이더 현재 값 ─────────────────────────────────────────
+    let demoStartMoney = 3000;  // 슬라이더가 바뀔 때마다 갱신
+
+    // ── 2) 경매 엔진에 자금을 넘겨주는 연결 고리 (게임 스텁) ─────────
+    // 비유: 본 게임의 지갑(game.js state)와 똑같이 생긴 가짜 지갑을 만들어
+    //       경매 엔진이 돈을 꺼낼 때 슬라이더 값을 돌려주는 것
+    //
+    // auctionCycleCount = 3 인 이유:
+    //   v6 엔진은 첫 방문(0회) = 1라운드, 두 번째(1회) = 2라운드,
+    //   세 번째(2회) = 3라운드, 네 번째 이후(3회+) = 5라운드 로 단계별 진행됨.
+    //   시연용 데모는 항상 5라운드 풀 모드로 동작해야 하므로 "충분히 경험한 상태"인 3으로 셋.
+    window.MN9_Game = {
+      state: function() {
+        return { money: demoStartMoney, auctionCycleCount: 3 };
+      }
+      // autosave, toast, switchScreen 등은 v6 엔진이 typeof로 존재 확인 후 호출하므로 없어도 안전
+    };
+
+    // ── 3) 슬라이더 조작 이벤트 ─────────────────────────────────────
+    const sliderEl = document.getElementById('demo-money');
+    const sliderValEl = document.getElementById('demo-money-val');
+    sliderEl.addEventListener('input', function() {
+      demoStartMoney = parseInt(sliderEl.value, 10);
+      sliderValEl.textContent = demoStartMoney.toLocaleString();
+    });
+
+    // ── 4) 엔진 부팅 상태 관리 ──────────────────────────────────────
+    // 비유: 경매장 전원을 처음 켜는지(첫 부팅), 아니면 재가동하는지 기억하는 스위치
+    let _engineBooted = false;
+
+    function bootOrResetEngine() {
+      const eng = window.MN9_AuctionEngine;
+      if (!eng) {
+        console.error('[데모] 경매 엔진을 찾을 수 없습니다. v11-engine.js 로드 순서를 확인해주세요.');
+        return false;
+      }
+      if (_engineBooted) {
+        // 비유: 두 번째 이후 — 경매장을 완전히 청소하고 다시 시동 거는 3단계
+        eng.resetForV9();   // 1단계: 재부팅 허용 플래그 초기화
+        eng.resetState();   // 2단계: 화면 리셋 + 타이머 정리
+        eng.bootForV9();    // 3단계: 경매 엔진 재시동
+      } else {
+        // 비유: 처음 — 그냥 시동만 걸기
+        eng.bootForV9();
+        _engineBooted = true;
+      }
+      return true;
+    }
+
+    // ── 5) 시작 버튼 클릭 핸들러 ────────────────────────────────────
+    document.getElementById('demo-start-btn').addEventListener('click', function() {
+      startAuction();
+    });
+
+    // ── 5-1) 규칙·인격 참고 화면 토글 ───────────────────────────────
+    // 비유: "규칙 보기" = 설정 팝업(암막 커튼)을 걷고, 뒤에 깔린 규칙·인격
+    //       화면(screen-start)을 무대 위로 올려 보여주는 것.
+    //       "설정으로 돌아가기" = 규칙 화면을 다시 내리고 설정 팝업을 덮는 것.
+    //
+    // 주의: screen-start가 첫 화면일 때는 이미 active지만, 한 판 끝난 뒤
+    //       돌아오면 엔진이 gameover/final-summary로 넘어가 있어 screen-start가
+    //       hidden 상태일 수 있다. 그래서 규칙 보기 시 v6 컨테이너 안의 다른
+    //       화면을 모두 내리고 screen-start만 직접 띄운다. 이 토글은 경매가
+    //       돌고 있지 않은 "설정 단계"에서만 일어나므로 엔진 화면 전환과 충돌 없음.
+    //       (경매 시작 흐름은 bootOrResetEngine→resetState가 화면을 다시 정리함)
+    const v6Box = document.getElementById('screen-auction-engine');
+    // 규칙 참고 화면을 보는 중인지 표시하는 깃발.
+    // 비유: "지금 참고 화면 구경 중" 팻말. 이게 켜져 있으면 아무 키를 눌러도
+    //       엔진의 "시작 화면 아무 키 → 경매 시작"이 발동하지 않게 막는다.
+    let _rulesViewOpen = false;
+    // 캡처 단계에서 먼저 가로채 엔진 keydown(startCycle)이 도달하지 못하게 함.
+    // (엔진 리스너는 한 판이라도 시작한 뒤부터 살아 있으므로, 이 가드가 없으면
+    //  돌아온 규칙 화면에서 키 한 번에 경매가 잘못 시작될 수 있음)
+    document.addEventListener('keydown', function(e) {
+      if (!_rulesViewOpen) return;
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      e.stopPropagation();
+    }, true);
+    function showRulesScreen() {
+      _rulesViewOpen = true;
+      document.body.classList.add('rules-view-open');
+      if (v6Box) {
+        v6Box.querySelectorAll('.screen').forEach(function(s) {
+          s.classList.remove('active');
+          s.classList.add('hidden');
+        });
+        const ss = document.getElementById('screen-start');
+        if (ss) { ss.classList.add('active'); ss.classList.remove('hidden'); }
+      }
+      document.getElementById('demo-start').classList.add('hidden');
+    }
+    function hideRulesScreen() {
+      _rulesViewOpen = false;
+      document.body.classList.remove('rules-view-open');
+      // 규칙 화면을 다시 내리고 설정 팝업을 복구. 다음 경매 시작 시
+      // resetState가 화면 상태를 재정리하므로 여기선 설정 팝업만 되살리면 됨.
+      const ss = document.getElementById('screen-start');
+      if (ss) { ss.classList.remove('active'); ss.classList.add('hidden'); }
+      document.getElementById('demo-start').classList.remove('hidden');
+    }
+    document.getElementById('demo-rules-btn').addEventListener('click', showRulesScreen);
+    document.getElementById('demo-rules-back-btn').addEventListener('click', hideRulesScreen);
+
+    function startAuction() {
+      // 1단계: 선택한 경매 종류 읽기
+      const mode = document.getElementById('demo-mode').value;
+
+      // 1-1단계: 플레이어 이름 읽어서 전역에 저장 (엔진이 사회자 멘트·로그에서 참조)
+      // 비유: 경매 시작 전에 명찰을 받아드는 것
+      const nameInput = document.getElementById('demo-player-name');
+      const trimmed = (nameInput && nameInput.value || '').trim();
+      window.playerName = trimmed || '나';
+
+      // 2단계: 엔진 부팅 (또는 재가동)
+      const ok = bootOrResetEngine();
+      if (!ok) return;
+
+      // 3단계: 화면 전환 — 시작 화면 숨기고 경매 엔진 컨테이너 표시
+      // 비유: 시연 안내판을 치우고 경매장 문을 여는 것
+      document.getElementById('demo-start').classList.add('hidden');
+
+      // 4단계: bootForV9 → main() 이 내부 처리를 마친 뒤 forceAuction 설정
+      // 비유: 경매장 시동이 완전히 걸린 뒤 "오늘은 이 경매 방식만 해!" 라고 지시하는 것
+      //       (setTimeout 0 = 현재 실행 대기열 끝에 넣기 → main()이 screen-start 그리기 끝난 뒤 실행)
+      setTimeout(function() {
+        const eng = window.MN9_AuctionEngine;
+        if (!eng || !eng.state) return;
+
+        if (mode === 'MIX') {
+          // 빈 배열 = 본 게임 기본 (v6 엔진이 가중치 기반으로 5종 알아서 섞음)
+          eng.state.forceAuction = [];
+        } else {
+          // 선택한 1종을 5라운드 모두 강제
+          eng.state.forceAuction = [mode];
+        }
+
+        // 디렉터 사이클 #5 hotfix v2 (deslop): bootOrResetEngine에서 이미 resetState를 호출했지만,
+        // main()의 비동기 loadManifest·bindInputs 재실행과 setTimeout(0) 사이 race condition 안전망으로
+        // 한 번 더 호출. 16필드를 직접 박아두는 건 resetState와 동일 동작이라 drift 위험 — 함수 재호출이 정답.
+        // 비유: 경매장 들어가기 직전에 청소 도구함(resetState) 한 번 더 쓱 돌려놓기.
+        if (typeof eng.resetState === 'function') eng.resetState();
+
+        // 5단계: v6 자체 시작 화면의 "경매 시작" 버튼을 코드로 누름
+        // 비유: 경매장 안에 있는 진짜 시작 버튼을 우리가 대신 눌러주는 것
+        const btnStart = document.getElementById('btn-start');
+        if (btnStart) {
+          btnStart.click();
+        } else {
+          console.error('[데모] btn-start 버튼을 찾을 수 없습니다.');
+        }
+      }, 0);
+    }
+
+    // ── 6) 결과 스냅샷 + 종료 감지 폴링 ────────────────────────────
+    // 비유: 250ms마다 경매장 안을 들여다보면서 경매가 끝났는지 확인하고,
+    //       라운드 결과 데이터가 사라지기 전에 복사본(스냅샷)을 만들어 둠
+    let _lastSnapshot = null;
+    let _resultShown = false;
+
+    const watchHandle = setInterval(function() {
+      const eng = window.MN9_AuctionEngine;
+      if (!eng || !eng.state) return;
+      const st = eng.state;
+
+      // 진행 중인 라운드 결과가 있으면 스냅샷 보관 (endCycle이 [] 초기화 하기 전에)
+      if (st.cycleResults && st.cycleResults.length > 0) {
+        _lastSnapshot = {
+          results: st.cycleResults.map(function(r) { return Object.assign({}, r); }),
+          money: st.money,
+        };
+      }
+
+      // 경매 종료 화면 진입 감지 — v6는 endCycle 후 gameover 또는 final-summary로 이동
+      const goEl = document.getElementById('screen-gameover');
+      const fsEl = document.getElementById('screen-final-summary');
+      const goActive = goEl && goEl.classList.contains('active');
+      const fsActive = fsEl && fsEl.classList.contains('active');
+
+      if ((goActive || fsActive) && _lastSnapshot && !_resultShown) {
+        _resultShown = true;  // 한 번만 트리거
+        showDemoResult(_lastSnapshot);
+        _lastSnapshot = null;
+      }
+    }, 250);
+
+    // ── 7) 결과 화면 렌더링 ─────────────────────────────────────────
+    function showDemoResult(snap) {
+      // v6 경매 컨테이너(게임오버·파이널 포함)를 overlay로 덮고 결과 화면 표시
+      document.getElementById('demo-result').classList.remove('hidden');
+
+      // 총 지출 = 내가(user) 낙찰한 라운드 금액의 합
+      const myPurchases = snap.results.filter(function(r) {
+        return r.purchased && r.winner === 'user';
+      });
+      const totalSpent = myPurchases.reduce(function(sum, r) { return sum + r.finalPrice; }, 0);
+
+      document.getElementById('demo-total-spent').textContent = '$' + totalSpent.toLocaleString();
+      document.getElementById('demo-final-money').textContent = '$' + (snap.money || 0).toLocaleString();
+
+      // 라운드 표 채우기
+      const tbody = document.getElementById('demo-result-rows');
+      tbody.innerHTML = '';
+      snap.results.forEach(function(r) {
+        const tr = document.createElement('tr');
+        let winnerText;
+        if (!r.purchased) {
+          winnerText = '낙찰자 없음';
+        } else if (r.winner === 'user') {
+          winnerText = '나';
+        } else {
+          winnerText = r.winnerName || ('입찰자 ' + r.winner);
+        }
+        const priceText = r.purchased ? ('$' + r.finalPrice.toLocaleString()) : '—';
+        const auctionName = r.auctionName || r.key || '—';
+        tr.innerHTML =
+          '<td>' + (r.round || '—') + '</td>' +
+          '<td>' + auctionName + '</td>' +
+          '<td>' + winnerText + '</td>' +
+          '<td>' + priceText + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ── 8) 다시 시작 버튼 ───────────────────────────────────────────
+    document.getElementById('demo-restart-btn').addEventListener('click', function() {
+      // 결과 화면 숨기고 시작 화면 복귀
+      document.getElementById('demo-result').classList.add('hidden');
+      document.getElementById('demo-start').classList.remove('hidden');
+      // 결과 표시 플래그 초기화 (다음 게임을 위해)
+      _resultShown = false;
+      _lastSnapshot = null;
+      // 엔진 reset은 다음 시작 버튼 클릭 시 bootOrResetEngine이 자동 처리
+    });
+
+    // ── 9) D 키 핸들러 — 자체 검증 패널 열기/닫기 ──────────────────
+    // 비유: D 키를 누르면 오른쪽 문이 열리고, 다시 누르면 닫힘
+    document.addEventListener('keydown', function(e) {
+      // 글자 입력창에 포커스 중일 때는 무시 (v6 엔진 패턴과 동일)
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      // D 키 감지 (영문 d/D, 한글 IME 상태에서 들어오는 'ㅇ'도 대응)
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ㅇ') {
+        document.getElementById('demo-debug').classList.toggle('open');
+      }
+    });
+
+    // ── 10) 디버그 토글 1: 자금 무한 채우기 ─────────────────────────
+    // 비유: 200ms마다 내 지갑을 확인해서 반 이상 썼으면 가득 채우는 자동 충전기
+    let _infiniteMoneyHandle = null;
+    const INFINITE_MONEY_TARGET = 9999999;
+
+    document.getElementById('dbg-infinite-money').addEventListener('change', function(e) {
+      if (e.target.checked) {
+        console.log('[데모] 자금 무한 모드 켬 (목표 $9,999,999 유지).');
+        _infiniteMoneyHandle = setInterval(function() {
+          const eng = window.MN9_AuctionEngine;
+          if (eng && eng.state && typeof eng.state.money === 'number') {
+            if (eng.state.money < INFINITE_MONEY_TARGET / 2) {
+              eng.state.money = INFINITE_MONEY_TARGET;
+            }
+          }
+        }, 200);
+      } else {
+        if (_infiniteMoneyHandle) {
+          clearInterval(_infiniteMoneyHandle);
+          _infiniteMoneyHandle = null;
+        }
+      }
+    });
+
+    // ── 11) 디버그 버튼: 지금 바로 종료 ─────────────────────────────
+    // 비유: 지금까지 진행된 라운드 결과만 가지고 바로 결과 화면을 보여주는 비상 버튼
+    document.getElementById('dbg-end-now').addEventListener('click', function() {
+      const eng = window.MN9_AuctionEngine;
+      if (!eng || !eng.state) return;
+
+      console.log('[데모] 결과 화면으로 강제 전환 (지금 바로 종료 버튼).');
+
+      // 현재까지 진행된 결과 강제 스냅샷
+      const snap = {
+        results: (eng.state.cycleResults || []).map(function(r) { return Object.assign({}, r); }),
+        money: eng.state.money || 0,
+      };
+
+      // 디버그 패널 닫기
+      document.getElementById('demo-debug').classList.remove('open');
+
+      // 결과 표시 (중복 방지)
+      if (!_resultShown) {
+        _resultShown = true;
+        showDemoResult(snap);
+      }
+    });
+
+    // ── 12) 디버그 토글 3: CPU 성격 이름 표시/숨김 ──────────────────
+    // 비유: 체크 해제하면 CPU 카드에 적힌 성격 이름표가 가려지고,
+    //       켜면 다시 나타남 — body 클래스 하나로 CSS가 처리
+    document.getElementById('dbg-show-persona-label').addEventListener('change', function(e) {
+      document.body.classList.toggle('hide-persona-label', !e.target.checked);
+    });
+
+    // ── 13) 디버그: 점검용 로그 내보내기 (.txt) / 비우기 ──────────────
+    // 비유: 경매장에서 오간 모든 말·입찰을 받아적은 속기록을 종이로 뽑아주는 버튼
+    document.getElementById('dbg-export-log').addEventListener('click', function() {
+      const eng = window.MN9_AuctionEngine;
+      if (!eng || typeof eng.exportInspectionLog !== 'function') {
+        alert('아직 엔진이 준비되지 않았어요. 게임을 먼저 시작하세요.');
+        return;
+      }
+      const text = eng.exportInspectionLog();
+      if (!text || !text.trim()) {
+        alert('점검 기록이 비어있어요. 먼저 경매를 플레이하세요.');
+        return;
+      }
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'auction-log-v11.04.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const cnt = (typeof eng.inspectionCount === 'function') ? eng.inspectionCount() : '?';
+      console.log('[데모] 점검 로그 내보냄 (' + cnt + '줄).');
+    });
+    document.getElementById('dbg-clear-log').addEventListener('click', function() {
+      const eng = window.MN9_AuctionEngine;
+      if (eng && typeof eng.clearInspectionLog === 'function') {
+        eng.clearInspectionLog();
+        alert('점검 기록을 모두 비웠어요. 이제부터 새로 쌓입니다.');
+      }
+    });
+
+  </script>
+</body>
+</html>

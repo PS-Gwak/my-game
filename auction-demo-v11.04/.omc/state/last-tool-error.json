@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd ~/makesonggreatagain/user/donghyun/baco-games/demo/mewna-lisa/auction-demo-v11.03/modules/auction-engine && echo \\\"=== painting 데이터 (file 속성 형식) ===\\\" && grep -nE \\\"paintingsDir|file:|p...",
+  "error": "Exit code 1\n=== painting 데이터 (file 속성 형식) ===\n299:    paintingsDir: 'assets/paintings/',\n322:  // v8 폴더에 있는 실제 파일 이름(watercolor_N.jpg 형식)으로 교체\n323:  const PAINTINGS_FALLBACK = [\n324:    { id: 1,  file: 'watercolor_1.jpg',    title: '수채화 1' },\n325:    { id: 2,  file: 'watercolor_2.jpg',    title: '수채화 2' },\n326:    { id: 3,  file: 'watercolor_3.webp',   title: '수채화 3' },\n327:    { id: 4,  file: 'watercolor_4.jpg',    title: '수채화 4' },\n328:    { id: 5,  file: 'watercolor_5.jpg',    title: '수채화 5' ...",
+  "timestamp": "2026-05-31T15:56:57.881Z",
+  "retry_count": 1
+}
