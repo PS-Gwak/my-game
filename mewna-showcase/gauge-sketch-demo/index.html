@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>게이지 데생 시안 — 연타로 채우는 연필 스케치</title>
+<link rel="icon" href="data:," />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #15110a;
+    --panel: #1a1408;
+    --panel-dark: #110d06;
+    --gold: #f5a700;
+    --gold-light: #f0c674;
+    --text: #e8d6a8;
+    --text-soft: #aa936a;
+    --border: #443a25;
+    --track: #2a1f0e;
+    --paper: #ece2cf;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #221a0d 0%, var(--bg) 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- 상단 제목 ---------- */
+  header {
+    text-align: center;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--panel-dark), transparent);
+    flex: 0 0 auto;
+  }
+  header h1 {
+    margin: 0;
+    font-size: clamp(16px, 2.4vw, 24px);
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: -0.5px;
+  }
+  header p {
+    margin: 5px 0 0;
+    font-size: 12.5px;
+    color: var(--text-soft);
+    line-height: 1.5;
+  }
+
+  /* ---------- 본문 레이아웃 ---------- */
+  main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 230px minmax(0,1fr) 230px;
+    gap: 16px;
+    max-width: 1180px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 14px 16px;
+  }
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    main { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(245,167,0,0.06);
+  }
+  .panel h2 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold-light);
+    letter-spacing: 0.3px;
+  }
+  .hint { font-size: 11.5px; color: var(--text-soft); line-height: 1.55; }
+
+  /* ---------- 중앙 캔버스 영역 ---------- */
+  .stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+  .canvas-wrap {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5), inset 0 0 0 1px var(--border);
+    cursor: crosshair;
+    line-height: 0;
+  }
+  #sketch { display: block; background: var(--paper); touch-action: none; }
+
+  /* 완성 배지 */
+  .done-badge {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%) translateY(8px);
+    background: rgba(17,13,6,0.82);
+    border: 1px solid var(--gold);
+    color: var(--gold-light);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .5s ease, transform .5s ease;
+  }
+  .done-badge.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .done-badge #redrawBtn {
+    margin-left: 12px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0a0a0a;
+    background: var(--gold);
+    border: none;
+    border-radius: 999px;
+    padding: 3px 12px;
+    cursor: pointer;
+    pointer-events: none;
+  }
+  .done-badge.show #redrawBtn { pointer-events: auto; }
+  .done-badge #redrawBtn:hover { filter: brightness(1.12); }
+
+  /* 로드 실패 안내 */
+  .loadnote {
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: var(--text-soft);
+    text-align: center;
+    max-width: 360px;
+    line-height: 1.5;
+    min-height: 16px;
+  }
+  .loadnote.warn { color: #e0a96b; }
+
+  /* ---------- 진하기 막대 (보조, 최소) ---------- */
+  .meter {
+    margin-top: 12px;
+    width: 100%;
+    max-width: 360px;
+  }
+  .meter-track {
+    height: 7px;
+    border-radius: 999px;
+    background: var(--track);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #6b5a36, var(--gold));
+    border-radius: 999px;
+    transition: width .08s linear;
+  }
+  .meter-cap {
+    margin-top: 5px;
+    font-size: 11px;
+    color: var(--text-soft);
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  /* ---------- 상점 (시연용) ---------- */
+  .shop-item {
+    background: var(--track);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 11px;
+    margin-bottom: 10px;
+  }
+  .shop-item .si-name { font-size: 12.5px; font-weight: 700; color: var(--text); }
+  .shop-item .si-desc { font-size: 11px; color: var(--text-soft); margin: 3px 0 8px; line-height: 1.45; }
+  .shop-item button {
+    width: 100%;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1a1408;
+    background: var(--gold);
+    border: none;
+    border-radius: 7px;
+    padding: 7px 8px;
+    cursor: pointer;
+    transition: filter .15s ease, transform .08s ease;
+  }
+  .shop-item button:hover { filter: brightness(1.08); }
+  .shop-item button:active { transform: translateY(1px); }
+  .shop-item .lv { font-size: 11px; color: var(--gold-light); margin-top: 6px; text-align: right; }
+  .shop-tag {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--text-soft);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 6px;
+    margin-bottom: 10px;
+  }
+
+  /* ---------- 손맛 튜닝 슬라이더 ---------- */
+  .tuner { margin-top: 14px; }
+  .tuner .row { margin-bottom: 12px; }
+  .tuner label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--text);
+    margin-bottom: 5px;
+  }
+  .tuner label b { color: var(--gold-light); font-weight: 700; }
+  .tuner input[type=range] {
+    width: 100%;
+    accent-color: var(--gold);
+    cursor: pointer;
+  }
+
+  /* ---------- 하단 평가 ---------- */
+  footer {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--border);
+    background: linear-gradient(0deg, var(--panel-dark), transparent);
+    padding: 10px 16px;
+  }
+  .eval {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .eval .lab { font-size: 12.5px; font-weight: 700; color: var(--gold-light); white-space: nowrap; }
+  .stars { display: flex; gap: 3px; }
+  .star {
+    font-size: 22px;
+    line-height: 1;
+    color: var(--track);
+    cursor: pointer;
+    transition: transform .1s ease, color .1s ease;
+  }
+  .star.on { color: var(--gold); }
+  .star:hover { transform: scale(1.18); }
+  .eval input[type=text] {
+    flex: 1 1 200px;
+    min-width: 160px;
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--text);
+    background: var(--track);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .eval input[type=text]::placeholder { color: var(--text-soft); }
+  .save-btn {
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1a1408;
+    background: var(--gold);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .save-btn:active { transform: translateY(1px); }
+  .saved-msg { font-size: 11.5px; color: var(--gold-light); min-width: 80px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>게이지 데생 시안 — 연타로 채우는 연필 스케치</h1>
+  <p>고양이 모나리자 윤곽 위를 <b>마우스로 톡톡 연타</b>하세요. 칠수록 연필선이 진해지고, 손을 놓으면 다시 흐려집니다.</p>
+</header>
+
+<main>
+  <!-- 왼쪽: 상점 (시연용) -->
+  <section class="panel" aria-label="상점">
+    <h2>상점 (맛보기)</h2>
+    <span class="shop-tag">나중에 정식 구현 · 지금은 시연</span>
+
+    <div class="shop-item">
+      <div class="si-name">연필 심 굵게</div>
+      <div class="si-desc">클릭 한 번에 차오르는 양이 늘어납니다.</div>
+      <button id="buyCharge">강화 (한 번 체감)</button>
+      <div class="lv" id="chargeLv">Lv.1</div>
+    </div>
+
+    <div class="shop-item">
+      <div class="si-name">선이 잘 안 마름</div>
+      <div class="si-desc">손을 놓아도 게이지가 덜 떨어집니다.</div>
+      <button id="buyDecay">강화 (한 번 체감)</button>
+      <div class="lv" id="decayLv">Lv.1</div>
+    </div>
+
+    <p class="hint">정식 게임에선 코인을 모아 이 칸에서 영구 업그레이드를 살 예정이에요. 지금은 누르면 효과만 잠깐 체감됩니다.</p>
+  </section>
+
+  <!-- 가운데: 캔버스 -->
+  <section class="stage">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="sketch" width="420" height="600"></canvas>
+      <div class="done-badge" id="doneBadge">데생 완성<button id="redrawBtn" type="button">다시 그리기</button></div>
+    </div>
+    <div class="loadnote" id="loadNote"></div>
+
+    <div class="meter">
+      <div class="meter-track"><div class="meter-fill" id="meterFill"></div></div>
+      <div class="meter-cap">연필 진하기</div>
+    </div>
+  </section>
+
+  <!-- 오른쪽: 손맛 튜닝 -->
+  <section class="panel" aria-label="손맛 튜닝">
+    <h2>손맛 튜닝</h2>
+    <p class="hint">직접 만져보며 가장 손맛 좋은 값을 찾아보세요.</p>
+
+    <div class="tuner">
+      <div class="row">
+        <label>클릭당 충전량 <b id="chargeVal">9%</b></label>
+        <input type="range" id="chargeSlider" min="2" max="20" step="1" value="9" />
+      </div>
+      <div class="row">
+        <label>손 놓았을 때 하락 속도 <b id="decayVal">22%/초</b></label>
+        <input type="range" id="decaySlider" min="5" max="80" step="1" value="22" />
+      </div>
+      <div class="row">
+        <label>선이 진해지는 부드러움 <b id="smoothVal">중간</b></label>
+        <input type="range" id="smoothSlider" min="2" max="20" step="1" value="9" />
+      </div>
+    </div>
+
+    <p class="hint" style="margin-top:14px">충전량을 크게, 하락을 작게 하면 쉽게 채워지고, 반대로 하면 계속 톡톡 쳐야 하는 긴장감이 생겨요.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="eval">
+    <span class="lab">동현 평가</span>
+    <div class="stars" id="stars" role="radiogroup" aria-label="별점"></div>
+    <input type="text" id="evalNote" placeholder="손맛 메모 (예: 연필 티는 좋은데 하락이 좀 빠름)" />
+    <button class="save-btn" id="saveBtn">저장</button>
+    <span class="saved-msg" id="savedMsg"></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // ====== 설정 (슬라이더로 실시간 변경) ======
+  var cfg = {
+    chargePerClick: 0.09,   // 클릭당 게이지 증가 (0~1)
+    decayPerSec: 0.22,      // 초당 게이지 하락(끝부분은 게이지 높을수록 더 완화됨)
+    smooth: 9               // 표시 농도가 게이지를 따라가는 부드러움(클수록 부드럽게 느림)
+  };
+
+  // 상점 시연 효과(임시 가산)
+  var shopChargeBonus = 0;
+  var shopDecayCut = 0;
+
+  // ====== 상태 ======
+  var gauge = 0;          // 목표 게이지 0~1 (클릭으로 오르고 시간으로 내림)
+  var shown = 0;          // 실제 화면에 그려지는 농도 0~1 (gauge를 부드럽게 따라감)
+  var completed = false;
+
+  var canvas = document.getElementById("sketch");
+  var ctx = canvas.getContext("2d", { willReadFrequently: true });
+  var W = canvas.width, H = canvas.height;
+
+  var meterFill = document.getElementById("meterFill");
+  var doneBadge = document.getElementById("doneBadge");
+  var loadNote = document.getElementById("loadNote");
+
+  // ====== 종이 질감 (한 번 생성해 재사용) ======
+  var paper = makePaperTexture(W, H);
+
+  // ====== 윤곽 데이터 ======
+  // outline[i] = {x, y, base} : 선 픽셀 위치 + 픽셀별 기본 농도(0~1, 노이즈로 농담)
+  var outline = [];
+  var fallback = false;   // 이미지 로드 실패 시 도형 폴백
+  var ready = false;
+
+  // 미리 만든 점들을 블록(작은 사각)으로 그리면 거친 연필 느낌
+  var IMG_SRC = "assets/mena-lisa%201.png";
+
+  function loadOutline() {
+    var img = new Image();
+    img.onload = function () {
+      try {
+        buildOutlineFromImage(img);
+        loadNote.textContent = "백지 위를 톡톡 연타하면 고양이 윤곽이 서서히 떠올라요.";
+        ready = true;
+      } catch (e) {
+        // file:// 등에서 픽셀 읽기 차단(CORS/보안) → 폴백
+        useFallback("이미지 픽셀을 읽지 못해 도형 밑그림으로 대체했어요. (로컬 서버로 열면 진짜 고양이가 나와요)");
+      }
+    };
+    img.onerror = function () {
+      useFallback("밑그림 이미지를 찾지 못해 도형으로 대체했어요. 경로를 확인하거나 로컬 서버로 열어보세요.");
+    };
+    img.src = IMG_SRC;
+  }
+
+  function useFallback(msg) {
+    fallback = true;
+    buildOutlineFallback();
+    loadNote.textContent = msg;
+    loadNote.classList.add("warn");
+    ready = true;
+  }
+
+  // 이미지의 어두운 픽셀 = 윤곽선. 일정 간격으로 샘플링해 점 목록 생성.
+  function buildOutlineFromImage(img) {
+    // 이미지를 캔버스 비율에 맞춰 contain 배치
+    var off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    var octx = off.getContext("2d", { willReadFrequently: true });
+    octx.clearRect(0, 0, W, H);
+
+    var s = Math.min(W / img.width, H / img.height);
+    var dw = img.width * s, dh = img.height * s;
+    var dx = (W - dw) / 2, dy = (H - dh) / 2;
+    octx.drawImage(img, dx, dy, dw, dh);
+
+    var data = octx.getImageData(0, 0, W, H).data; // 여기서 보안 에러 가능 → try/catch 상위에서 처리
+    outline = [];
+    var step = 2; // 2px 간격 샘플 — 점 밀도(거친 질감과 성능 균형)
+    for (var y = 0; y < H; y += step) {
+      for (var x = 0; x < W; x += step) {
+        var idx = (y * W + x) * 4;
+        var a = data[idx + 3];
+        if (a < 40) continue;
+        var lum = (data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114);
+        // 어두운 픽셀만 선으로 채택
+        if (lum < 110) {
+          // 어두울수록 base 농도 ↑, 픽셀별 살짝 무작위 → 농담(연필 티)
+          var dark = 1 - lum / 110;        // 0~1
+          var noise = 0.78 + Math.random() * 0.22;
+          outline.push({ x: x, y: y, base: Math.min(1, dark * noise) });
+        }
+      }
+    }
+  }
+
+  // 폴백: 고양이 윤곽을 경로로 그린 뒤 같은 방식으로 점 추출
+  function buildOutlineFallback() {
+    var off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    var o = off.getContext("2d");
+    o.clearRect(0, 0, W, H);
+    o.strokeStyle = "#000";
+    o.lineWidth = 4;
+    o.lineJoin = "round";
+    o.lineCap = "round";
+
+    var cx = W / 2;
+    o.beginPath();
+    // 머리 + 귀
+    o.moveTo(cx - 70, 150);
+    o.lineTo(cx - 78, 60);
+    o.lineTo(cx - 30, 110);
+    o.quadraticCurveTo(cx, 96, cx + 30, 110);
+    o.lineTo(cx + 78, 60);
+    o.lineTo(cx + 70, 150);
+    // 얼굴 옆선 → 몸통(망토)
+    o.quadraticCurveTo(cx + 95, 210, cx + 90, 300);
+    o.lineTo(cx + 95, 560);
+    o.moveTo(cx - 70, 150);
+    o.quadraticCurveTo(cx - 95, 210, cx - 92, 300);
+    o.lineTo(cx - 95, 560);
+    o.stroke();
+
+    // 눈
+    o.beginPath();
+    o.ellipse(cx - 32, 165, 13, 9, 0, 0, Math.PI * 2);
+    o.ellipse(cx + 32, 165, 13, 9, 0, 0, Math.PI * 2);
+    o.stroke();
+    // 눈동자
+    o.beginPath();
+    o.arc(cx - 32, 165, 3, 0, Math.PI * 2);
+    o.arc(cx + 32, 165, 3, 0, Math.PI * 2);
+    o.fillStyle = "#000"; o.fill();
+    // 코
+    o.beginPath();
+    o.moveTo(cx, 185); o.lineTo(cx, 205);
+    o.moveTo(cx - 6, 188); o.lineTo(cx + 6, 188);
+    o.moveTo(cx - 6, 205); o.lineTo(cx + 6, 205);
+    o.stroke();
+    // 팔짱
+    o.beginPath();
+    o.moveTo(cx - 80, 360);
+    o.quadraticCurveTo(cx, 420, cx + 30, 380);
+    o.moveTo(cx - 55, 410);
+    o.quadraticCurveTo(cx - 10, 440, cx + 35, 415);
+    o.stroke();
+
+    var data = o.getImageData(0, 0, W, H).data;
+    outline = [];
+    var step = 2;
+    for (var y = 0; y < H; y += step) {
+      for (var x = 0; x < W; x += step) {
+        var idx = (y * W + x) * 4;
+        if (data[idx + 3] < 40) continue;
+        var noise = 0.78 + Math.random() * 0.22;
+        outline.push({ x: x, y: y, base: noise });
+      }
+    }
+  }
+
+  // ====== 종이 질감 텍스처 ======
+  function makePaperTexture(w, h) {
+    var c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    var p = c.getContext("2d");
+    // 미색 바탕
+    p.fillStyle = "#ece2cf";
+    p.fillRect(0, 0, w, h);
+    // 가장자리 살짝 어둡게(빈티지 종이)
+    var vg = p.createRadialGradient(w/2, h/2, h*0.2, w/2, h/2, h*0.75);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(1, "rgba(120,95,55,0.10)");
+    p.fillStyle = vg;
+    p.fillRect(0, 0, w, h);
+    // 아주 옅은 결(노이즈 점)
+    var img = p.getImageData(0, 0, w, h);
+    var d = img.data;
+    for (var i = 0; i < d.length; i += 4) {
+      var n = (Math.random() - 0.5) * 14; // 미세 명암
+      d[i]   = clamp255(d[i] + n);
+      d[i+1] = clamp255(d[i+1] + n);
+      d[i+2] = clamp255(d[i+2] + n);
+    }
+    p.putImageData(img, 0, 0);
+    // 가로 결 몇 가닥
+    p.globalAlpha = 0.04;
+    p.strokeStyle = "#7a5a30";
+    for (var k = 0; k < 18; k++) {
+      var yy = Math.random() * h;
+      p.beginPath();
+      p.moveTo(0, yy);
+      p.bezierCurveTo(w*0.3, yy + (Math.random()-0.5)*8, w*0.7, yy + (Math.random()-0.5)*8, w, yy);
+      p.stroke();
+    }
+    p.globalAlpha = 1;
+    return c;
+  }
+  function clamp255(v){ return v < 0 ? 0 : v > 255 ? 255 : v; }
+
+  // ====== 클릭 = 연타 ======
+  function tap() {
+    if (completed) return; // 완성 후엔 연타 무시 (잠금 상태)
+    var bonus = cfg.chargePerClick + shopChargeBonus;
+    gauge = Math.min(1, gauge + bonus);
+  }
+  var wrap = document.getElementById("canvasWrap");
+  wrap.addEventListener("mousedown", function (e) { e.preventDefault(); tap(); });
+  wrap.addEventListener("touchstart", function (e) { e.preventDefault(); tap(); }, { passive: false });
+
+  // 다시 그리기 — 완성 잠금 해제 후 백지로 초기화
+  document.getElementById("redrawBtn").addEventListener("click", function (e) {
+    e.stopPropagation();
+    completed = false;
+    gauge = 0;
+    shown = 0;
+    doneBadge.classList.remove("show");
+  });
+
+  // ====== 메인 루프 ======
+  var last = performance.now();
+  function loop(now) {
+    var dt = Math.min(0.05, (now - last) / 1000); // 초 단위, 큰 멈춤 방지
+    last = now;
+
+    if (completed) {
+      // 완성되면 게이지를 1.0으로 잠가 다시 흐려지지 않게(완성 연출 유지)
+      gauge = 1;
+    } else {
+      // 하락: 손 놓으면 매 프레임 조금씩 감소
+      // 끝부분 완화 — 게이지가 높을수록 하락이 점점 약해져서 마지막 push가 가능.
+      // 실효 decay = baseDecay × (1 - gauge*0.7), 단 0이 되진 않게 하한 유지.
+      var baseDecay = Math.max(0.02, cfg.decayPerSec - shopDecayCut);
+      var decay = Math.max(0.015, baseDecay * (1 - gauge * 0.7));
+      gauge = Math.max(0, gauge - decay * dt);
+    }
+
+    // 표시 농도는 게이지를 부드럽게 따라감(연필 덧칠 느낌)
+    var k = 1 - Math.exp(-dt * (22 / cfg.smooth)); // smooth 클수록 천천히
+    shown += (gauge - shown) * k;
+
+    // 완성 판정 — 사람이 도달 가능한 현실적 임계(0.98). 완성 후엔 위에서 1.0 잠금.
+    if (gauge >= 0.98 && !completed) {
+      completed = true;
+      doneBadge.classList.add("show");
+    }
+
+    render(shown);
+    meterFill.style.width = (shown * 100).toFixed(1) + "%";
+
+    requestAnimationFrame(loop);
+  }
+
+  // ====== 렌더 ======
+  function render(density) {
+    // 1) 종이 바탕
+    ctx.drawImage(paper, 0, 0);
+
+    if (!ready) {
+      ctx.fillStyle = "rgba(80,60,30,0.5)";
+      ctx.font = "14px 'Noto Sans KR', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("밑그림 불러오는 중…", W / 2, H / 2);
+      return;
+    }
+
+    // 2) 게이지에 비례해 진해지는 연필선 (시작은 완전 백지)
+    //    가이드 밑그림 없음 — density(=shown)가 0이면 아무 윤곽도 안 보이고,
+    //    연타로 차오르면 고양이가 피어나듯 드러난다.
+    //    density에 약간의 곡선을 줘서 후반부에 더 또렷하게.
+    var ink = Math.pow(density, 0.85);
+    if (ink > 0.001) drawDots(ink, 0, false);
+  }
+
+  // 점들을 거친 사각 블록으로 찍어 연필 질감 표현
+  // alphaScale: 전체 농도 배수, guide: true면 옅은 회색 밑그림
+  function drawDots(alphaScale, _unused, guide) {
+    var col = guide ? "60,48,28" : "58,44,20"; // 밑그림은 살짝 따뜻한 회갈, 본선은 흑연색 #3a2c14
+    var len = outline.length;
+    for (var i = 0; i < len; i++) {
+      var pt = outline[i];
+      var a = pt.base * alphaScale;
+      if (a <= 0.01) continue;
+      if (a > 1) a = 1;
+      ctx.fillStyle = "rgba(" + col + "," + a.toFixed(3) + ")";
+      // 1.6px 사각 블록(거친 흑연 알갱이 느낌). 짝수 인덱스만 살짝 키워 농담 변주.
+      var sz = (i & 3) === 0 ? 2.1 : 1.6;
+      ctx.fillRect(pt.x - sz / 2, pt.y - sz / 2, sz, sz);
+    }
+  }
+
+  // ====== 슬라이더 (손맛 튜닝) ======
+  var chargeSlider = document.getElementById("chargeSlider");
+  var decaySlider = document.getElementById("decaySlider");
+  var smoothSlider = document.getElementById("smoothSlider");
+  var chargeVal = document.getElementById("chargeVal");
+  var decayVal = document.getElementById("decayVal");
+  var smoothVal = document.getElementById("smoothVal");
+
+  chargeSlider.addEventListener("input", function () {
+    cfg.chargePerClick = (+chargeSlider.value) / 100;
+    chargeVal.textContent = chargeSlider.value + "%";
+  });
+  decaySlider.addEventListener("input", function () {
+    cfg.decayPerSec = (+decaySlider.value) / 100;
+    decayVal.textContent = decaySlider.value + "%/초";
+  });
+  smoothSlider.addEventListener("input", function () {
+    cfg.smooth = +smoothSlider.value;
+    var v = +smoothSlider.value;
+    smoothVal.textContent = v <= 6 ? "또렷·즉각" : v <= 13 ? "중간" : "부드럽·느릿";
+  });
+
+  // ====== 상점 (시연용 1회 체감) ======
+  var chargeLv = 1, decayLv = 1;
+  document.getElementById("buyCharge").addEventListener("click", function () {
+    shopChargeBonus += 0.03;
+    chargeLv++;
+    document.getElementById("chargeLv").textContent = "Lv." + chargeLv;
+  });
+  document.getElementById("buyDecay").addEventListener("click", function () {
+    shopDecayCut += 0.05;
+    decayLv++;
+    document.getElementById("decayLv").textContent = "Lv." + decayLv;
+  });
+
+  // ====== 별점 평가 + localStorage ======
+  var STORE_KEY = "gauge-sketch-eval";
+  var starsEl = document.getElementById("stars");
+  var noteEl = document.getElementById("evalNote");
+  var savedMsg = document.getElementById("savedMsg");
+  var rating = 0;
+
+  for (var s = 1; s <= 5; s++) {
+    var el = document.createElement("span");
+    el.className = "star";
+    el.textContent = "★";
+    el.setAttribute("role", "radio");
+    el.setAttribute("aria-label", s + "점");
+    el.dataset.v = s;
+    el.addEventListener("click", function () { setRating(+this.dataset.v); });
+    starsEl.appendChild(el);
+  }
+  function setRating(v) {
+    rating = v;
+    var nodes = starsEl.children;
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].classList.toggle("on", i < v);
+      nodes[i].setAttribute("aria-checked", (i + 1) === v ? "true" : "false");
+    }
+  }
+  // 복원
+  try {
+    var saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+    if (saved) {
+      if (saved.rating) setRating(saved.rating);
+      if (saved.note) noteEl.value = saved.note;
+    }
+  } catch (e) {}
+
+  document.getElementById("saveBtn").addEventListener("click", function () {
+    var payload = { rating: rating, note: noteEl.value, at: new Date().toISOString() };
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      savedMsg.textContent = "저장됨 ✓";
+    } catch (e) {
+      savedMsg.textContent = "저장 실패";
+    }
+    setTimeout(function () { savedMsg.textContent = ""; }, 2200);
+  });
+
+  // ====== 시작 ======
+  loadOutline();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

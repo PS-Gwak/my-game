@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>등사기 크랭크 · 새 반복행위 시안</title>
+<link rel="icon" href="data:," />
+<style>
+  :root {
+    --bg: #15110a;
+    --panel: #1a1408;
+    --panel-dark: #100c06;
+    --gold: #f5a700;
+    --gold-soft: #f0c674;
+    --text: #e8d6a8;
+    --text-soft: #aa936a;
+    --border: #443a25;
+    --track: #2a1f0e;
+    --paper: #eadfc5;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    margin: 0;
+    height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  header, footer {
+    background: var(--panel-dark);
+    border-color: var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 9px 16px;
+  }
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 9px 16px;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  a {
+    color: var(--gold-soft);
+    text-decoration: none;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .title { min-width: 0; }
+  h1 {
+    margin: 0;
+    color: var(--gold);
+    font-size: 18px;
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+  .subtitle {
+    margin: 2px 0 0;
+    color: var(--text-soft);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .readout {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 220px;
+  }
+  .readout span {
+    color: var(--text-soft);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .bar {
+    flex: 1;
+    height: 8px;
+    background: var(--track);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .bar > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #be7c00, #f5a700);
+    transition: width 0.12s linear;
+  }
+  main {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
+    gap: 14px;
+    padding: 14px;
+    background:
+      linear-gradient(180deg, rgba(21, 17, 10, 0.92), rgba(9, 8, 5, 0.98)),
+      radial-gradient(circle at 58% 8%, rgba(245, 167, 0, 0.1), transparent 32%);
+  }
+  .stage {
+    min-height: 0;
+    display: grid;
+    place-items: center;
+  }
+  .frame {
+    position: relative;
+    height: 100%;
+    max-height: 100%;
+    max-width: 100%;
+    background: #0d0a05;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px;
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.46);
+  }
+  .done-toast {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translate(-50%, -14px);
+    z-index: 3;
+    padding: 7px 16px;
+    background: var(--gold);
+    color: #1a1206;
+    font-size: 13px;
+    font-weight: 900;
+    border-radius: 999px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    white-space: nowrap;
+  }
+  .done-toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  canvas {
+    display: block;
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    background: var(--paper);
+    border-radius: 4px;
+    cursor: grab;
+    touch-action: none;
+  }
+  canvas:active { cursor: grabbing; }
+  aside {
+    min-height: 0;
+    border: 1px solid var(--border);
+    background: rgba(26, 20, 8, 0.82);
+    border-radius: 8px;
+    padding: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: auto;
+  }
+  .howBox {
+    background: rgba(245, 167, 0, 0.1);
+    border: 1px solid rgba(245, 167, 0, 0.35);
+    border-radius: 7px;
+    padding: 9px 10px;
+  }
+  .howBox b {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--gold);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .howBox span {
+    display: block;
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+  .tuner {
+    border-top: 1px solid var(--track);
+    padding-top: 10px;
+  }
+  .tuner h2 {
+    margin: 0 0 9px;
+    color: var(--gold-soft);
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+  .tuner .row {
+    margin-bottom: 12px;
+  }
+  .tuner label {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text);
+    font-size: 11.5px;
+    margin-bottom: 5px;
+  }
+  .tuner label b {
+    color: var(--gold-soft);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .tuner input[type=range] {
+    width: 100%;
+    accent-color: var(--gold);
+    cursor: pointer;
+  }
+  .tunerActions {
+    display: flex;
+    gap: 8px;
+    margin-top: 2px;
+  }
+  .tunerActions .actionBtn {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--gold);
+    background: transparent;
+    color: var(--gold);
+    border-radius: 7px;
+    padding: 8px 6px;
+    font-size: 11.5px;
+    font-weight: 900;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tunerActions .actionBtn.primary {
+    background: var(--gold);
+    color: #1a1206;
+  }
+  .complete {
+    margin-top: auto;
+    border-top: 1px solid var(--track);
+    padding-top: 12px;
+    color: var(--gold);
+    font-weight: 900;
+    min-height: 42px;
+  }
+  #loading {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--bg);
+    color: var(--text-soft);
+    z-index: 5;
+    text-align: center;
+    line-height: 1.6;
+    padding: 20px;
+  }
+  @media (max-width: 760px) {
+    header { padding: 8px 10px; }
+    .subtitle { display: none; }
+    .readout { min-width: 130px; }
+    main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 10px; padding: 10px; }
+    aside { max-height: 35vh; padding: 10px; }
+    .howBox b { font-size: 12px; }
+    .howBox span, .tuner label { font-size: 11px; }
+    .complete { min-height: 0; }
+    footer { font-size: 11px; padding: 7px 10px; }
+    .done-toast { top: 10px; font-size: 12px; padding: 6px 14px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <a href="../index.html">← 메뉴로</a>
+    <div class="title">
+      <h1>등사기 크랭크</h1>
+      <p class="subtitle">오른쪽 손잡이를 시계방향으로 돌리면 인쇄바가 한 줄씩 내려옵니다.</p>
+    </div>
+    <div class="readout" aria-label="인쇄 진행">
+      <span id="progressText">0%</span>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage" aria-label="등사기 작업대">
+      <div class="frame">
+        <canvas id="game" width="760" height="760"></canvas>
+        <div class="done-toast" id="doneToast">그림 완성!</div>
+      </div>
+    </section>
+    <aside>
+      <div class="howBox">
+        <b>손잡이를 시계방향으로 계속 돌리세요</b>
+        <span>마우스를 누른 채 원을 그리면 전진합니다. 멈추면 태엽처럼 부드럽게 되감깁니다.</span>
+      </div>
+      <div class="tuner" aria-label="등사기 손맛 튜닝">
+        <h2>손맛 튜닝</h2>
+        <div class="row">
+          <label for="turnsRange"><span>완성까지 바퀴수</span><b id="turnsValue">9.0</b></label>
+          <input id="turnsRange" type="range" min="4" max="14" step="0.5" value="9" />
+        </div>
+        <div class="row">
+          <label for="rewindStrengthRange"><span>되감기 강도</span><b id="rewindStrengthValue">7.5%/초</b></label>
+          <input id="rewindStrengthRange" type="range" min="0" max="0.16" step="0.005" value="0.075" />
+        </div>
+        <div class="row">
+          <label for="rewindSmoothRange"><span>되감기 부드러움</span><b id="rewindSmoothValue">10.0</b></label>
+          <input id="rewindSmoothRange" type="range" min="3" max="18" step="0.5" value="10" />
+        </div>
+        <div class="row">
+          <label for="edgeBlurRange"><span>경계 부드럽기</span><b id="edgeBlurValue">1.6px</b></label>
+          <input id="edgeBlurRange" type="range" min="0" max="4" step="0.1" value="1.6" />
+        </div>
+        <div class="tunerActions">
+          <button class="actionBtn" id="resetTunerBtn" type="button">설정 기본값</button>
+          <button class="actionBtn primary" id="redrawBtn" type="button">다시 그리기</button>
+        </div>
+      </div>
+      <div class="complete" id="completeText"></div>
+    </aside>
+  </main>
+
+  <footer>
+    작은 등사기 체험판입니다. 손잡이 회전감과 한 줄씩 찍히는 느낌만 확인하는 용도입니다.
+  </footer>
+
+  <div id="loading">기준 그림을 읽는 중입니다.</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const CELL = 4;
+  const GW = Math.ceil(W / CELL);
+  const GH = Math.ceil(H / CELL);
+  const COLOR_SRC = "../assets/mena-lisa%203.jpg"; // 풀컬러 유화 완성품
+  const GUIDE_SRC = "../assets/mena-lisa%202.png"; // 흐린 길잡이 선화
+  const crankSettings = {
+    turnsToFinish: 9,
+    rewindStrength: 0.075,
+    rewindSmooth: 10,
+    edgeBlur: 1.6,
+  };
+
+  // 풀컬러 그림(3번)을 종이 사각형에 미리 그려두는 층
+  const colorLayer = document.createElement("canvas");
+  colorLayer.width = W;
+  colorLayer.height = H;
+  const colorLayerCtx = colorLayer.getContext("2d");
+
+  // 흐린 길잡이(2번 선화)
+  const guideLayer = document.createElement("canvas");
+  guideLayer.width = W;
+  guideLayer.height = H;
+  const guideLayerCtx = guideLayer.getContext("2d");
+
+  // 인쇄 진행을 회색 알파로 그린 뒤 흐림 처리해 마스크로 쓰는 층
+  const printAlpha = document.createElement("canvas");
+  printAlpha.width = W;
+  printAlpha.height = H;
+  const printAlphaCtx = printAlpha.getContext("2d");
+
+  // 풀컬러 그림을 인쇄 알파로 오려낸 결과 층
+  const colorPrint = document.createElement("canvas");
+  colorPrint.width = W;
+  colorPrint.height = H;
+  const colorPrintCtx = colorPrint.getContext("2d");
+
+  const colorImg = new Image();
+  const guideImg = new Image();
+  let loaded = 0;
+  const crank = { x: 624, y: 382, r: 98 };
+  let layout = null;
+  let mask = null;       // 그림 사각형 전체 = 1 (배경 포함)
+  let totalMask = 0;
+  let crankTurns = 0;
+  let targetProgress = 0;
+  let displayProgress = 0;
+  let crankAngle = -Math.PI / 2;
+  let dragging = false;
+  let lastAngle = 0;
+  let finished = false;
+  let turning = false;     // 이번 프레임에 손잡이를 돌렸는지
+  let lastFrameT = 0;
+  let loopRunning = false;
+
+  const doneToastEl = document.getElementById("doneToast");
+  const completeTextEl = document.getElementById("completeText");
+  const progressTextEl = document.getElementById("progressText");
+  const progressBarEl = document.getElementById("progressBar");
+  const tuner = {
+    turnsRange: document.getElementById("turnsRange"),
+    turnsValue: document.getElementById("turnsValue"),
+    rewindStrengthRange: document.getElementById("rewindStrengthRange"),
+    rewindStrengthValue: document.getElementById("rewindStrengthValue"),
+    rewindSmoothRange: document.getElementById("rewindSmoothRange"),
+    rewindSmoothValue: document.getElementById("rewindSmoothValue"),
+    edgeBlurRange: document.getElementById("edgeBlurRange"),
+    edgeBlurValue: document.getElementById("edgeBlurValue"),
+    resetTunerBtn: document.getElementById("resetTunerBtn"),
+    redrawBtn: document.getElementById("redrawBtn"),
+  };
+
+  function syncTunerLabels() {
+    tuner.turnsValue.textContent = crankSettings.turnsToFinish.toFixed(1);
+    tuner.rewindStrengthValue.textContent = (crankSettings.rewindStrength * 100).toFixed(1) + "%/초";
+    tuner.rewindSmoothValue.textContent = crankSettings.rewindSmooth.toFixed(1);
+    tuner.edgeBlurValue.textContent = crankSettings.edgeBlur.toFixed(1) + "px";
+  }
+
+  function syncTargetFromTurns() {
+    targetProgress = Math.max(0, Math.min(1, crankTurns / crankSettings.turnsToFinish));
+  }
+
+  function resetTunerDefaults() {
+    const keptTarget = targetProgress;
+    tuner.turnsRange.value = tuner.turnsRange.defaultValue;
+    tuner.rewindStrengthRange.value = tuner.rewindStrengthRange.defaultValue;
+    tuner.rewindSmoothRange.value = tuner.rewindSmoothRange.defaultValue;
+    tuner.edgeBlurRange.value = tuner.edgeBlurRange.defaultValue;
+    crankSettings.turnsToFinish = Number(tuner.turnsRange.value);
+    crankSettings.rewindStrength = Number(tuner.rewindStrengthRange.value);
+    crankSettings.rewindSmooth = Number(tuner.rewindSmoothRange.value);
+    crankSettings.edgeBlur = Number(tuner.edgeBlurRange.value);
+    targetProgress = keptTarget;
+    crankTurns = targetProgress * crankSettings.turnsToFinish;
+    syncTunerLabels();
+    updateProgress();
+    if (layout) render();
+  }
+
+  function resetDrawing() {
+    crankTurns = 0;
+    targetProgress = 0;
+    displayProgress = 0;
+    crankAngle = -Math.PI / 2;
+    dragging = false;
+    lastAngle = 0;
+    finished = false;
+    turning = false;
+    completeTextEl.textContent = "";
+    doneToastEl.classList.remove("show");
+    progressTextEl.textContent = "0%";
+    progressBarEl.style.width = "0%";
+    if (layout) render();
+    startLoop();
+  }
+
+  function bindTuner() {
+    tuner.turnsRange.addEventListener("input", () => {
+      crankSettings.turnsToFinish = Number(tuner.turnsRange.value);
+      syncTargetFromTurns();
+      syncTunerLabels();
+      updateProgress();
+    });
+    tuner.rewindStrengthRange.addEventListener("input", () => {
+      crankSettings.rewindStrength = Number(tuner.rewindStrengthRange.value);
+      syncTunerLabels();
+    });
+    tuner.rewindSmoothRange.addEventListener("input", () => {
+      crankSettings.rewindSmooth = Number(tuner.rewindSmoothRange.value);
+      syncTunerLabels();
+    });
+    tuner.edgeBlurRange.addEventListener("input", () => {
+      crankSettings.edgeBlur = Number(tuner.edgeBlurRange.value);
+      syncTunerLabels();
+      if (layout) render();
+    });
+    tuner.resetTunerBtn.addEventListener("click", resetTunerDefaults);
+    tuner.redrawBtn.addEventListener("click", resetDrawing);
+    syncTunerLabels();
+  }
+
+  function fitImage(image, box) {
+    const ratio = image.width / image.height;
+    let h = box.h;
+    let w = h * ratio;
+    if (w > box.w) {
+      w = box.w;
+      h = w / ratio;
+    }
+    return {
+      x: box.x + (box.w - w) / 2,
+      y: box.y + (box.h - h) / 2,
+      w,
+      h,
+    };
+  }
+
+  function load() {
+    const onBoth = () => {
+      loaded++;
+      if (loaded < 2) return;
+      try {
+        layout = fitImage(colorImg, { x: 54, y: 42, w: 430, h: 684 });
+        buildMask();
+        buildColorLayer();
+        buildGuideLayer();
+      } catch (err) {
+        console.error("이미지 분석 실패:", err);
+        showAnalysisError();
+        return;
+      }
+      document.getElementById("loading").style.display = "none";
+      updateProgress();
+      startLoop();
+    };
+    colorImg.onload = onBoth;
+    guideImg.onload = onBoth;
+    colorImg.onerror = guideImg.onerror = () => {
+      document.getElementById("loading").innerHTML = "이미지를 불러오지 못했습니다.<br />로컬 서버로 다시 열어주세요.";
+    };
+    colorImg.src = COLOR_SRC;
+    guideImg.src = GUIDE_SRC;
+  }
+
+  function showAnalysisError() {
+    const guide = location.protocol === "file:"
+      ? "로컬 파일(file://)로 열면 그림 분석이 막힐 수 있습니다.<br />draw-proto-2026-05-31 폴더에서 python3 -m http.server 8094 를 켠 뒤 다시 열어주세요."
+      : "그림 분석에 실패했습니다. 새로고침해 주세요.";
+    document.getElementById("loading").innerHTML = guide;
+  }
+
+  // 마스크 = 그림 사각형 전체(배경 포함)
+  function buildMask() {
+    mask = new Uint8Array(GW * GH);
+    const gx1 = Math.max(0, Math.floor(layout.x / CELL));
+    const gx2 = Math.min(GW - 1, Math.ceil((layout.x + layout.w) / CELL) - 1);
+    const gy1 = Math.max(0, Math.floor(layout.y / CELL));
+    const gy2 = Math.min(GH - 1, Math.ceil((layout.y + layout.h) / CELL) - 1);
+    for (let gy = gy1; gy <= gy2; gy++) {
+      for (let gx = gx1; gx <= gx2; gx++) {
+        mask[gy * GW + gx] = 1;
+      }
+    }
+    totalMask = 0;
+    for (let i = 0; i < mask.length; i++) {
+      if (mask[i]) totalMask++;
+    }
+  }
+
+  function buildColorLayer() {
+    colorLayerCtx.clearRect(0, 0, W, H);
+    colorLayerCtx.drawImage(colorImg, layout.x, layout.y, layout.w, layout.h);
+  }
+
+  function buildGuideLayer() {
+    guideLayerCtx.clearRect(0, 0, W, H);
+    guideLayerCtx.drawImage(guideImg, layout.x, layout.y, layout.w, layout.h);
+  }
+
+  // 인쇄바 위쪽을 회색 알파로 채우고, 풀컬러 그림을 그 모양대로 오려냄(가장자리 약한 흐림)
+  function drawPrintBuffers() {
+    const barY = printY();
+    printAlphaCtx.save();
+    printAlphaCtx.setTransform(1, 0, 0, 1, 0, 0);
+    printAlphaCtx.clearRect(0, 0, W, H);
+    printAlphaCtx.fillStyle = "rgba(0,0,0,1)";
+    if (barY > layout.y) {
+      const startGy = Math.max(0, Math.floor(layout.y / CELL));
+      const maxGy = Math.min(GH - 1, Math.floor((barY - 0.001) / CELL));
+      for (let gy = startGy; gy <= maxGy; gy++) {
+        for (let gx = 0; gx < GW; gx++) {
+          const i = gy * GW + gx;
+          if (!mask[i]) continue;
+          printAlphaCtx.fillRect(gx * CELL, gy * CELL, CELL, CELL);
+        }
+      }
+    }
+    printAlphaCtx.restore();
+
+    colorPrintCtx.save();
+    colorPrintCtx.setTransform(1, 0, 0, 1, 0, 0);
+    colorPrintCtx.clearRect(0, 0, W, H);
+    colorPrintCtx.drawImage(colorLayer, 0, 0);
+    colorPrintCtx.globalCompositeOperation = "destination-in";
+    colorPrintCtx.filter = `blur(${crankSettings.edgeBlur}px)`;
+    colorPrintCtx.drawImage(printAlpha, 0, 0);
+    colorPrintCtx.filter = "none";
+    colorPrintCtx.globalCompositeOperation = "source-over";
+    colorPrintCtx.restore();
+  }
+
+  function drawPaper() {
+    ctx.fillStyle = "#eadfc5";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#d8c49a";
+    ctx.fillRect(layout.x - 24, layout.y - 24, layout.w + 48, layout.h + 48);
+    ctx.fillStyle = "#f2ead9";
+    ctx.fillRect(layout.x - 10, layout.y - 12, layout.w + 20, layout.h + 24);
+    // 흐린 길잡이(2번 선화)를 아주 옅게 항상 깔아 둠
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.drawImage(guideLayer, 0, 0);
+    ctx.restore();
+  }
+
+  function drawPressBody() {
+    const barY = printY();
+    ctx.save();
+    ctx.fillStyle = "rgba(29, 22, 11, 0.92)";
+    ctx.fillRect(layout.x - 30, layout.y - 34, layout.w + 60, 24);
+    ctx.fillRect(layout.x - 30, layout.y + layout.h + 10, layout.w + 60, 24);
+    ctx.strokeStyle = "rgba(245, 167, 0, 0.42)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(layout.x - 30, layout.y - 34, layout.w + 60, layout.h + 68);
+    ctx.fillStyle = "#23180a";
+    ctx.fillRect(layout.x - 34, barY - 7, layout.w + 68, 14);
+    ctx.fillStyle = "#b87700";
+    ctx.fillRect(layout.x - 34, barY - 2, layout.w + 68, 4);
+    ctx.restore();
+  }
+
+  // 손잡이 둘레에 시계방향(↻) 화살표 — 이 방향으로 돌려라
+  function drawClockwiseArrow() {
+    const r = crank.r + 22;
+    const start = -Math.PI * 0.75;
+    const end = Math.PI * 0.55;
+    ctx.save();
+    ctx.strokeStyle = "rgba(245, 167, 0, 0.78)";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(crank.x, crank.y, r, start, end, false); // 시계방향
+    ctx.stroke();
+    // 화살촉(끝점에서 진행 방향)
+    const ex = crank.x + Math.cos(end) * r;
+    const ey = crank.y + Math.sin(end) * r;
+    const tangent = end + Math.PI / 2; // 시계방향 접선
+    const head = 13;
+    ctx.fillStyle = "rgba(245, 167, 0, 0.85)";
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(
+      ex - Math.cos(tangent - 0.42) * head,
+      ey - Math.sin(tangent - 0.42) * head
+    );
+    ctx.lineTo(
+      ex - Math.cos(tangent + 0.42) * head,
+      ey - Math.sin(tangent + 0.42) * head
+    );
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCrank() {
+    drawClockwiseArrow();
+    ctx.save();
+    ctx.strokeStyle = "#443a25";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(crank.x, crank.y, crank.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "#23180a";
+    ctx.lineWidth = 16;
+    ctx.beginPath();
+    ctx.arc(crank.x, crank.y, crank.r - 18, 0, Math.PI * 2);
+    ctx.stroke();
+    const hx = crank.x + Math.cos(crankAngle) * crank.r;
+    const hy = crank.y + Math.sin(crankAngle) * crank.r;
+    ctx.strokeStyle = "#b87700";
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(crank.x, crank.y);
+    ctx.lineTo(hx, hy);
+    ctx.stroke();
+    ctx.fillStyle = "#f5a700";
+    ctx.beginPath();
+    ctx.arc(hx, hy, 21, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#0a0a0a";
+    ctx.beginPath();
+    ctx.arc(hx, hy, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#1a1408";
+    ctx.beginPath();
+    ctx.arc(crank.x, crank.y, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function updateProgress() {
+    if (!finished && targetProgress >= 1) {
+      displayProgress = 1;
+      finished = true;
+      completeTextEl.textContent = "완성! 마지막 줄까지 찍혔습니다.";
+      doneToastEl.classList.add("show");
+    }
+    const percent = Math.round(printProgress() * 100);
+    progressTextEl.textContent = percent + "%";
+    progressBarEl.style.width = percent + "%";
+  }
+
+  function printY() {
+    if (!layout) return 0;
+    return layout.y + layout.h * Math.max(0, Math.min(1, displayProgress));
+  }
+
+  function printProgress() {
+    if (!layout) return displayProgress;
+    return Math.max(0, Math.min(1, (printY() - layout.y) / layout.h));
+  }
+
+  function render() {
+    if (!layout) return;
+    drawPrintBuffers();
+    drawPaper();
+    ctx.drawImage(colorPrint, 0, 0); // 찍혀 떠오른 풀컬러 그림
+    drawPressBody();
+    drawCrank();
+    ctx.fillStyle = "rgba(42, 31, 14, 0.72)";
+    ctx.fillRect(18, 18, 136, 30);
+    ctx.fillStyle = "#f0c674";
+    ctx.font = "700 15px system-ui, sans-serif";
+    ctx.fillText(finished ? "완성" : "인쇄 " + Math.round(printProgress() * 100) + "%", 31, 38);
+  }
+
+  // 매끄러운 애니메이션 루프 — 목표 진행률은 강하게 줄이고, 화면은 매 프레임 부드럽게 따라간다.
+  function loop(now) {
+    const dt = Math.min(0.05, (now - lastFrameT) / 1000);
+    lastFrameT = now;
+    if (!turning && !finished && targetProgress > 0) {
+      const beforeTurns = crankTurns;
+      targetProgress = Math.max(0, targetProgress - crankSettings.rewindStrength * dt);
+      crankTurns = targetProgress * crankSettings.turnsToFinish;
+      // 되감긴 바퀴수만큼 손잡이도 반시계로 풀리는 연출
+      crankAngle -= (beforeTurns - crankTurns) * Math.PI * 2;
+    }
+    const ease = 1 - Math.exp(-dt * crankSettings.rewindSmooth);
+    displayProgress += (targetProgress - displayProgress) * ease;
+    if (Math.abs(displayProgress - targetProgress) < 0.0005) displayProgress = targetProgress;
+    updateProgress();
+    turning = false; // 다음 프레임을 위해 리셋
+    render();
+    if (finished) {
+      loopRunning = false;
+      return;
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function startLoop() {
+    if (loopRunning) return;
+    loopRunning = true;
+    lastFrameT = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  function toLocal(event) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (W / rect.width),
+      y: (event.clientY - rect.top) * (H / rect.height),
+    };
+  }
+
+  function angleOf(point) {
+    return Math.atan2(point.y - crank.y, point.x - crank.x);
+  }
+
+  function normalizedDelta(now, before) {
+    let d = now - before;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return d;
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    const p = toLocal(event);
+    const dx = p.x - crank.x;
+    const dy = p.y - crank.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > crank.r + 48) return;
+    dragging = true;
+    lastAngle = angleOf(p);
+    crankAngle = lastAngle;
+    canvas.setPointerCapture(event.pointerId);
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    const p = toLocal(event);
+    const nextAngle = angleOf(p);
+    const d = normalizedDelta(nextAngle, lastAngle);
+    crankAngle = nextAngle;
+    if (d > 0 && targetProgress < 1) {
+      crankTurns += d / (Math.PI * 2);
+      syncTargetFromTurns();
+      turning = true; // 돌리는 중 → 이번 프레임 되감기 멈춤
+      updateProgress();
+    }
+    lastAngle = nextAngle;
+  });
+
+  function stopDrag() {
+    dragging = false;
+  }
+  canvas.addEventListener("pointerup", stopDrag);
+  canvas.addEventListener("pointercancel", stopDrag);
+  canvas.addEventListener("lostpointercapture", stopDrag);
+
+  bindTuner();
+  load();
+})();
+</script>
+</body>
+</html>

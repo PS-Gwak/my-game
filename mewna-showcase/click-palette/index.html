@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B안 시안 2 - 팔레트 연타 완성</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #15110a;
+    --panel: #1a1408;
+    --panel-dark: #110d06;
+    --gold: #f5a700;
+    --gold-light: #f0c674;
+    --text: #e8d6a8;
+    --text-soft: #aa936a;
+    --border: #443a25;
+    --track: #2a1f0e;
+    --good: #71d18b;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+    display: grid;
+    grid-template-rows: 40px minmax(0, 1fr) 74px;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  header {
+    background: var(--panel-dark);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 0 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+  }
+  .brand strong {
+    color: var(--gold);
+    font-size: 17px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .brand span {
+    color: var(--text-soft);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .top-meter {
+    display: grid;
+    grid-template-columns: 88px minmax(170px, 260px) 42px;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--gold-light);
+    font-weight: 800;
+  }
+  .bar-shell {
+    height: 10px;
+    border-radius: 999px;
+    background: #241a0c;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .bar-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #b87700, var(--gold));
+    transition: width 0.16s ease;
+  }
+  .pct {
+    color: var(--gold);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  main {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 308px;
+    gap: 0;
+    overflow: hidden;
+  }
+  .stage {
+    --palette-width: 224px;
+    --palette-height: 189px;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(14px, 1fr) auto minmax(var(--palette-width), 1fr);
+    align-items: center;
+    position: relative;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+      var(--panel);
+    background-size: 34px 34px;
+    padding: 14px 0 14px 14px;
+  }
+  .painting-frame {
+    grid-column: 2;
+    width: min(56vh, calc(100vw - 430px), 520px);
+    aspect-ratio: 520 / 760;
+    max-height: calc(100vh - 132px);
+    min-width: 280px;
+    background: #f7f2e5;
+    border: 8px solid #4b3518;
+    border-radius: 8px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.58), inset 0 0 0 2px #e8d6a8;
+    position: relative;
+  }
+  #paintingCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+    border-radius: 2px;
+  }
+  .complete-ribbon {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: none;
+    background: linear-gradient(135deg, var(--gold), #b87700);
+    color: #0b0802;
+    font-size: 13px;
+    font-weight: 900;
+    padding: 6px 12px;
+    border-radius: 999px;
+    box-shadow: 0 0 24px rgba(245,167,0,0.28);
+  }
+  .complete-ribbon.show { display: block; }
+
+  .side {
+    min-height: 0;
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    align-content: start;
+    background: var(--panel-dark);
+    overflow: hidden;
+  }
+  .status-panel {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    gap: 5px;
+  }
+  .phase-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .phase-name {
+    color: var(--gold-light);
+    font-size: 13px;
+    font-weight: 900;
+  }
+  .click-count {
+    color: var(--text-soft);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .stage-pills {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+  }
+  .stage-pill {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 3px 0;
+    text-align: center;
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 800;
+    background: var(--track);
+  }
+  .stage-pill.active {
+    color: #100b02;
+    border-color: var(--gold);
+    background: linear-gradient(135deg, var(--gold), #b87700);
+  }
+  .threshold {
+    font-size: 10.5px;
+    color: var(--text-soft);
+    line-height: 1.28;
+  }
+  .threshold b { color: var(--good); }
+
+  .palette-zone {
+    grid-column: 3;
+    justify-self: center;
+    align-self: center;
+    position: relative;
+    z-index: 4;
+    width: var(--palette-width);
+    height: var(--palette-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    overflow: visible;
+  }
+  .palette-guide {
+    display: none;
+  }
+  .palette-button {
+    width: var(--palette-width);
+    height: var(--palette-height);
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transform-origin: center;
+    transition: transform 0.08s ease;
+  }
+  .palette-button:active { transform: scale(0.94) rotate(-2deg); }
+  .palette-wood {
+    position: absolute;
+    inset: 9% 7% 11% 8%;
+    border-radius: 52% 48% 54% 46% / 45% 49% 51% 55%;
+    background:
+      radial-gradient(circle at 34% 42%, #15110a 0 7%, transparent 7.6%),
+      radial-gradient(circle at 28% 28%, #eb6a6a 0 7%, transparent 7.6%),
+      radial-gradient(circle at 56% 25%, #4a88c7 0 7%, transparent 7.6%),
+      radial-gradient(circle at 70% 52%, #78b86c 0 7.8%, transparent 8.4%),
+      radial-gradient(circle at 45% 67%, #f2d36b 0 7%, transparent 7.6%),
+      linear-gradient(135deg, #9b6330, #d79a52 55%, #7c481e);
+    border: 3px solid #5b3518;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.45), inset 0 0 16px rgba(255,238,185,0.28);
+  }
+  .palette-brush {
+    position: absolute;
+    right: 3%;
+    bottom: 7%;
+    width: 82%;
+    height: 12%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #704018 0 58%, #d8c28e 58% 72%, #111 72% 100%);
+    transform: rotate(-28deg);
+    box-shadow: 0 8px 13px rgba(0,0,0,0.45);
+  }
+  .debug-panel {
+    border-bottom: 1px solid var(--border);
+    padding: 7px 24px 6px 10px;
+    display: grid;
+    align-content: start;
+    gap: 5px;
+    overflow: visible;
+  }
+  .debug-panel h2 {
+    margin: 0;
+    color: var(--gold-light);
+    font-size: 11.5px;
+    line-height: 1.1;
+    font-weight: 900;
+  }
+  .debug-row {
+    display: grid;
+    gap: 1px;
+  }
+  .debug-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text);
+    font-size: 10px;
+    line-height: 1.15;
+  }
+  .debug-label b {
+    color: var(--gold);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .debug-panel input[type="range"] {
+    width: 100%;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--gold);
+    cursor: pointer;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .toggle-row span {
+    color: var(--text);
+    font-size: 10px;
+    line-height: 1.15;
+  }
+  .debug-toggle,
+  .debug-action {
+    border: 1px solid var(--gold);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--gold);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .debug-toggle {
+    min-width: 58px;
+    min-height: 24px;
+    padding: 3px 10px;
+  }
+  .debug-toggle.on,
+  .debug-action.primary {
+    color: #140e04;
+    background: linear-gradient(135deg, var(--gold), #b87700);
+  }
+  .debug-actions {
+    padding: 7px 24px 8px 9px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    border-top: 1px solid var(--track);
+  }
+  .debug-action {
+    min-height: 30px;
+    padding: 5px 4px;
+  }
+
+  footer {
+    min-height: 0;
+    background: var(--panel-dark);
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: auto minmax(190px, 1fr) 110px;
+    gap: 16px;
+    align-items: center;
+    padding: 6px 14px;
+  }
+  .review-title {
+    color: var(--gold-light);
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .stars {
+    display: flex;
+    gap: 3px;
+  }
+  .star {
+    border: 0;
+    background: transparent;
+    color: var(--border);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0;
+  }
+  .star.lit { color: var(--gold); }
+  #reviewMemo {
+    width: 100%;
+    height: 42px;
+    resize: none;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    padding: 7px 9px;
+    outline: none;
+  }
+  #reviewMemo:focus { border-color: var(--gold); }
+  .save-state {
+    color: var(--text-soft);
+    font-size: 11px;
+    text-align: right;
+  }
+
+  @media (max-width: 840px) {
+    body { grid-template-rows: 40px minmax(0, 1fr) 96px; }
+    main { grid-template-columns: minmax(0, 1fr) 280px; }
+    .stage {
+      --palette-width: 196px;
+      --palette-height: 168px;
+      grid-template-columns: minmax(10px, 1fr) auto minmax(var(--palette-width), 1fr);
+      padding: 10px 0 10px 10px;
+    }
+    .painting-frame { width: min(52vh, calc(100vw - 370px), 430px); min-width: 220px; }
+    .top-meter { grid-template-columns: 64px minmax(90px, 1fr) 38px; }
+    .brand span { display: none; }
+    footer { grid-template-columns: 1fr; gap: 5px; align-items: stretch; }
+    .save-state { text-align: left; }
+    .status-panel { padding: 9px 10px; gap: 6px; }
+    .debug-panel { padding: 7px 22px 6px 9px; gap: 5px; }
+    .debug-actions { padding: 7px 22px 7px 9px; gap: 6px; }
+    .debug-action { font-size: 10.5px; }
+  }
+
+  @media (max-width: 660px) {
+    main { grid-template-columns: minmax(0, 1fr) 250px; }
+    .stage {
+      --palette-width: 168px;
+      --palette-height: 147px;
+      grid-template-columns: minmax(10px, 1fr) auto minmax(var(--palette-width), 1fr);
+      padding: 10px 0 10px 10px;
+    }
+    .painting-frame { width: min(49vh, calc(100vw - 322px), 360px); min-width: 150px; }
+    .status-panel { padding: 8px; gap: 5px; }
+    .threshold { font-size: 10px; }
+    .debug-panel { padding: 7px 20px 6px 8px; gap: 5px; }
+    .debug-label,
+    .toggle-row span { font-size: 10px; }
+    .debug-actions { padding: 7px 20px 8px 8px; gap: 5px; }
+    .debug-action { min-height: 32px; padding: 5px 3px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <strong>시안 2 · 클릭 완성</strong>
+    <span>팔레트 연타로 데생에서 컬러까지 완성</span>
+  </div>
+  <div class="top-meter" role="group" aria-label="진행도">
+    <span>진행도</span>
+    <div class="bar-shell"><div class="bar-fill" id="progressBar"></div></div>
+    <span class="pct" id="progressText">0%</span>
+  </div>
+</header>
+
+<main>
+  <section class="stage" aria-label="그림 미리보기">
+    <div class="painting-frame">
+      <canvas id="paintingCanvas" width="520" height="760"></canvas>
+      <div class="complete-ribbon" id="completeRibbon">완성</div>
+    </div>
+
+    <section class="palette-zone" aria-label="팔레트 클릭">
+      <button class="palette-button" id="paletteButton" type="button" aria-label="팔레트 클릭">
+        <span class="palette-wood"></span>
+        <span class="palette-brush"></span>
+      </button>
+    </section>
+  </section>
+
+  <aside class="side">
+    <section class="status-panel">
+      <div class="phase-line">
+        <span class="phase-name" id="phaseName">데생</span>
+        <span class="click-count" id="clickCount">0 / 120</span>
+      </div>
+      <div class="stage-pills">
+        <div class="stage-pill active" id="pillOne">1 데생</div>
+        <div class="stage-pill" id="pillTwo">2 컬러</div>
+      </div>
+      <div class="threshold">데생 → 컬러 순서로 <b>끝까지 채우면 완성</b> · 클릭당 채움 <b id="powerText">1</b></div>
+    </section>
+
+    <section class="debug-panel" aria-label="손맛 튜닝 디버그">
+      <h2>손맛 튜닝 (디버그)</h2>
+      <div class="debug-row">
+        <label class="debug-label" for="drawTargetRange">데생 목표 클릭수 <b id="drawTargetValue">60</b></label>
+        <input id="drawTargetRange" type="range" min="20" max="180" step="5" value="60">
+      </div>
+      <div class="debug-row">
+        <label class="debug-label" for="colorTargetRange">컬러 목표 클릭수 <b id="colorTargetValue">60</b></label>
+        <input id="colorTargetRange" type="range" min="20" max="180" step="5" value="60">
+      </div>
+      <div class="debug-row">
+        <label class="debug-label" for="clickFillRange">클릭당 채움 <b id="clickFillValue">1</b></label>
+        <input id="clickFillRange" type="range" min="1" max="10" step="1" value="1">
+      </div>
+      <div class="toggle-row">
+        <span>자동 붓</span>
+        <button class="debug-toggle" id="autoToggle" type="button" aria-pressed="false">꺼짐</button>
+      </div>
+      <div class="debug-row">
+        <label class="debug-label" for="autoSpeedRange">자동 붓 속도 <b id="autoSpeedValue">2회/초</b></label>
+        <input id="autoSpeedRange" type="range" min="1" max="10" step="1" value="2">
+      </div>
+      <div class="debug-row">
+        <label class="debug-label" for="strokeDensityRange">칠 산재/밀도 <b id="strokeDensityValue">5</b></label>
+        <input id="strokeDensityRange" type="range" min="1" max="10" step="1" value="5">
+      </div>
+    </section>
+
+    <section class="debug-actions" aria-label="디버그 실행 버튼">
+      <button class="debug-action" id="defaultsButton" type="button">설정 기본값</button>
+      <button class="debug-action primary" id="redrawButton" type="button">다시 그리기</button>
+    </section>
+  </aside>
+</main>
+
+<footer>
+  <div>
+    <div class="review-title">동현 평가</div>
+    <div class="stars" id="stars">
+      <button class="star" type="button" data-value="1">★</button>
+      <button class="star" type="button" data-value="2">★</button>
+      <button class="star" type="button" data-value="3">★</button>
+      <button class="star" type="button" data-value="4">★</button>
+      <button class="star" type="button" data-value="5">★</button>
+    </div>
+  </div>
+  <textarea id="reviewMemo" placeholder="팔레트 연타 손맛, 데생→컬러 2단계, 칠 산재 느낌"></textarea>
+  <div class="save-state" id="saveState">브라우저 저장</div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  const DEFAULT_CONFIG = {
+    WIDTH: 520,
+    HEIGHT: 760,
+    DRAW_STAGE_UNITS: 60,
+    COLOR_STAGE_UNITS: 60,
+    FADE2_STEP: 1 / 60,
+    FADE3_STEP: 1 / 72,
+    BRUSH_RADIUS_MIN: 20,
+    BRUSH_RADIUS_MAX: 50,
+    BRUSH_DABS_PER_UNIT: 6,
+    BRUSH_MIN_PER_CLICK: 6,
+    COLOR_UNIT_SCALE: 0.72,
+    STROKE_COUNT_PER_UNIT: 5,
+    STROKE_MIN_PER_CLICK: 5,
+    STROKE_LENGTH_MIN_RATIO: 0.22,
+    STROKE_LENGTH_MAX_RATIO: 0.45,
+    STROKE_THICKNESS_MIN_RATIO: 0.17,
+    STROKE_THICKNESS_MAX_RATIO: 0.24,
+    STROKE_ANGLE_MAX_DEG: 8,
+    STROKE_ALPHA_MIN: 0.50,
+    STROKE_ALPHA_MAX: 0.82,
+    STROKE_EDGE_FADE_RATIO: 0.20,
+    STROKE_BLUR_MIN_PX: 0.8,
+    STROKE_BLUR_MAX_PX: 1.8,
+    STROKE_GRAIN_MIN: 2,
+    STROKE_GRAIN_MAX: 4,
+    STROKE_GRAIN_ALPHA_MIN: 0.06,
+    STROKE_GRAIN_ALPHA_MAX: 0.15,
+    STROKE_GRAIN_WIDTH_MIN_RATIO: 0.12,
+    STROKE_GRAIN_WIDTH_MAX_RATIO: 0.24,
+    AUTO_MS: 500,
+  };
+  const CONFIG = { ...DEFAULT_CONFIG };
+  const DEFAULT_TUNING = {
+    DRAW_STAGE_UNITS: DEFAULT_CONFIG.DRAW_STAGE_UNITS,
+    COLOR_STAGE_UNITS: DEFAULT_CONFIG.COLOR_STAGE_UNITS,
+    CLICK_POWER: 1,
+    AUTO_SPEED: Math.round(1000 / DEFAULT_CONFIG.AUTO_MS),
+    STROKE_DENSITY: DEFAULT_CONFIG.STROKE_COUNT_PER_UNIT,
+  };
+
+  const ASSETS = [
+    "assets/mena-lisa%201.png",
+    "assets/mena-lisa%202.png",
+    "assets/mena-lisa%203.jpg",
+  ];
+
+  const canvas = document.getElementById("paintingCanvas");
+  const ctx = canvas.getContext("2d");
+  const brushMask = document.createElement("canvas");
+  brushMask.width = CONFIG.WIDTH;
+  brushMask.height = CONFIG.HEIGHT;
+  const brushMaskCtx = brushMask.getContext("2d");
+  const paintLayer = document.createElement("canvas");
+  paintLayer.width = CONFIG.WIDTH;
+  paintLayer.height = CONFIG.HEIGHT;
+  const paintCtx = paintLayer.getContext("2d");
+  const revealLayer = document.createElement("canvas");
+  revealLayer.width = CONFIG.WIDTH;
+  revealLayer.height = CONFIG.HEIGHT;
+  const revealCtx = revealLayer.getContext("2d");
+
+  const pictureBox = { x: 18, y: 18, w: 484, h: 724 };
+  const images = [];
+  let drawUnits = 0;
+  let colorUnits = 0;
+  let clickPower = 1;
+  let autoTimer = null;
+  let rating = 0;
+  let curStage = 0; // 0 = 데생, 1 = 컬러
+  let fade2 = 0;
+  let fade2Active = false;
+  let fade3 = 0;
+  let fade3Active = false;
+  let dirty = true;
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`이미지 로딩 실패: ${src}`));
+      img.src = src;
+    });
+  }
+
+  function placeFor(img) {
+    const aspect = img.width / img.height;
+    let h = pictureBox.h;
+    let w = h * aspect;
+    if (w > pictureBox.w) {
+      w = pictureBox.w;
+      h = w / aspect;
+    }
+    return {
+      x: pictureBox.x + (pictureBox.w - w) / 2,
+      y: pictureBox.y + (pictureBox.h - h) / 2,
+      w,
+      h,
+    };
+  }
+
+  function markDirty() {
+    dirty = true;
+  }
+
+  function isFading() {
+    return fade2Active || fade3Active;
+  }
+
+  function isComplete() {
+    return curStage === 2;
+  }
+
+  function stageLimit(stage = curStage) {
+    return stage === 0 ? CONFIG.DRAW_STAGE_UNITS : CONFIG.COLOR_STAGE_UNITS;
+  }
+
+  function currentStageUnits(stage = curStage) {
+    if (stage === 0) return drawUnits;
+    return colorUnits;
+  }
+
+  function setCurrentStageUnits(value) {
+    if (curStage === 0) {
+      drawUnits = value;
+    } else if (curStage === 1) {
+      colorUnits = value;
+    }
+  }
+
+  function stageProgress(stage = curStage) {
+    if (isComplete()) return 1;
+    return Math.min(1, currentStageUnits(stage) / stageLimit(stage));
+  }
+
+  function phaseInfo() {
+    if (isComplete()) return { label: "완성", active: 2 };
+    if (curStage === 0) return { label: "데생", active: 1 };
+    return { label: "컬러", active: 2 };
+  }
+
+  // 데생 단계 = 정밀 선화(images[1]), 컬러 단계 = 컬러 완성본(images[2])
+  function drawStageImage(stage) {
+    paintCtx.clearRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+    const idx = stage === 0 ? 1 : 2;
+    const pos = placeFor(images[idx]);
+    paintCtx.globalAlpha = 1;
+    paintCtx.drawImage(images[idx], pos.x, pos.y, pos.w, pos.h);
+  }
+
+  function drawPaper() {
+    ctx.clearRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+    ctx.fillStyle = "#fbf7ea";
+    ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+    ctx.fillStyle = "rgba(245,167,0,0.06)";
+    for (let y = 0; y < CONFIG.HEIGHT; y += 38) {
+      ctx.fillRect(0, y, CONFIG.WIDTH, 1);
+    }
+    // 밑그림 미리보기 없음 — 완전 백지에서 시작
+  }
+
+  function enterColorStage() {
+    curStage = 1;
+    fade2 = 1;
+    fade2Active = false;
+    brushMaskCtx.clearRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+    updateHud();
+  }
+
+  function finishColorStage() {
+    curStage = 2;
+    fade3 = 1;
+    fade3Active = false;
+    if (autoTimer) stopAuto();
+    updateHud();
+  }
+
+  function advanceFades() {
+    if (fade2Active) {
+      fade2 = Math.min(1, fade2 + CONFIG.FADE2_STEP);
+      if (fade2 >= 1) enterColorStage();
+    }
+    if (fade3Active) {
+      fade3 = Math.min(1, fade3 + CONFIG.FADE3_STEP);
+      if (fade3 >= 1) finishColorStage();
+    }
+  }
+
+  function drawFadeImage(idx, alpha) {
+    if (alpha <= 0) return;
+    const pos = placeFor(images[idx]);
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(images[idx], pos.x, pos.y, pos.w, pos.h);
+    ctx.globalAlpha = 1;
+  }
+
+  function draw() {
+    advanceFades();
+    const stage = curStage === 0 ? 0 : 1;
+
+    drawStageImage(stage);
+    revealCtx.clearRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+    revealCtx.globalCompositeOperation = "source-over";
+    revealCtx.drawImage(paintLayer, 0, 0);
+    revealCtx.globalCompositeOperation = "destination-in";
+    revealCtx.drawImage(brushMask, 0, 0);
+    revealCtx.globalCompositeOperation = "source-over";
+
+    drawPaper();
+    // 컬러 단계에서는 완성된 데생(정밀 선화)을 배경에 깔아 유지한다
+    if (stage === 1) {
+      const pos = placeFor(images[1]);
+      ctx.drawImage(images[1], pos.x, pos.y, pos.w, pos.h);
+    }
+    ctx.drawImage(revealLayer, 0, 0);
+
+    if (curStage === 0) {
+      drawFadeImage(1, fade2);
+    }
+    drawFadeImage(2, fade3);
+
+    ctx.strokeStyle = "#e4d7b8";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(pictureBox.x, pictureBox.y, pictureBox.w, pictureBox.h);
+  }
+
+  function loop() {
+    const animating = isFading();
+    if (dirty || animating) {
+      draw();
+      dirty = false;
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function randomPointInPicture() {
+    const cx = pictureBox.x + pictureBox.w * (0.06 + Math.random() * 0.88);
+    const cy = pictureBox.y + pictureBox.h * (0.05 + Math.random() * 0.90);
+    return { x: cx, y: cy };
+  }
+
+  function randomRange(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function randomInt(min, max) {
+    return Math.floor(randomRange(min, max + 1));
+  }
+
+  function autoSpeedFromMs(ms) {
+    return Math.max(1, Math.min(10, Math.round(1000 / ms)));
+  }
+
+  function applyStrokeDensity(value) {
+    const density = Number(value);
+    CONFIG.STROKE_COUNT_PER_UNIT = density;
+    CONFIG.STROKE_MIN_PER_CLICK = density;
+    CONFIG.BRUSH_DABS_PER_UNIT = Math.max(2, Math.round(density * 1.2));
+    CONFIG.BRUSH_MIN_PER_CLICK = Math.max(2, Math.round(density * 1.2));
+  }
+
+  function updateAutoButton() {
+    const autoToggle = $("autoToggle");
+    if (!autoToggle) return;
+    const isOn = Boolean(autoTimer);
+    autoToggle.textContent = isOn ? "켜짐" : "꺼짐";
+    autoToggle.classList.toggle("on", isOn);
+    autoToggle.setAttribute("aria-pressed", String(isOn));
+  }
+
+  function updateDebugLabels() {
+    const drawTargetValue = $("drawTargetValue");
+    if (!drawTargetValue) return;
+    drawTargetValue.textContent = CONFIG.DRAW_STAGE_UNITS;
+    $("colorTargetValue").textContent = CONFIG.COLOR_STAGE_UNITS;
+    $("clickFillValue").textContent = clickPower;
+    $("autoSpeedValue").textContent = `${autoSpeedFromMs(CONFIG.AUTO_MS)}회/초`;
+    $("strokeDensityValue").textContent = CONFIG.STROKE_COUNT_PER_UNIT;
+    updateAutoButton();
+  }
+
+  function syncDebugInputs() {
+    $("drawTargetRange").value = CONFIG.DRAW_STAGE_UNITS;
+    $("colorTargetRange").value = CONFIG.COLOR_STAGE_UNITS;
+    $("clickFillRange").value = clickPower;
+    $("autoSpeedRange").value = autoSpeedFromMs(CONFIG.AUTO_MS);
+    $("strokeDensityRange").value = CONFIG.STROKE_COUNT_PER_UNIT;
+    updateDebugLabels();
+  }
+
+  function settleProgressAfterTuning() {
+    if (isComplete() || isFading()) return;
+    if (curStage === 0 && drawUnits >= CONFIG.DRAW_STAGE_UNITS) {
+      drawUnits = CONFIG.DRAW_STAGE_UNITS;
+      fade2 = 0;
+      fade2Active = true;
+    } else if (curStage === 1 && colorUnits >= CONFIG.COLOR_STAGE_UNITS) {
+      colorUnits = CONFIG.COLOR_STAGE_UNITS;
+      fade3 = 0;
+      fade3Active = true;
+    }
+  }
+
+  function applyTuningFromInputs() {
+    CONFIG.DRAW_STAGE_UNITS = Number($("drawTargetRange").value);
+    CONFIG.COLOR_STAGE_UNITS = Number($("colorTargetRange").value);
+    clickPower = Number($("clickFillRange").value);
+    CONFIG.AUTO_MS = Math.round(1000 / Number($("autoSpeedRange").value));
+    applyStrokeDensity($("strokeDensityRange").value);
+    settleProgressAfterTuning();
+    if (autoTimer) startAuto();
+    updateHud();
+    markDirty();
+  }
+
+  function resetTuningDefaults() {
+    CONFIG.DRAW_STAGE_UNITS = DEFAULT_TUNING.DRAW_STAGE_UNITS;
+    CONFIG.COLOR_STAGE_UNITS = DEFAULT_TUNING.COLOR_STAGE_UNITS;
+    clickPower = DEFAULT_TUNING.CLICK_POWER;
+    CONFIG.AUTO_MS = Math.round(1000 / DEFAULT_TUNING.AUTO_SPEED);
+    applyStrokeDensity(DEFAULT_TUNING.STROKE_DENSITY);
+    stopAuto();
+    syncDebugInputs();
+    settleProgressAfterTuning();
+    updateHud();
+    markDirty();
+  }
+
+  function stampBrush(count) {
+    for (let i = 0; i < count; i++) {
+      const p = randomPointInPicture();
+      const radius = CONFIG.BRUSH_RADIUS_MIN + Math.random() * (CONFIG.BRUSH_RADIUS_MAX - CONFIG.BRUSH_RADIUS_MIN);
+      const wobble = radius * (0.22 + Math.random() * 0.18);
+      const gradient = brushMaskCtx.createRadialGradient(p.x, p.y, wobble, p.x, p.y, radius);
+      gradient.addColorStop(0, "rgba(255,255,255,0.92)");
+      gradient.addColorStop(0.55, "rgba(255,255,255,0.58)");
+      gradient.addColorStop(1, "rgba(255,255,255,0)");
+      brushMaskCtx.save();
+      brushMaskCtx.filter = `blur(${2 + Math.random() * 4}px)`;
+      brushMaskCtx.globalCompositeOperation = "source-over";
+      brushMaskCtx.fillStyle = gradient;
+      brushMaskCtx.beginPath();
+      brushMaskCtx.ellipse(
+        p.x,
+        p.y,
+        radius * (0.72 + Math.random() * 0.44),
+        radius * (0.48 + Math.random() * 0.42),
+        Math.random() * Math.PI,
+        0,
+        Math.PI * 2
+      );
+      brushMaskCtx.fill();
+      brushMaskCtx.restore();
+    }
+  }
+
+  function ribbonPath(targetCtx, x, y, w, h) {
+    const r = h / 2;
+    targetCtx.beginPath();
+    targetCtx.moveTo(x + r, y);
+    targetCtx.lineTo(x + w - r, y);
+    targetCtx.quadraticCurveTo(x + w, y, x + w, y + r);
+    targetCtx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    targetCtx.lineTo(x + r, y + h);
+    targetCtx.quadraticCurveTo(x, y + h, x, y + r);
+    targetCtx.quadraticCurveTo(x, y, x + r, y);
+    targetCtx.closePath();
+  }
+
+  function stampStroke(count) {
+    brushMaskCtx.save();
+    brushMaskCtx.globalCompositeOperation = "source-over";
+    brushMaskCtx.beginPath();
+    brushMaskCtx.rect(pictureBox.x, pictureBox.y, pictureBox.w, pictureBox.h);
+    brushMaskCtx.clip();
+
+    for (let i = 0; i < count; i++) {
+      const p = randomPointInPicture();
+      const len = pictureBox.w * randomRange(CONFIG.STROKE_LENGTH_MIN_RATIO, CONFIG.STROKE_LENGTH_MAX_RATIO);
+      const thick = len * randomRange(CONFIG.STROKE_THICKNESS_MIN_RATIO, CONFIG.STROKE_THICKNESS_MAX_RATIO);
+      const angle = randomRange(-CONFIG.STROKE_ANGLE_MAX_DEG, CONFIG.STROKE_ANGLE_MAX_DEG) * Math.PI / 180;
+      const alpha = randomRange(CONFIG.STROKE_ALPHA_MIN, CONFIG.STROKE_ALPHA_MAX);
+      const blur = randomRange(CONFIG.STROKE_BLUR_MIN_PX, CONFIG.STROKE_BLUR_MAX_PX);
+      const pad = Math.ceil(thick * 0.7 + blur * 3);
+      const strokeCanvas = document.createElement("canvas");
+      strokeCanvas.width = Math.ceil(len + pad * 2);
+      strokeCanvas.height = Math.ceil(thick + pad * 2);
+      const strokeCtx = strokeCanvas.getContext("2d");
+      const cx = strokeCanvas.width / 2;
+      const cy = strokeCanvas.height / 2;
+      const x = cx - len / 2;
+      const y = cy - thick / 2;
+
+      const bodyGradient = strokeCtx.createLinearGradient(0, y, 0, y + thick);
+      bodyGradient.addColorStop(0, "rgba(255,255,255,0)");
+      bodyGradient.addColorStop(0.16, `rgba(255,255,255,${alpha * 0.48})`);
+      bodyGradient.addColorStop(0.5, `rgba(255,255,255,${alpha})`);
+      bodyGradient.addColorStop(0.84, `rgba(255,255,255,${alpha * 0.48})`);
+      bodyGradient.addColorStop(1, "rgba(255,255,255,0)");
+
+      strokeCtx.save();
+      strokeCtx.filter = `blur(${blur}px)`;
+      strokeCtx.fillStyle = bodyGradient;
+      ribbonPath(strokeCtx, x, y, len, thick);
+      strokeCtx.fill();
+      strokeCtx.restore();
+
+      strokeCtx.save();
+      ribbonPath(strokeCtx, x, y, len, thick);
+      strokeCtx.clip();
+      const grains = randomInt(CONFIG.STROKE_GRAIN_MIN, CONFIG.STROKE_GRAIN_MAX);
+      for (let g = 0; g < grains; g++) {
+        const grainWidth = thick * randomRange(CONFIG.STROKE_GRAIN_WIDTH_MIN_RATIO, CONFIG.STROKE_GRAIN_WIDTH_MAX_RATIO);
+        const grainY = cy + randomRange(-thick * 0.28, thick * 0.28);
+        const grainAlpha = randomRange(CONFIG.STROKE_GRAIN_ALPHA_MIN, CONFIG.STROKE_GRAIN_ALPHA_MAX);
+        const grainGradient = strokeCtx.createLinearGradient(0, grainY - grainWidth / 2, 0, grainY + grainWidth / 2);
+        grainGradient.addColorStop(0, "rgba(255,255,255,0)");
+        grainGradient.addColorStop(0.5, `rgba(255,255,255,${grainAlpha})`);
+        grainGradient.addColorStop(1, "rgba(255,255,255,0)");
+        strokeCtx.fillStyle = grainGradient;
+        strokeCtx.fillRect(x, grainY - grainWidth / 2, len, grainWidth);
+      }
+      strokeCtx.restore();
+
+      strokeCtx.globalCompositeOperation = "destination-in";
+      const fadeGradient = strokeCtx.createLinearGradient(x, 0, x + len, 0);
+      fadeGradient.addColorStop(0, "rgba(255,255,255,0)");
+      fadeGradient.addColorStop(CONFIG.STROKE_EDGE_FADE_RATIO, "rgba(255,255,255,1)");
+      fadeGradient.addColorStop(1 - CONFIG.STROKE_EDGE_FADE_RATIO, "rgba(255,255,255,1)");
+      fadeGradient.addColorStop(1, "rgba(255,255,255,0)");
+      strokeCtx.fillStyle = fadeGradient;
+      strokeCtx.fillRect(0, 0, strokeCanvas.width, strokeCanvas.height);
+
+      brushMaskCtx.save();
+      brushMaskCtx.translate(p.x, p.y);
+      brushMaskCtx.rotate(angle);
+      brushMaskCtx.drawImage(strokeCanvas, -strokeCanvas.width / 2, -strokeCanvas.height / 2);
+      brushMaskCtx.restore();
+    }
+
+    brushMaskCtx.restore();
+  }
+
+  function updateHud() {
+    const p = stageProgress();
+    const pct = Math.round(p * 100);
+    $("progressBar").style.width = `${pct}%`;
+    $("progressText").textContent = `${pct}%`;
+    $("clickCount").textContent =
+      `${Math.min(Math.floor(currentStageUnits()), stageLimit())} / ${stageLimit()}`;
+    $("powerText").textContent = clickPower;
+    const phase = phaseInfo();
+    $("phaseName").textContent = phase.label;
+    for (const [id, n] of [["pillOne", 1], ["pillTwo", 2]]) {
+      $(id).classList.toggle("active", n === phase.active);
+    }
+    $("completeRibbon").classList.toggle("show", isComplete());
+    updateDebugLabels();
+  }
+
+  function handlePaletteClick(event, silent = false) {
+    if (isFading() || isComplete()) return;
+    const gainedUnits = Math.min(clickPower, stageLimit() - currentStageUnits());
+    if (gainedUnits <= 0) return;
+    setCurrentStageUnits(currentStageUnits() + gainedUnits);
+
+    // 붓 자국 수를 "올라간 진행도"에 비례시켜 진행도와 칠 면적을 맞춘다
+    if (curStage === 1) {
+      stampStroke(Math.max(
+        CONFIG.STROKE_MIN_PER_CLICK,
+        gainedUnits * CONFIG.COLOR_UNIT_SCALE * CONFIG.STROKE_COUNT_PER_UNIT
+      ));
+    } else {
+      stampBrush(Math.max(CONFIG.BRUSH_MIN_PER_CLICK, gainedUnits * CONFIG.BRUSH_DABS_PER_UNIT));
+    }
+
+    if (stageProgress() >= 1) {
+      if (curStage === 0) {
+        fade2 = 0;
+        fade2Active = true;
+      } else {
+        fade3 = 0;
+        fade3Active = true;
+      }
+    }
+
+    updateHud();
+    markDirty();
+  }
+
+  function stopAuto() {
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+    updateAutoButton();
+  }
+
+  function startAuto() {
+    if (autoTimer) clearInterval(autoTimer);
+    if (isFading() || isComplete()) {
+      autoTimer = null;
+      updateAutoButton();
+      return;
+    }
+    autoTimer = setInterval(() => {
+      const rect = $("paletteButton").getBoundingClientRect();
+      handlePaletteClick({ clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 }, true);
+    }, CONFIG.AUTO_MS);
+    updateAutoButton();
+  }
+
+  function toggleAuto() {
+    if (autoTimer) {
+      stopAuto();
+    } else {
+      startAuto();
+    }
+  }
+
+  function resetDemo() {
+    drawUnits = 0;
+    colorUnits = 0;
+    curStage = 0;
+    fade2 = 0;
+    fade2Active = false;
+    fade3 = 0;
+    fade3Active = false;
+    brushMaskCtx.clearRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+    updateHud();
+    markDirty();
+  }
+
+  function setRating(value) {
+    rating = value;
+    document.querySelectorAll(".star").forEach((star) => {
+      star.classList.toggle("lit", Number(star.dataset.value) <= rating);
+    });
+    saveReview();
+  }
+
+  function saveReview() {
+    const data = {
+      rating,
+      memo: $("reviewMemo").value,
+      savedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem("mewna-b-concept-click-palette-review", JSON.stringify(data));
+      $("saveState").textContent = "저장됨";
+    } catch (_) {
+      $("saveState").textContent = "저장 실패";
+    }
+  }
+
+  function loadReview() {
+    try {
+      const raw = localStorage.getItem("mewna-b-concept-click-palette-review");
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      rating = Number(data.rating || 0);
+      $("reviewMemo").value = data.memo || "";
+      document.querySelectorAll(".star").forEach((star) => {
+        star.classList.toggle("lit", Number(star.dataset.value) <= rating);
+      });
+    } catch (_) {}
+  }
+
+  async function init() {
+    try {
+      images.push(...await Promise.all(ASSETS.map(loadImage)));
+      $("paletteButton").addEventListener("click", handlePaletteClick);
+      ["drawTargetRange", "colorTargetRange", "clickFillRange", "autoSpeedRange", "strokeDensityRange"]
+        .forEach((id) => $(id).addEventListener("input", applyTuningFromInputs));
+      $("autoToggle").addEventListener("click", toggleAuto);
+      $("defaultsButton").addEventListener("click", resetTuningDefaults);
+      $("redrawButton").addEventListener("click", resetDemo);
+      $("reviewMemo").addEventListener("input", saveReview);
+      document.querySelectorAll(".star").forEach((star) => {
+        star.addEventListener("click", () => setRating(Number(star.dataset.value)));
+      });
+      loadReview();
+      syncDebugInputs();
+      updateHud();
+      markDirty();
+      requestAnimationFrame(loop);
+    } catch (err) {
+      ctx.fillStyle = "#15110a";
+      ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+      ctx.fillStyle = "#f5a700";
+      ctx.font = "700 18px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(err.message, CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2);
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
