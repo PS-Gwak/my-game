@@ -1,0 +1,1976 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>뮤나리자 실크스크린 v7</title>
+<link rel="icon" href="data:," />
+<style>
+  :root {
+    --bg: #101114;
+    --surface: #17191d;
+    --surfaceSoft: #20242a;
+    --surfaceRaised: #292e35;
+    --paper: #eee4cf;
+    --paperDeep: #d8c59f;
+    --line: #3a352b;
+    --gold: #d8b45f;
+    --goldSoft: #f0d992;
+    --ink: #f4efe4;
+    --muted: #b8b1a4;
+    --quiet: #817a70;
+    --danger: #d9826b;
+    --success: #86c9a3;
+    --blue: #79b8d8;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  html {
+    min-width: 900px;
+    background: var(--bg);
+  }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 18px 12px;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at top left, rgba(216, 180, 95, 0.12), transparent 34rem),
+      linear-gradient(135deg, #101114 0%, #181a1e 52%, #111215 100%);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    letter-spacing: 0;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  .pageShell {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pageHeader {
+    display: none;
+    gap: 5px;
+    width: fit-content;
+    margin: 0 auto 12px;
+    text-align: center;
+  }
+
+  .pageHeader h1 {
+    margin: 0;
+    color: var(--goldSoft);
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 900;
+  }
+
+  .pageHeader p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .gameLayout {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    width: 100%;
+    margin: 0;
+    grid-template-columns: minmax(210px, 1fr) auto minmax(210px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 10px 0;
+    align-items: stretch;
+  }
+
+  .metricStrip {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-self: center;
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    width: fit-content;
+    padding: 9px 28px;
+    border: 1px solid rgba(216, 180, 95, 0.24);
+    border-radius: 12px;
+    background: rgba(23, 25, 29, 0.94);
+  }
+
+  .metric {
+    min-width: 116px;
+    min-height: 48px;
+    display: grid;
+    align-content: center;
+    gap: 3px;
+    padding: 0;
+    text-align: center;
+  }
+
+  .metricLabel {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .metricValue {
+    color: var(--ink);
+    font-size: 25px;
+    font-weight: 950;
+    line-height: 1;
+  }
+
+  .metricValue small {
+    display: block;
+    margin-top: 4px;
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .metric:nth-child(1) .metricValue { color: var(--blue); }
+  .metric:nth-child(2) .metricValue { color: var(--goldSoft); }
+  .metric:nth-child(3) .metricValue { color: var(--danger); }
+
+  .artFrame {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: stretch;
+    justify-self: center;
+    position: relative;
+    width: auto;
+    height: 100%;
+    max-height: 100%;
+    aspect-ratio: 620 / 760;
+    overflow: hidden;
+    border: 1px solid rgba(216, 180, 95, 0.28);
+    border-radius: 8px;
+    background: #090b0e;
+    box-shadow: var(--shadow);
+  }
+
+  canvas {
+    display: block;
+    width: auto;
+    height: 100%;
+    max-height: 100%;
+    aspect-ratio: 620 / 760;
+    background: var(--paper);
+    touch-action: none;
+  }
+
+  .cornerActions {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: start;
+    align-self: center;
+    display: grid;
+    gap: 8px;
+    width: 178px;
+    margin-left: 16px;
+    padding: 9px;
+    border: 1px solid rgba(216, 180, 95, 0.24);
+    border-radius: 8px;
+    background: rgba(23, 25, 29, 0.94);
+    box-shadow: var(--shadow);
+  }
+
+  .brushLevel {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid rgba(240, 217, 146, 0.20);
+    border-radius: 8px;
+    background: rgba(32, 36, 42, 0.82);
+  }
+
+  .brushLevel strong {
+    color: var(--goldSoft);
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .button,
+  .finishButton {
+    min-height: 42px;
+    border: 1px solid rgba(216, 180, 95, 0.42);
+    border-radius: 8px;
+    padding: 9px 10px;
+    background: var(--surfaceRaised);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.15;
+  }
+
+  .button:hover,
+  .finishButton:hover {
+    border-color: var(--goldSoft);
+    background: #31363d;
+  }
+
+  .finishButton {
+    border-color: var(--gold);
+    background: var(--gold);
+    color: #17120a;
+  }
+
+  .toggle {
+    min-height: 58px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    gap: 8px;
+    align-items: center;
+    padding: 9px 10px;
+    border: 1px solid rgba(240, 217, 146, 0.20);
+    border-radius: 8px;
+    background: rgba(32, 36, 42, 0.82);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1.25;
+    cursor: pointer;
+  }
+
+  .toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .toggleText {
+    display: grid;
+    gap: 2px;
+  }
+
+  .toggleText small {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .toggleTrack {
+    width: 42px;
+    height: 24px;
+    position: relative;
+    border-radius: 999px;
+    background: #111419;
+    border: 1px solid rgba(216, 180, 95, 0.26);
+  }
+
+  .toggleTrack::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--quiet);
+    transition: transform 0.16s ease, background 0.16s ease;
+  }
+
+  .toggle input:checked + .toggleTrack {
+    background: rgba(134, 201, 163, 0.20);
+    border-color: rgba(134, 201, 163, 0.72);
+  }
+
+  .toggle input:checked + .toggleTrack::after {
+    transform: translateX(18px);
+    background: var(--success);
+  }
+
+  .miniLog {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: center;
+    width: min(620px, calc(100vw - 36px));
+    color: var(--muted);
+    border: 1px solid rgba(216, 180, 95, 0.18);
+    border-radius: 8px;
+    background: rgba(23, 25, 29, 0.82);
+  }
+
+  .miniLog summary {
+    padding: 6px 14px;
+    color: var(--goldSoft);
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .logList {
+    display: grid;
+    gap: 6px;
+    max-height: 132px;
+    overflow: auto;
+    margin: 0;
+    padding: 0 10px 10px;
+    list-style: none;
+  }
+
+  .logList li {
+    padding: 7px 8px;
+    border-left: 3px solid var(--blue);
+    border-radius: 6px;
+    background: rgba(9, 11, 14, 0.48);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .logList li.good { border-left-color: var(--success); }
+  .logList li.bad { border-left-color: var(--danger); }
+
+  .ruleNote {
+    margin: 0;
+    padding: 0 10px 10px;
+    color: var(--quiet);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .toast {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    z-index: 4;
+    max-width: min(590px, calc(100% - 28px));
+    padding: 8px 15px;
+    border-radius: 999px;
+    background: var(--gold);
+    color: #17120a;
+    font-size: 13px;
+    font-weight: 950;
+    line-height: 1.3;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -12px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  .completionNotice {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    z-index: 4;
+    width: max-content;
+    max-width: calc(100% - 28px);
+    padding: 8px 14px;
+    border: 1px solid rgba(240, 217, 146, 0.68);
+    border-radius: 999px;
+    background: rgba(13, 16, 21, 0.84);
+    color: var(--goldSoft);
+    font-size: 13px;
+    font-weight: 950;
+    line-height: 1.3;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 10px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  }
+
+  .completionNotice.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  .endOverlay,
+  #loading {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: none;
+    place-items: center;
+    padding: 24px;
+    background: rgba(13, 15, 18, 0.86);
+    color: var(--ink);
+    text-align: center;
+  }
+
+  #loading {
+    position: fixed;
+    display: grid;
+    background: var(--bg);
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .endOverlay.show {
+    display: grid;
+  }
+
+  .passwordGate {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background:
+      radial-gradient(circle at top, rgba(216, 180, 95, 0.16), transparent 28rem),
+      rgba(10, 11, 13, 0.94);
+    color: var(--ink);
+    pointer-events: auto;
+  }
+
+  .passwordGate.isHidden {
+    display: none;
+  }
+
+  .passwordBox {
+    width: min(430px, calc(100vw - 48px));
+    padding: 24px;
+    border: 1px solid rgba(216, 180, 95, 0.58);
+    border-radius: 8px;
+    background: rgba(23, 25, 29, 0.98);
+    box-shadow: var(--shadow);
+  }
+
+  .passwordBox h2 {
+    margin: 0 0 10px;
+    color: var(--goldSoft);
+    font-size: 26px;
+    line-height: 1.2;
+    font-weight: 950;
+    text-align: center;
+  }
+
+  .passwordLead {
+    margin: 0 0 18px;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .passwordRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 92px;
+    gap: 8px;
+  }
+
+  .passwordInput {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid rgba(216, 180, 95, 0.42);
+    border-radius: 8px;
+    background: rgba(10, 11, 13, 0.82);
+    color: var(--ink);
+    outline: none;
+  }
+
+  .passwordInput:focus {
+    border-color: var(--goldSoft);
+    box-shadow: 0 0 0 3px rgba(216, 180, 95, 0.18);
+  }
+
+  .passwordButton {
+    min-height: 44px;
+  }
+
+  .passwordError {
+    min-height: 18px;
+    margin: 10px 0 0;
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .startOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(10, 11, 13, 0.88);
+    color: var(--ink);
+  }
+
+  .startOverlay.isHidden {
+    display: none;
+  }
+
+  .startBox {
+    width: min(560px, calc(100vw - 48px));
+    padding: 22px 24px 24px;
+    border: 1px solid rgba(216, 180, 95, 0.56);
+    border-radius: 8px;
+    background: rgba(23, 25, 29, 0.97);
+    box-shadow: var(--shadow);
+  }
+
+  .startBox h2 {
+    margin: 0 0 8px;
+    color: var(--goldSoft);
+    font-size: 26px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+
+  .startLead {
+    margin: 0 0 16px;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .startRules {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding-left: 20px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.48;
+  }
+
+  .startTip {
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border: 1px solid rgba(240, 217, 146, 0.18);
+    border-radius: 8px;
+    background: rgba(32, 36, 42, 0.82);
+    color: var(--goldSoft);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .startButton {
+    width: 100%;
+  }
+
+  .endBox {
+    width: min(390px, 100%);
+    padding: 18px;
+    border: 1px solid rgba(216, 180, 95, 0.55);
+    border-radius: 8px;
+    background: rgba(23, 25, 29, 0.96);
+    box-shadow: var(--shadow);
+  }
+
+  .endBox h2 {
+    margin: 0 0 10px;
+    color: var(--goldSoft);
+    font-size: 21px;
+    line-height: 1.2;
+  }
+
+  .endBox p {
+    margin: 0 0 14px;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .debugPanel {
+    position: fixed;
+    top: 70px;
+    right: 34px;
+    z-index: 50;
+    width: 280px;
+    padding: 15px 17px;
+    border: 1px solid var(--goldSoft);
+    border-radius: 14px;
+    background: rgba(18, 14, 9, 0.94);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.60);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px) scale(0.98);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    backdrop-filter: blur(7px);
+  }
+
+  body.debug .debugPanel {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .debugPanel header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .debugPanel header b {
+    color: var(--goldSoft);
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .debugPanel header .key {
+    margin-left: auto;
+    padding: 1px 7px;
+    border: 1px solid rgba(216, 180, 95, 0.24);
+    border-radius: 5px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .tunerRow {
+    display: grid;
+    gap: 5px;
+    margin: 12px 0;
+  }
+
+  .tunerRow label {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .tunerRow b {
+    color: var(--goldSoft);
+    white-space: nowrap;
+  }
+
+  .tunerRow input[type=range] {
+    width: 100%;
+    accent-color: var(--gold);
+  }
+
+  .debugActions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  .dHint {
+    position: fixed;
+    top: 12px;
+    left: 14px;
+    z-index: 30;
+    padding: 4px 10px;
+    border: 1px solid rgba(216, 180, 95, 0.24);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--goldSoft);
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  body.debug .dHint {
+    opacity: 0.4;
+  }
+
+  .brushCursor {
+    position: fixed;
+    z-index: 20;
+    width: 80px;
+    height: 80px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-40px, -76px);
+    transition: opacity 0.08s ease;
+    filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.42));
+  }
+
+  .brushCursor.isVisible {
+    opacity: 1;
+  }
+
+  .brushCursor svg {
+    display: block;
+    width: 80px;
+    height: 80px;
+  }
+</style>
+</head>
+<body>
+  <div class="passwordGate" id="passwordGate" role="dialog" aria-modal="true" aria-labelledby="passwordTitle" aria-describedby="passwordHelp">
+    <form class="passwordBox" id="passwordForm">
+      <h2 id="passwordTitle">BACO DEMO</h2>
+      <p class="passwordLead" id="passwordHelp">BACO 비공개 데모입니다. 비밀번호를 입력해주세요.</p>
+      <div class="passwordRow">
+        <input class="passwordInput" id="passwordInput" type="password" autocomplete="current-password" aria-label="비밀번호" />
+        <button class="finishButton passwordButton" id="passwordSubmit" type="submit">입장</button>
+      </div>
+      <p class="passwordError" id="passwordError" role="alert" aria-live="assertive"></p>
+    </form>
+  </div>
+
+  <div class="dHint"><b>d 키</b> · 디버그</div>
+
+  <main class="pageShell">
+    <header class="pageHeader">
+      <h1>뮤나리자 실크스크린</h1>
+      <p>휠로 밀고, 떠오른 옥에 티는 붓질로 지웁니다.</p>
+    </header>
+
+    <section class="gameLayout" aria-label="실크스크린 작업대">
+      <div class="metricStrip" aria-label="상단 수치">
+        <div class="metric">
+          <span class="metricLabel">완성도</span>
+          <span class="metricValue" id="completionText">0%</span>
+        </div>
+        <div class="metric">
+          <span class="metricLabel">작품 가치</span>
+          <span class="metricValue" id="valueText">$360</span>
+        </div>
+        <div class="metric">
+          <span class="metricLabel">얼룩 수</span>
+          <span class="metricValue"><span id="stainText">0</span><small id="stainLossText">(-$0)</small></span>
+        </div>
+      </div>
+
+      <div class="artFrame" id="artFrame">
+        <canvas id="game" width="620" height="760" aria-label="뮤나리자 실크스크린 캔버스"></canvas>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <div class="completionNotice" id="completionNotice" role="status" aria-live="polite">완성도 100% — 아래 끝까지 내린 뒤 [완성]을 누르세요</div>
+        <div class="endOverlay" id="endOverlay">
+          <div class="endBox">
+            <h2>완성 결과</h2>
+            <p id="endSummary">작품 가치 $360 · 얼룩 0</p>
+            <button class="finishButton" id="againBtn" type="button">다시하기</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="cornerActions" aria-label="작업 버튼">
+        <div class="brushLevel">
+          <span class="metricLabel">붓 레벨</span>
+          <strong id="brushLevelText">Lv. 1</strong>
+        </div>
+        <button class="button" id="brushUpBtn" type="button">붓 레벨 ↑</button>
+        <label class="toggle">
+          <span class="toggleText">
+            <span>손목 보호 모드</span>
+            <small id="wristModeText">OFF</small>
+          </span>
+          <input id="wristModeToggle" type="checkbox" />
+          <span class="toggleTrack" aria-hidden="true"></span>
+        </label>
+        <button class="finishButton" id="finishBtn" type="button">완성</button>
+      </aside>
+
+      <details class="miniLog">
+        <summary>근거 로그 / 간단 규칙</summary>
+        <ol class="logList" id="logList" aria-label="가치 변화 근거"></ol>
+        <p class="ruleNote">그림 위에서만 휠이 밀대를 움직입니다. 완성도 100%가 된 밀기는 아래 끝까지 마친 뒤 잠기고, 남은 옥에 티는 완성 전까지 붓질로 지울 수 있습니다.</p>
+      </details>
+
+      <section class="debugPanel" id="debugPanel" aria-label="디버그 손맛 튜닝">
+        <header><b>디버그 튜닝</b><span class="key">d 키</span></header>
+        <div class="tunerRow">
+          <label for="flawChanceRange"><span>옥에 티 등장 빈도</span><b id="flawChanceValue">0.40</b></label>
+          <input id="flawChanceRange" type="range" min="0" max="0.80" step="0.01" value="0.40" />
+        </div>
+        <div class="tunerRow">
+          <label for="rubNeedRange"><span>옥에 티 긁는 횟수</span><b id="rubNeedValue">220</b></label>
+          <input id="rubNeedRange" type="range" min="40" max="400" step="5" value="220" />
+        </div>
+        <div class="tunerRow">
+          <label for="brushSuccessRange"><span>붓 옥에 티 처리 확률</span><b id="brushSuccessValue">45%</b></label>
+          <input id="brushSuccessRange" type="range" min="0.35" max="0.88" step="0.01" value="0.45" />
+        </div>
+        <div class="tunerRow">
+          <label for="wheelSpeedRange"><span>밀대 속도</span><b id="wheelSpeedValue">0.22x</b></label>
+          <input id="wheelSpeedRange" type="range" min="0.10" max="0.45" step="0.01" value="0.22" />
+        </div>
+        <div class="tunerRow">
+          <label for="inkPowerRange"><span>잉크 진하기</span><b id="inkPowerValue">0.32</b></label>
+          <input id="inkPowerRange" type="range" min="0.12" max="0.58" step="0.01" value="0.32" />
+        </div>
+        <div class="debugActions">
+          <button class="button" id="resetTunerBtn" type="button">기본값</button>
+          <button class="button" id="redrawBtn" type="button">다시 그리기</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="startOverlay" id="startOverlay" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+    <div class="startBox">
+      <h2 id="startTitle">뮤나리자 위작 공방</h2>
+      <p class="startLead">흐린 명화를 실크스크린으로 되살려 가장 비싼 위작을 만드세요.</p>
+      <ol class="startRules">
+        <li>마우스 휠을 위아래로 굴려 밀대를 움직이면 지나간 자리에 색이 입혀집니다.</li>
+        <li>색칠하다 빨간 '옥에 티'가 생기면, 그 위를 마우스로 문질러 지웁니다. 붓 레벨이 높을수록 잘 지워집니다.</li>
+        <li>옥에 티를 안 지운 채 밀대가 지나가면 '얼룩'이 남아 작품 가치가 깎입니다.</li>
+        <li>완성도 100%를 채운 뒤 [완성] 버튼으로 마무리합니다. 얼룩이 적을수록 더 비싼 작품입니다.</li>
+      </ol>
+      <p class="startTip">팁: 손목 보호 모드를 켜면 커서만 올려도 옥에 티가 지워집니다. d 키로 디버그 창을 엽니다.</p>
+      <button class="finishButton startButton" id="startBtn" type="button">시작하기</button>
+    </div>
+  </div>
+
+  <div class="brushCursor" id="brushCursor" aria-hidden="true">
+    <svg viewBox="0 0 80 80">
+      <g transform="rotate(24 40 40)">
+        <rect x="37" y="6" width="7" height="45" rx="4" fill="#5b3a22" />
+        <rect x="33" y="48" width="15" height="10" rx="5" fill="#a7b2bb" />
+        <path d="M32 55 C36 53 44 53 49 55 C47 65 42 77 40 79 C37 75 33 66 32 55 Z" fill="#211912" />
+        <path d="M39 60 C42 65 42 72 40 77" fill="none" stroke="#f1b84b" stroke-width="2" stroke-linecap="round" opacity="0.36" />
+      </g>
+    </svg>
+  </div>
+  <div id="loading">기준 그림을 읽는 중입니다.</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const CELL = 4;
+  const GW = Math.ceil(W / CELL);
+  const GH = Math.ceil(H / CELL);
+  const BASE_VALUE = 360;
+  const MAX_VALUE = 2400;
+  const CLEAN_FINISH_BONUS = 240;
+  const COLOR_SRC = encodeURI("assets/mena-lisa 3.jpg");
+  const GUIDE_SRC = encodeURI("assets/mena-lisa 2.png");
+  const PASSWORD_VALUE = "baco2026";
+
+  const silkSettings = {
+    inkPower: 0.32,
+    wheelSpeed: 0.22,
+    edgeBlur: 1.6,
+    flawChance: 0.40,
+    rubNeed: 220,
+    brushSuccessBase: 0.45,
+    stainPenalty: 180,
+  };
+
+  const colorLayer = document.createElement("canvas");
+  colorLayer.width = W;
+  colorLayer.height = H;
+  const colorLayerCtx = colorLayer.getContext("2d");
+
+  const guideLayer = document.createElement("canvas");
+  guideLayer.width = W;
+  guideLayer.height = H;
+  const guideLayerCtx = guideLayer.getContext("2d");
+
+  const revealAlpha = document.createElement("canvas");
+  revealAlpha.width = W;
+  revealAlpha.height = H;
+  const revealAlphaCtx = revealAlpha.getContext("2d");
+
+  const colorReveal = document.createElement("canvas");
+  colorReveal.width = W;
+  colorReveal.height = H;
+  const colorRevealCtx = colorReveal.getContext("2d");
+
+  const colorImg = new Image();
+  const guideImg = new Image();
+  let loaded = 0;
+  let layout = null;
+  let mask = null;
+  let reveal = null;
+  let totalMask = 0;
+  let squeegeeY = 0;
+  let armed = true;
+  let paintedDownTo = 0;
+  let toastTimer = 0;
+  let logItems = [];
+  let nextFlawId = 1;
+  let lastFrameTime = 0;
+  let completionPromptShown = false;
+
+  const state = {
+    completion: 0,
+    artworkValue: BASE_VALUE,
+    stainCount: 0,
+    brushLevel: 1,
+    wristMode: false,
+    activePass: null,
+    hasStarted: false,
+    completionPendingLock: false,
+    squeegeeLocked: false,
+    gameEnded: false,
+  };
+
+  const stains = [];
+  let flaws = [];
+
+  const pointerState = {
+    isDown: false,
+    lastX: 0,
+    lastY: 0,
+    hoverX: 0,
+    hoverY: 0,
+    hoverFlaw: null,
+  };
+
+  const els = {
+    loading: document.getElementById("loading"),
+    toast: document.getElementById("toast"),
+    completionNotice: document.getElementById("completionNotice"),
+    endOverlay: document.getElementById("endOverlay"),
+    endSummary: document.getElementById("endSummary"),
+    againBtn: document.getElementById("againBtn"),
+    completionText: document.getElementById("completionText"),
+    valueText: document.getElementById("valueText"),
+    stainText: document.getElementById("stainText"),
+    stainLossText: document.getElementById("stainLossText"),
+    brushLevelText: document.getElementById("brushLevelText"),
+    brushUpBtn: document.getElementById("brushUpBtn"),
+    wristModeToggle: document.getElementById("wristModeToggle"),
+    wristModeText: document.getElementById("wristModeText"),
+    finishBtn: document.getElementById("finishBtn"),
+    logList: document.getElementById("logList"),
+    brushCursor: document.getElementById("brushCursor"),
+    passwordGate: document.getElementById("passwordGate"),
+    passwordForm: document.getElementById("passwordForm"),
+    passwordInput: document.getElementById("passwordInput"),
+    passwordError: document.getElementById("passwordError"),
+    startOverlay: document.getElementById("startOverlay"),
+    startBtn: document.getElementById("startBtn"),
+  };
+
+  const tuner = {
+    inkPowerRange: document.getElementById("inkPowerRange"),
+    inkPowerValue: document.getElementById("inkPowerValue"),
+    wheelSpeedRange: document.getElementById("wheelSpeedRange"),
+    wheelSpeedValue: document.getElementById("wheelSpeedValue"),
+    flawChanceRange: document.getElementById("flawChanceRange"),
+    flawChanceValue: document.getElementById("flawChanceValue"),
+    rubNeedRange: document.getElementById("rubNeedRange"),
+    rubNeedValue: document.getElementById("rubNeedValue"),
+    brushSuccessRange: document.getElementById("brushSuccessRange"),
+    brushSuccessValue: document.getElementById("brushSuccessValue"),
+    resetTunerBtn: document.getElementById("resetTunerBtn"),
+    redrawBtn: document.getElementById("redrawBtn"),
+  };
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function randomInt(min, max) {
+    return Math.floor(min + Math.random() * (max - min + 1));
+  }
+
+  function seededRandom(seed) {
+    let s = Math.abs(Math.floor(seed)) % 233280 || 1;
+    return () => {
+      s = (s * 9301 + 49297) % 233280;
+      return s / 233280;
+    };
+  }
+
+  function formatMoney(value) {
+    return "$" + Math.round(value).toLocaleString("en-US");
+  }
+
+  function varColor(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function showToast(message) {
+    clearTimeout(toastTimer);
+    els.toast.textContent = message;
+    els.toast.classList.add("show");
+    toastTimer = window.setTimeout(() => {
+      els.toast.classList.remove("show");
+    }, 1450);
+  }
+
+  function addLog(message, tone = "neutral") {
+    logItems.unshift({ message, tone });
+    logItems = logItems.slice(0, 8);
+    els.logList.innerHTML = "";
+    for (const item of logItems) {
+      const li = document.createElement("li");
+      li.textContent = item.message;
+      li.className = item.tone;
+      els.logList.appendChild(li);
+    }
+  }
+
+  function calculateArtworkValue() {
+    const progressValue = BASE_VALUE + (MAX_VALUE - BASE_VALUE) * (state.completion / 100);
+    const cleanBonus = Math.round(state.completion) >= 100 && state.stainCount === 0 ? CLEAN_FINISH_BONUS : 0;
+    return Math.max(0, Math.round(progressValue + cleanBonus - state.stainCount * silkSettings.stainPenalty));
+  }
+
+  function getBrushCleanChance() {
+    return clamp(silkSettings.brushSuccessBase + (state.brushLevel - 1) * 0.085, 0.08, 0.97);
+  }
+
+  function getBrushSpeed() {
+    return 0.72 + state.brushLevel * 0.34;
+  }
+
+  function isCompletionGoalReached() {
+    return Math.round(state.completion) >= 100;
+  }
+
+  function isSqueegeeAtBottom() {
+    return layout && squeegeeY >= layout.y + layout.h - 1;
+  }
+
+  function lockSqueegeeAtBottom() {
+    if (!layout) return;
+    squeegeeY = layout.y + layout.h;
+    state.completionPendingLock = false;
+    state.squeegeeLocked = true;
+    if (state.activePass) finishPass();
+    armed = false;
+    paintedDownTo = layout.y + layout.h;
+    showCompletionPromptOnce();
+  }
+
+  function beginCompletionLock() {
+    state.completion = 100;
+    state.completionPendingLock = true;
+    showCompletionPromptOnce();
+    if (isSqueegeeAtBottom()) {
+      lockSqueegeeAtBottom();
+    }
+  }
+
+  function showCompletionPromptOnce() {
+    if (state.gameEnded) return;
+    if (!completionPromptShown) {
+      completionPromptShown = true;
+      showToast("완성도 100% — 아래 끝까지 내린 뒤 마무리하세요");
+      addLog("완성도 100%: 이번 밀기는 아래 끝까지 마친 뒤 잠기고, 남은 옥에 티는 계속 붓질할 수 있습니다.", "good");
+    }
+    updateStats();
+  }
+
+  function updateStats() {
+    state.artworkValue = calculateArtworkValue();
+    els.completionText.textContent = `${Math.round(state.completion)}%`;
+    els.valueText.textContent = formatMoney(state.artworkValue);
+    els.stainText.textContent = String(state.stainCount);
+    els.stainLossText.textContent = `(-${formatMoney(state.stainCount * silkSettings.stainPenalty)})`;
+    els.brushLevelText.textContent = `Lv. ${state.brushLevel}`;
+    els.wristModeToggle.checked = state.wristMode;
+    els.wristModeText.textContent = state.wristMode ? "ON" : "OFF";
+    els.completionNotice.classList.toggle("show", isCompletionGoalReached() && !state.gameEnded);
+  }
+
+  function syncTunerLabels() {
+    tuner.inkPowerValue.textContent = silkSettings.inkPower.toFixed(2);
+    tuner.wheelSpeedValue.textContent = silkSettings.wheelSpeed.toFixed(2) + "x";
+    tuner.flawChanceValue.textContent = silkSettings.flawChance.toFixed(2);
+    tuner.rubNeedValue.textContent = Math.round(silkSettings.rubNeed);
+    tuner.brushSuccessValue.textContent = Math.round(getBrushCleanChance() * 100) + "%";
+    updateStats();
+  }
+
+  function readTunerValues() {
+    silkSettings.inkPower = Number(tuner.inkPowerRange.value);
+    silkSettings.wheelSpeed = Number(tuner.wheelSpeedRange.value);
+    silkSettings.flawChance = Number(tuner.flawChanceRange.value);
+    silkSettings.rubNeed = Number(tuner.rubNeedRange.value);
+    silkSettings.brushSuccessBase = Number(tuner.brushSuccessRange.value);
+  }
+
+  function resetTunerDefaults() {
+    tuner.inkPowerRange.value = tuner.inkPowerRange.defaultValue;
+    tuner.wheelSpeedRange.value = tuner.wheelSpeedRange.defaultValue;
+    tuner.flawChanceRange.value = tuner.flawChanceRange.defaultValue;
+    tuner.rubNeedRange.value = tuner.rubNeedRange.defaultValue;
+    tuner.brushSuccessRange.value = tuner.brushSuccessRange.defaultValue;
+    readTunerValues();
+    syncTunerLabels();
+    if (layout) render();
+  }
+
+  function resetGame(message = "새 판을 시작합니다.") {
+    if (reveal) reveal.fill(0);
+    state.completion = 0;
+    state.stainCount = 0;
+    state.activePass = null;
+    state.completionPendingLock = false;
+    state.squeegeeLocked = false;
+    state.gameEnded = false;
+    completionPromptShown = false;
+    stains.length = 0;
+    flaws = [];
+    logItems = [];
+    els.logList.innerHTML = "";
+    els.endOverlay.classList.remove("show");
+    els.completionNotice.classList.remove("show");
+    pointerState.isDown = false;
+    clearBrushHover();
+    if (layout) {
+      squeegeeY = layout.y;
+      paintedDownTo = layout.y;
+    }
+    armed = true;
+    updateCompletion();
+    updateStats();
+    if (message) {
+      addLog(message, "good");
+      showToast(message);
+    }
+    if (layout) render();
+  }
+
+  function bindTuner() {
+    const inputs = [
+      tuner.inkPowerRange,
+      tuner.wheelSpeedRange,
+      tuner.flawChanceRange,
+      tuner.rubNeedRange,
+      tuner.brushSuccessRange,
+    ];
+    for (const input of inputs) {
+      input.addEventListener("input", () => {
+        readTunerValues();
+        syncTunerLabels();
+        if (layout) render();
+      });
+    }
+    tuner.resetTunerBtn.addEventListener("click", resetTunerDefaults);
+    tuner.redrawBtn.addEventListener("click", () => resetGame("현재 설정으로 다시 그립니다."));
+    readTunerValues();
+    syncTunerLabels();
+  }
+
+  function startGame() {
+    state.hasStarted = true;
+    els.startOverlay.classList.add("isHidden");
+    if (layout) {
+      addLog("공방 문을 열었습니다. 휠을 아래로 굴려 색을 입혀보세요.", "good");
+      render();
+    }
+  }
+
+  function bindPasswordGate() {
+    els.passwordForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (els.passwordInput.value === PASSWORD_VALUE) {
+        els.passwordGate.classList.add("isHidden");
+        els.passwordError.textContent = "";
+        return;
+      }
+      els.passwordError.textContent = "비밀번호가 틀렸습니다";
+      els.passwordInput.value = "";
+      els.passwordInput.focus();
+    });
+
+    els.passwordInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        els.passwordForm.requestSubmit();
+      }
+    });
+
+    window.setTimeout(() => {
+      els.passwordInput.focus();
+    }, 0);
+  }
+
+  function bindActions() {
+    els.startBtn.addEventListener("click", startGame);
+
+    els.brushUpBtn.addEventListener("click", () => {
+      if (!state.hasStarted || state.gameEnded) return;
+      state.brushLevel = Math.min(10, state.brushLevel + 1);
+      syncTunerLabels();
+      showToast(`붓 레벨 ${state.brushLevel}`);
+      addLog(`붓 레벨 상승: 속도와 깨끗한 제거 확률이 올랐습니다.`, "good");
+    });
+
+    els.wristModeToggle.addEventListener("change", () => {
+      if (!state.hasStarted || state.gameEnded) return;
+      state.wristMode = els.wristModeToggle.checked;
+      updateStats();
+      showToast(state.wristMode ? "손목 보호 모드 ON" : "손목 보호 모드 OFF");
+    });
+
+    els.finishBtn.addEventListener("click", finishGame);
+    els.againBtn.addEventListener("click", () => resetGame("다시 시작합니다."));
+  }
+
+  function bindDebugToggle() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("debug") === "1") {
+      document.body.classList.add("debug");
+    }
+    window.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() !== "d") return;
+      if (event.target && ["INPUT", "TEXTAREA"].includes(event.target.tagName)) return;
+      document.body.classList.toggle("debug");
+    });
+  }
+
+  function fitImage(image, box) {
+    const ratio = image.width / image.height;
+    let h = box.h;
+    let w = h * ratio;
+    if (w > box.w) {
+      w = box.w;
+      h = w / ratio;
+    }
+    return {
+      x: box.x + (box.w - w) / 2,
+      y: box.y + (box.h - h) / 2,
+      w,
+      h,
+    };
+  }
+
+  function load() {
+    const onBoth = () => {
+      loaded++;
+      if (loaded < 2) return;
+      layout = fitImage(colorImg, { x: 94, y: 44, w: 428, h: 680 });
+      buildMask();
+      buildColorLayer();
+      buildGuideLayer();
+      squeegeeY = layout.y;
+      paintedDownTo = layout.y;
+      els.loading.style.display = "none";
+      resetGame("");
+      addLog("그림 위에서 휠을 아래로 굴리면 색이 찍힙니다.", "good");
+      render();
+    };
+    colorImg.onload = onBoth;
+    guideImg.onload = onBoth;
+    colorImg.onerror = guideImg.onerror = () => {
+      els.loading.innerHTML = "이미지를 불러오지 못했습니다.<br />이 폴더에서 python3 -m http.server 8095 를 켠 뒤 http://localhost:8095/ 로 다시 열어주세요.";
+    };
+    colorImg.src = COLOR_SRC;
+    guideImg.src = GUIDE_SRC;
+  }
+
+  // 그림이 들어간 사각형만 색이 드러나는 영역으로 삼습니다.
+  function buildMask() {
+    mask = new Uint8Array(GW * GH);
+    const gx1 = Math.max(0, Math.floor(layout.x / CELL));
+    const gx2 = Math.min(GW - 1, Math.ceil((layout.x + layout.w) / CELL) - 1);
+    const gy1 = Math.max(0, Math.floor(layout.y / CELL));
+    const gy2 = Math.min(GH - 1, Math.ceil((layout.y + layout.h) / CELL) - 1);
+    for (let gy = gy1; gy <= gy2; gy++) {
+      for (let gx = gx1; gx <= gx2; gx++) {
+        mask[gy * GW + gx] = 1;
+      }
+    }
+    totalMask = 0;
+    for (let i = 0; i < mask.length; i++) {
+      if (mask[i]) totalMask++;
+    }
+    reveal = new Float32Array(GW * GH);
+  }
+
+  function buildColorLayer() {
+    colorLayerCtx.clearRect(0, 0, W, H);
+    colorLayerCtx.drawImage(colorImg, layout.x, layout.y, layout.w, layout.h);
+  }
+
+  function buildGuideLayer() {
+    guideLayerCtx.clearRect(0, 0, W, H);
+    guideLayerCtx.drawImage(guideImg, layout.x, layout.y, layout.w, layout.h);
+  }
+
+  function updateCompletion() {
+    if (!reveal || !totalMask) {
+      state.completion = 0;
+      return;
+    }
+    let inked = 0;
+    for (let i = 0; i < reveal.length; i++) {
+      if (mask[i]) inked += Math.min(1, reveal[i]);
+    }
+    state.completion = clamp((inked / totalMask) * 100, 0, 100);
+  }
+
+  function chooseFlawBudget() {
+    const roll = Math.random();
+    if (roll < 0.55) return 0;
+    if (roll < 0.88) return 1;
+    return 2;
+  }
+
+  function beginPass() {
+    if (state.activePass || state.gameEnded) return;
+    state.activePass = {
+      revealGain: 0,
+      spawned: 0,
+      flawBudget: chooseFlawBudget(),
+    };
+    updateStats();
+  }
+
+  function finishPass() {
+    if (!state.activePass || state.gameEnded) return;
+    const gain = Number(state.activePass.revealGain.toFixed(1));
+    const spawned = state.activePass.spawned;
+    state.activePass = null;
+    addLog(`밀기 완료: 완성도 +${gain}% · 옥에 티 ${spawned}개`, spawned ? "bad" : "neutral");
+    updateStats();
+  }
+
+  function applyBand(y1, y2) {
+    if (!layout || !reveal || !state.activePass) return;
+    const top = Math.max(layout.y, Math.min(y1, y2));
+    const bottom = Math.min(layout.y + layout.h, Math.max(y1, y2));
+    if (bottom <= top) return;
+    const gy1 = Math.max(0, Math.floor(top / CELL));
+    const gy2 = Math.min(GH - 1, Math.ceil(bottom / CELL) - 1);
+    let deltaSum = 0;
+    for (let gy = gy1; gy <= gy2; gy++) {
+      const rowPower = silkSettings.inkPower * (0.86 + Math.random() * 0.28);
+      for (let gx = 0; gx < GW; gx++) {
+        const i = gy * GW + gx;
+        if (!mask[i]) continue;
+        const before = reveal[i];
+        const after = Math.min(1, before + rowPower);
+        reveal[i] = after;
+        deltaSum += after - before;
+      }
+    }
+    state.activePass.revealGain += totalMask ? (deltaSum / totalMask) * 100 : 0;
+    updateCompletion();
+    maybeSpawnFlaw(top, bottom);
+    updateStats();
+  }
+
+  function maybeSpawnFlaw(top, bottom) {
+    if (!layout || state.gameEnded || !state.activePass) return;
+    if (bottom - top < 14) return;
+    if (state.activePass.spawned >= state.activePass.flawBudget) return;
+    if (flaws.length >= 4) return;
+    const attempts = Math.max(1, Math.floor((bottom - top) / 72));
+    for (let i = 0; i < attempts; i++) {
+      if (state.activePass.spawned >= state.activePass.flawBudget) return;
+      if (Math.random() > silkSettings.flawChance) continue;
+      const position = getFlawPositionNearBand(top, bottom);
+      if (!position || isTooCloseToOtherFlaw(position)) continue;
+      flaws.push({
+        id: nextFlawId++,
+        x: position.x,
+        y: position.y,
+        rubScore: 0,
+        pulse: Math.random() * Math.PI,
+      });
+      state.activePass.spawned++;
+      addLog("옥에 티 등장", "bad");
+      showToast("옥에 티 등장");
+    }
+  }
+
+  function getFlawPositionNearBand(top, bottom) {
+    const safeTop = clamp(Math.max(top + 14, bottom - 62), layout.y + 22, layout.y + layout.h - 22);
+    const safeBottom = clamp(bottom - 12, layout.y + 22, layout.y + layout.h - 22);
+    const y = safeBottom > safeTop
+      ? safeTop + Math.random() * (safeBottom - safeTop)
+      : clamp(bottom - 18, layout.y + 22, layout.y + layout.h - 22);
+    return {
+      x: layout.x + layout.w * (0.16 + Math.random() * 0.68),
+      y,
+    };
+  }
+
+  function isTooCloseToOtherFlaw(position) {
+    return flaws.some((flaw) => Math.hypot(flaw.x - position.x, flaw.y - position.y) < 70);
+  }
+
+  function convertCrossedFlaws(previousY, nextY) {
+    if (!flaws.length || previousY <= nextY) return;
+    const top = clamp(Math.min(previousY, nextY) - 7, layout.y, layout.y + layout.h);
+    const bottom = clamp(Math.max(previousY, nextY) + 7, layout.y, layout.y + layout.h);
+    const crossed = flaws.filter((flaw) => flaw.y >= top && flaw.y <= bottom);
+    if (!crossed.length) return;
+    for (const flaw of crossed) {
+      removeFlaw(flaw);
+      addStain(flaw);
+      const message = `밀대가 옥에 티를 지나감 → 얼룩 -${silkSettings.stainPenalty}`;
+      addLog(message, "bad");
+      showToast(`얼룩 -${silkSettings.stainPenalty}`);
+    }
+    updateStats();
+  }
+
+  function applySqueegeeMove(deltaY) {
+    if (!layout || !state.hasStarted || state.gameEnded) return;
+    if (state.squeegeeLocked) {
+      showCompletionPromptOnce();
+      render();
+      return;
+    }
+    if (state.completionPendingLock) {
+      if (deltaY <= 0) {
+        showCompletionPromptOnce();
+        render();
+        return;
+      }
+      squeegeeY = clamp(squeegeeY + deltaY, layout.y, layout.y + layout.h);
+      if (isSqueegeeAtBottom()) {
+        lockSqueegeeAtBottom();
+      }
+      render();
+      return;
+    }
+    if (isCompletionGoalReached()) {
+      beginCompletionLock();
+      render();
+      return;
+    }
+    if (Math.abs(deltaY) < 0.2) return;
+
+    const previousY = squeegeeY;
+    squeegeeY = clamp(squeegeeY + deltaY, layout.y, layout.y + layout.h);
+    const move = squeegeeY - previousY;
+
+    if (move < 0) {
+      convertCrossedFlaws(previousY, squeegeeY);
+    }
+
+    // 맨 위까지 올리면 잉크를 다시 묻힌 상태가 됩니다.
+    if (squeegeeY <= layout.y + 1) {
+      armed = true;
+      paintedDownTo = layout.y;
+    }
+
+    // 아래로 밀 때만 지나간 가로줄에 풀컬러가 찍힙니다.
+    if (move > 0 && armed && squeegeeY > paintedDownTo) {
+      beginPass();
+      applyBand(paintedDownTo, squeegeeY);
+      paintedDownTo = squeegeeY;
+      if (isCompletionGoalReached()) {
+        beginCompletionLock();
+        render();
+        return;
+      }
+    }
+
+    if (squeegeeY >= layout.y + layout.h - 1) {
+      if (armed) finishPass();
+      armed = false;
+      paintedDownTo = layout.y + layout.h;
+    }
+
+    render();
+  }
+
+  function onWheel(event) {
+    const point = getCanvasPoint(event);
+    if (!isInsideArt(point)) return;
+    event.preventDefault();
+    if (!layout || !state.hasStarted || state.gameEnded) return;
+    const raw = event.deltaY;
+    if (Math.abs(raw) < 2) return;
+    const move = clamp(raw * silkSettings.wheelSpeed, -46, 46);
+    applySqueegeeMove(move);
+  }
+
+  function getCanvasPoint(event) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * W,
+      y: ((event.clientY - rect.top) / rect.height) * H,
+    };
+  }
+
+  function isInsideArt(p, margin = 12) {
+    return layout
+      && p.x >= layout.x - margin
+      && p.x <= layout.x + layout.w + margin
+      && p.y >= layout.y - margin
+      && p.y <= layout.y + layout.h + margin;
+  }
+
+  function hitFlaw(x, y) {
+    for (let i = flaws.length - 1; i >= 0; i--) {
+      const flaw = flaws[i];
+      if (Math.hypot(flaw.x - x, flaw.y - y) <= 42) return flaw;
+    }
+    return null;
+  }
+
+  function setBrushCursor(event, visible) {
+    if (event) {
+      els.brushCursor.style.left = `${event.clientX}px`;
+      els.brushCursor.style.top = `${event.clientY}px`;
+    }
+    els.brushCursor.classList.toggle("isVisible", visible);
+    canvas.style.cursor = visible ? "none" : "default";
+  }
+
+  function updateBrushHover(pos, event = null) {
+    pointerState.hoverX = pos.x;
+    pointerState.hoverY = pos.y;
+    pointerState.hoverFlaw = state.gameEnded ? null : hitFlaw(pos.x, pos.y);
+    setBrushCursor(event, !!pointerState.hoverFlaw);
+  }
+
+  function clearBrushHover() {
+    pointerState.hoverFlaw = null;
+    setBrushCursor(null, false);
+  }
+
+  function bindPointer() {
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+
+    canvas.addEventListener("pointerdown", (event) => {
+      if (!layout || !state.hasStarted || state.gameEnded) return;
+      const pos = getCanvasPoint(event);
+      pointerState.isDown = true;
+      pointerState.lastX = pos.x;
+      pointerState.lastY = pos.y;
+      updateBrushHover(pos, event);
+      try {
+        canvas.setPointerCapture(event.pointerId);
+      } catch (err) {
+        // 캔버스 밖에서 시작된 입력은 붙잡지 못할 수 있습니다.
+      }
+      if (pointerState.hoverFlaw) {
+        addRubProgress(pointerState.hoverFlaw, 5);
+        render();
+      }
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!layout || !state.hasStarted || state.gameEnded) return;
+      const pos = getCanvasPoint(event);
+      const distance = Math.hypot(pos.x - pointerState.lastX, pos.y - pointerState.lastY);
+      pointerState.lastX = pos.x;
+      pointerState.lastY = pos.y;
+      updateBrushHover(pos, event);
+
+      const canBrush = state.wristMode || pointerState.isDown || (event.buttons & 1);
+      if (canBrush && pointerState.hoverFlaw) {
+        addRubProgress(pointerState.hoverFlaw, clamp(distance, 1.5, 20));
+      }
+      render();
+    });
+
+    canvas.addEventListener("pointerup", (event) => {
+      pointerState.isDown = false;
+      try {
+        canvas.releasePointerCapture(event.pointerId);
+      } catch (err) {
+        // 이미 풀린 포인터는 무시합니다.
+      }
+      render();
+    });
+
+    canvas.addEventListener("pointercancel", () => {
+      pointerState.isDown = false;
+      clearBrushHover();
+      render();
+    });
+
+    canvas.addEventListener("pointerleave", () => {
+      pointerState.isDown = false;
+      clearBrushHover();
+      render();
+    });
+  }
+
+  function addRubProgress(flaw, amount) {
+    if (!flaws.includes(flaw) || !state.hasStarted || state.gameEnded) return;
+    flaw.rubScore = Math.min(silkSettings.rubNeed, flaw.rubScore + amount * getBrushSpeed());
+    if (flaw.rubScore >= silkSettings.rubNeed) {
+      completeFlaw(flaw);
+    }
+  }
+
+  function completeFlaw(flaw) {
+    removeFlaw(flaw);
+    const clean = Math.random() < getBrushCleanChance();
+    if (clean) {
+      addLog("붓질 성공: 옥에 티를 깨끗하게 지웠습니다.", "good");
+      showToast("옥에 티 제거");
+    } else {
+      addStain(flaw);
+      const message = `붓질 흔적 → 얼룩 -${silkSettings.stainPenalty}`;
+      addLog(message, "bad");
+      showToast(`얼룩 -${silkSettings.stainPenalty}`);
+    }
+    clearBrushHover();
+    updateStats();
+    render();
+  }
+
+  function removeFlaw(flaw) {
+    flaws = flaws.filter((item) => item.id !== flaw.id);
+  }
+
+  function addStain(anchor = null) {
+    const position = anchor || {
+      x: layout ? layout.x + layout.w * 0.5 : W * 0.5,
+      y: layout ? layout.y + layout.h * 0.5 : H * 0.5,
+    };
+    state.stainCount++;
+    stains.push({
+      x: position.x + randomInt(-10, 10),
+      y: position.y + randomInt(-10, 10),
+      r: randomInt(15, 32),
+      wobble: Math.random() * Math.PI,
+      seed: Math.round(position.x * 7 + position.y * 13 + state.stainCount * 101),
+    });
+  }
+
+  function settleRemainingFlawsOnFinish() {
+    if (!flaws.length) return;
+    const pending = [...flaws];
+    flaws = [];
+    for (const flaw of pending) {
+      addStain(flaw);
+      addLog(`남은 옥에 티 → 얼룩 -${silkSettings.stainPenalty}`, "bad");
+    }
+    showToast(`남은 옥에 티 ${pending.length}개가 얼룩이 됐습니다.`);
+  }
+
+  function finishGame() {
+    if (!state.hasStarted || state.gameEnded) return;
+    state.gameEnded = true;
+    state.activePass = null;
+    pointerState.isDown = false;
+    clearBrushHover();
+    settleRemainingFlawsOnFinish();
+    updateStats();
+    els.endSummary.textContent = `완성도 ${Math.round(state.completion)}% · 작품 가치 ${formatMoney(state.artworkValue)} · 얼룩 ${state.stainCount}`;
+    els.endOverlay.classList.add("show");
+    addLog(`최종 결과: 가치 ${formatMoney(state.artworkValue)}, 얼룩 ${state.stainCount}`, "good");
+    render();
+  }
+
+  function drawRevealBuffers() {
+    revealAlphaCtx.save();
+    revealAlphaCtx.setTransform(1, 0, 0, 1, 0, 0);
+    revealAlphaCtx.clearRect(0, 0, W, H);
+    for (let level = 1; level <= 8; level++) {
+      revealAlphaCtx.fillStyle = `rgba(0,0,0,${level / 8})`;
+      for (let i = 0; i < reveal.length; i++) {
+        if (!mask[i]) continue;
+        const amount = reveal[i];
+        if (amount <= 0) continue;
+        const q = Math.ceil(amount * 8);
+        if (q !== level) continue;
+        const gx = i % GW;
+        const gy = (i / GW) | 0;
+        revealAlphaCtx.fillRect(gx * CELL, gy * CELL, CELL, CELL);
+      }
+    }
+    revealAlphaCtx.restore();
+
+    colorRevealCtx.save();
+    colorRevealCtx.setTransform(1, 0, 0, 1, 0, 0);
+    colorRevealCtx.clearRect(0, 0, W, H);
+    colorRevealCtx.drawImage(colorLayer, 0, 0);
+    colorRevealCtx.globalCompositeOperation = "destination-in";
+    colorRevealCtx.filter = `blur(${silkSettings.edgeBlur}px)`;
+    colorRevealCtx.drawImage(revealAlpha, 0, 0);
+    colorRevealCtx.filter = "none";
+    colorRevealCtx.globalCompositeOperation = "source-over";
+    colorRevealCtx.restore();
+  }
+
+  function drawPaper() {
+    ctx.fillStyle = "#e9dfca";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = varColor("--paperDeep");
+    ctx.fillRect(layout.x - 18, layout.y - 22, layout.w + 36, layout.h + 44);
+    ctx.fillStyle = varColor("--paper");
+    ctx.fillRect(layout.x - 8, layout.y - 10, layout.w + 16, layout.h + 20);
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.drawImage(guideLayer, 0, 0);
+    ctx.restore();
+  }
+
+  function drawMesh() {
+    const x = layout.x - 10;
+    const y = layout.y - 12;
+    const w = layout.w + 20;
+    const h = layout.h + 24;
+    ctx.save();
+    ctx.strokeStyle = "rgba(58, 53, 43, 0.22)";
+    ctx.lineWidth = 1;
+    for (let yy = y; yy <= y + h; yy += 12) {
+      ctx.beginPath();
+      ctx.moveTo(x, yy);
+      ctx.lineTo(x + w, yy);
+      ctx.stroke();
+    }
+    for (let xx = x; xx <= x + w; xx += 12) {
+      ctx.beginPath();
+      ctx.moveTo(xx, y);
+      ctx.lineTo(xx, y + h);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(22, 27, 33, 0.72)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
+  }
+
+  function drawSqueegee() {
+    const x = layout.x - 34;
+    const y = squeegeeY;
+    const w = layout.w + 68;
+    ctx.save();
+    ctx.fillStyle = "rgba(39, 47, 56, 0.88)";
+    ctx.fillRect(layout.x - 18, layout.y - 32, layout.w + 36, 18);
+    ctx.fillStyle = "rgba(13, 16, 21, 0.94)";
+    ctx.fillRect(x, y - 8, w, 17);
+    ctx.fillStyle = armed ? varColor("--gold") : "rgba(140, 153, 167, 0.58)";
+    ctx.fillRect(x, y - 3, w, 6);
+    ctx.strokeStyle = "rgba(216, 180, 95, 0.72)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y - 8, w, 17);
+    ctx.restore();
+  }
+
+  function drawStains() {
+    if (!stains.length) return;
+    ctx.save();
+    for (const stain of stains) {
+      const rand = seededRandom(stain.seed || stain.x * 7 + stain.y * 13);
+      const wobble = Math.sin(stain.wobble) * 0.12;
+      const rx = stain.r * (1.05 + rand() * 0.18);
+      const ry = stain.r * (0.72 + rand() * 0.16);
+      const rotation = stain.wobble + wobble;
+
+      ctx.save();
+      ctx.translate(stain.x, stain.y);
+      ctx.rotate(rotation);
+      const gradient = ctx.createRadialGradient(0, 0, 2, 0, 0, stain.r * 1.15);
+      gradient.addColorStop(0, "rgba(40, 24, 12, 0.88)");
+      gradient.addColorStop(0.62, "rgba(50, 29, 14, 0.52)");
+      gradient.addColorStop(1, "rgba(40, 24, 12, 0.08)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(235, 228, 210, 0.22)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx * 0.92, ry * 0.88, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 어두운 얼룩 위에 밝은 잔금을 얹어, 깨진 도자기 같은 상처로 보이게 합니다.
+      for (let i = 0; i < 4; i++) {
+        let px = (rand() - 0.5) * stain.r * 0.16;
+        let py = (rand() - 0.5) * stain.r * 0.12;
+        const angle = rand() * Math.PI * 2;
+        const points = [[px, py]];
+        for (let j = 0; j < 4; j++) {
+          const bend = (rand() - 0.5) * 0.9;
+          const step = stain.r * (0.22 + rand() * 0.18);
+          px += Math.cos(angle + bend) * step;
+          py += Math.sin(angle + bend) * step * 0.78;
+          points.push([px, py]);
+        }
+
+        ctx.strokeStyle = "rgba(24, 14, 8, 0.42)";
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          if (index === 0) ctx.moveTo(point[0], point[1]);
+          else ctx.lineTo(point[0], point[1]);
+        });
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(235,228,210,0.7)";
+        ctx.lineWidth = 1.45;
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          if (index === 0) ctx.moveTo(point[0], point[1]);
+          else ctx.lineTo(point[0], point[1]);
+        });
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function drawFlaws() {
+    if (!flaws.length) return;
+    for (const flaw of flaws) {
+      flaw.pulse += 0.04;
+      const progress = clamp(flaw.rubScore / silkSettings.rubNeed, 0, 1);
+      const alpha = clamp(1 - progress * 0.94, 0.05, 1);
+      drawDustFlaw(flaw, alpha);
+    }
+  }
+
+  // 시안 후보4 빨강 십자 마커를 캔버스용으로 옮긴 그림입니다.
+  function drawDustFlaw(flaw, alpha) {
+    const bob = Math.sin(flaw.pulse) * 1.6;
+    const scale = 0.72 + Math.sin(flaw.pulse * 0.7) * 0.015;
+    ctx.save();
+    ctx.translate(flaw.x, flaw.y + bob);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = "rgba(0, 0, 0, 0.50)";
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.beginPath();
+    ctx.arc(0, 0, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+    ctx.fillStyle = "#e23b2e";
+    ctx.beginPath();
+    ctx.arc(0, 0, 24, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    roundRect(ctx, -4, -16, 8, 32, 3);
+    ctx.fill();
+    roundRect(ctx, -16, -4, 32, 8, 3);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawHud() {
+    const status = armed ? "잉크 묻음" : "위로 올리기";
+    ctx.save();
+    ctx.fillStyle = "rgba(13, 16, 21, 0.78)";
+    ctx.fillRect(18, 18, 204, 34);
+    ctx.fillStyle = varColor("--goldSoft");
+    ctx.font = "900 15px system-ui, sans-serif";
+    ctx.fillText(`${status} · ${Math.round(state.completion)}%`, 31, 40);
+    ctx.restore();
+  }
+
+  function roundRect(context, x, y, w, h, r) {
+    context.beginPath();
+    context.moveTo(x + r, y);
+    context.lineTo(x + w - r, y);
+    context.quadraticCurveTo(x + w, y, x + w, y + r);
+    context.lineTo(x + w, y + h - r);
+    context.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    context.lineTo(x + r, y + h);
+    context.quadraticCurveTo(x, y + h, x, y + h - r);
+    context.lineTo(x, y + r);
+    context.quadraticCurveTo(x, y, x + r, y);
+    context.closePath();
+  }
+
+  function render() {
+    if (!layout || !reveal) return;
+    drawRevealBuffers();
+    drawPaper();
+    ctx.drawImage(colorReveal, 0, 0);
+    drawMesh();
+    drawStains();
+    drawSqueegee();
+    drawFlaws();
+    drawHud();
+  }
+
+  function tick(now) {
+    if (!lastFrameTime) lastFrameTime = now;
+    const dt = Math.min(48, now - lastFrameTime);
+    lastFrameTime = now;
+    let needsRender = false;
+    if (state.hasStarted && state.wristMode && pointerState.hoverFlaw && !state.gameEnded) {
+      addRubProgress(pointerState.hoverFlaw, dt * 0.055);
+      needsRender = true;
+    }
+    if (flaws.length) needsRender = true;
+    if (needsRender) render();
+    window.requestAnimationFrame(tick);
+  }
+
+  window.mewnaLisaDebug = {
+    getState() {
+      return {
+        completion: state.completion,
+        artworkValue: state.artworkValue,
+        stainCount: state.stainCount,
+        brushLevel: state.brushLevel,
+        wristMode: state.wristMode,
+        hasStarted: state.hasStarted,
+        completionPendingLock: state.completionPendingLock,
+        squeegeeLocked: state.squeegeeLocked,
+        flawCount: flaws.length,
+        squeegeeY,
+        layoutTop: layout ? layout.y : null,
+        layoutBottom: layout ? layout.y + layout.h : null,
+        activePass: state.activePass ? { ...state.activePass } : null,
+        gameEnded: state.gameEnded,
+      };
+    },
+    forceFlaw() {
+      if (!layout) return null;
+      const flaw = {
+        id: nextFlawId++,
+        x: layout.x + layout.w * 0.5,
+        y: layout.y + layout.h * 0.45,
+        rubScore: 0,
+        pulse: 0,
+      };
+      flaws.push(flaw);
+      render();
+      return { ...flaw };
+    },
+    moveSqueegee(deltaY) {
+      applySqueegeeMove(deltaY);
+      return this.getState();
+    },
+    setBrushLevel(level) {
+      state.brushLevel = clamp(Math.round(level), 1, 10);
+      syncTunerLabels();
+      return this.getState();
+    },
+    finish() {
+      finishGame();
+      return this.getState();
+    },
+  };
+
+  bindPointer();
+  bindTuner();
+  bindPasswordGate();
+  bindActions();
+  bindDebugToggle();
+  load();
+  window.requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
