@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>뮤노폴리 v4.3 — Probability Climb</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body.password-locked {
+      overflow: hidden;
+    }
+
+    body.password-locked .game-wrap {
+      visibility: hidden;
+    }
+
+    .password-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at center, rgba(245, 200, 122, 0.12), transparent 34%),
+        linear-gradient(180deg, #1f1a12 0%, #0e0c08 100%);
+      color: #e8dec5;
+      font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    }
+
+    .password-gate-panel {
+      width: min(420px, 100%);
+      padding: 32px;
+      border: 1px solid #5a4010;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #221c12 0%, #17120c 100%);
+      box-shadow: 0 18px 56px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 220, 160, 0.08);
+      text-align: center;
+    }
+
+    .password-gate-title {
+      margin: 0 0 22px;
+      color: #f5c87a;
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .password-gate-form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .password-gate-input {
+      width: 100%;
+      height: 52px;
+      padding: 0 16px;
+      border: 1px solid #5a4010;
+      border-radius: 8px;
+      outline: none;
+      background: #0f0c08;
+      color: #ffe1a0;
+      font: inherit;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    .password-gate-input:focus {
+      border-color: #f5c87a;
+      box-shadow: 0 0 0 3px rgba(245, 200, 122, 0.18);
+    }
+
+    .password-gate-button {
+      width: 100%;
+      height: 52px;
+      border: 0;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #f5c87a 0%, #c78324 100%);
+      color: #1d1206;
+      font: inherit;
+      font-size: 18px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(199, 131, 36, 0.28);
+    }
+
+    .password-gate-button:hover {
+      filter: brightness(1.06);
+    }
+
+    .password-gate-error {
+      min-height: 22px;
+      color: #ff9a8a;
+      font-size: 15px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body class="password-locked">
+
+<div id="password-gate" class="password-gate" role="dialog" aria-modal="true" aria-labelledby="password-gate-title">
+  <div class="password-gate-panel">
+    <h1 id="password-gate-title" class="password-gate-title">뮤노폴리 v4.3</h1>
+    <form id="password-gate-form" class="password-gate-form">
+      <input id="password-gate-input" class="password-gate-input" type="password" autocomplete="off" placeholder="비밀번호" aria-label="비밀번호">
+      <button class="password-gate-button" type="submit">입장</button>
+      <div id="password-gate-error" class="password-gate-error" aria-live="polite"></div>
+    </form>
+  </div>
+</div>
+
+<!-- 전체 1920x1080 한 화면. 3-column: 왼쪽 보드 / 가운데 주사위·굴림 / 오른쪽 코인·상점 -->
+<div class="game-wrap" id="game-wrap">
+
+  <!-- ============================================================
+       왼쪽 컬럼: 보드 (16칸, 아래=0=시작, 위=15=목표)
+       ============================================================ -->
+  <section class="col-board">
+    <div class="col-header">
+      <h2 class="col-title">보드</h2>
+      <div class="col-subtitle">아래 0칸 → 위 15칸 도달이 목표</div>
+    </div>
+    <!-- v4 #1 — 세션 최고 기록 (새로고침 시 초기화) -->
+    <div class="best-record">
+      <span class="best-label">🏆 세션 최고</span>
+      <span id="best-tile" class="best-value">0번 칸</span>
+    </div>
+    <div id="board" class="board"></div>
+    <div class="board-legend">
+      <span class="legend-item"><span class="legend-token"></span>나</span>
+      <span class="legend-item"><span class="legend-hole"></span>함정</span>
+      <span class="legend-item"><span class="legend-coin"></span>코인</span>
+      <span class="legend-item"><span class="legend-coin legend-coin-x2"></span>2배 코인</span>
+      <span class="legend-item"><span class="legend-ticket"></span>도박티켓</span>
+      <span class="legend-item"><span class="legend-special-shop"></span>특별상점</span>
+      <span class="legend-item"><span class="legend-treasure"></span>보물상자</span>
+      <span class="legend-item"><span class="legend-bridge"></span>다리</span>
+      <span class="legend-item"><span class="legend-save"></span>💾 세이브</span>
+      <span class="legend-item"><span class="legend-best"></span>🏆 최고</span>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       가운데 컬럼: 위치별 확률 도면 + 큰 주사위 + Roll 버튼 + 이벤트 로그
+       ============================================================ -->
+  <section class="col-center">
+
+    <!-- 상단: 현재 위치 기준 6면 확률 도면 -->
+    <div class="dice-pattern-wrap">
+      <div class="block-title">
+        <span>현재 위치별 확률</span>
+        <span id="pos-indicator" class="pos-indicator">위치 0</span>
+      </div>
+      <div id="dice-pattern" class="dice-pattern"></div>
+    </div>
+
+    <!-- 중앙: 큰 주사위 굴림 영역 -->
+    <div class="dice-stage-wrap">
+      <div id="dice-stage" class="dice-stage">
+        <div id="dice-face" class="dice-face dice-face-ready">?</div>
+      </div>
+      <div id="roll-readout" class="roll-readout">아래 「주사위 굴리기」를 눌러 시작</div>
+    </div>
+
+    <!-- 하단: Roll 버튼 (리롤은 오른쪽 컬럼으로 분리됨) -->
+    <div class="roll-controls">
+      <button id="btn-roll" class="btn-roll">주사위 굴리기</button>
+    </div>
+
+    <!-- 진행 상태·이벤트 로그 (초기 5줄 공백 — 굴림 시작 뒤 자연스럽게 덮어씀) -->
+    <div id="event-log" class="event-log">
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+    </div>
+
+  </section>
+
+  <!-- ============================================================
+       오른쪽 컬럼: 코인 보유 + 리롤 버튼 + 영구 업그레이드 + 특별상점 전용 아이템 + 보유 아이템 + 개발자 버튼
+       ============================================================ -->
+  <section class="col-shop">
+
+    <div class="coin-banner">
+      <div class="coin-banner-left">
+        <span class="coin-icon"></span>
+        <span class="coin-label">보유 코인</span>
+      </div>
+      <span id="coin-count" class="coin-count-big">0</span>
+    </div>
+
+    <!-- 리롤 버튼 — Roll 과 멀리 떨어진 위치 (실수 클릭 방지) -->
+    <div class="reroll-wrap">
+      <button id="btn-reroll" class="btn-reroll hidden">리롤 (0)</button>
+    </div>
+
+    <div class="shop-section">
+      <div class="shop-section-title">영구 업그레이드 (잠금 해제 시 등장)</div>
+      <div id="shop-perm" class="shop-list"></div>
+    </div>
+
+    <div class="shop-section">
+      <div class="shop-section-title">특별상점 전용</div>
+      <div id="shop-temp" class="shop-list"></div>
+    </div>
+
+    <div class="owned-section">
+      <div class="owned-title">보유 아이템</div>
+      <div id="owned-list" class="owned-list"><span class="owned-empty">아직 없음</span></div>
+    </div>
+
+    <!-- 개발자 전용: 디버그용 +100 코인 -->
+    <div class="dev-zone">
+      <span class="dev-label">DEV ONLY</span>
+      <button id="btn-dev-coin" class="btn-dev">+100 코인</button>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- 개발자 전용: D키로 여닫는 값 조절 콘솔 (시안 B: 중앙 오버레이) -->
+<div id="debug-panel" class="debug-panel hidden" aria-hidden="true">
+  <div class="debug-overlay-dim"></div>
+  <div class="debug-console" role="dialog" aria-modal="true" aria-label="디버그 콘솔">
+    <h3>
+      🛠 디버그 콘솔 (중앙 오버레이)
+      <span class="debug-hint">D키 닫기</span>
+    </h3>
+
+    <div class="debug-console-body">
+      <div class="debug-group">
+        <div class="debug-group-title">🎲 주사위 확률 (현재 칸)</div>
+        <div class="debug-group-desc">지금 서 있는 칸에서 각 눈금(-3~+3)이 나올 확률. 슬라이더로 직접 바꿔 "거의 +3만 나오는" 같은 극단 흐름을 테스트할 수 있어요. 합은 자동으로 100%에 맞춰집니다.</div>
+        <div class="debug-current-tile">현재 <span id="debug-dice-current-tile">0번 칸</span></div>
+        <div class="debug-row"><label>-3</label><input id="debug-dice-n3" type="range" min="0" max="100" step="0.1" value="11"><span id="debug-dice-val-n3" class="debug-val">11%</span></div>
+        <div class="debug-row"><label>-2</label><input id="debug-dice-n2" type="range" min="0" max="100" step="0.1" value="22"><span id="debug-dice-val-n2" class="debug-val">22%</span></div>
+        <div class="debug-row"><label>-1</label><input id="debug-dice-n1" type="range" min="0" max="100" step="0.1" value="38"><span id="debug-dice-val-n1" class="debug-val">38%</span></div>
+        <div class="debug-row"><label>+1</label><input id="debug-dice-p1" type="range" min="0" max="100" step="0.1" value="20"><span id="debug-dice-val-p1" class="debug-val">20%</span></div>
+        <div class="debug-row"><label>+2</label><input id="debug-dice-p2" type="range" min="0" max="100" step="0.1" value="8"><span id="debug-dice-val-p2" class="debug-val">8%</span></div>
+        <div class="debug-row"><label>+3</label><input id="debug-dice-p3" type="range" min="0" max="100" step="0.1" value="1"><span id="debug-dice-val-p3" class="debug-val">1%</span></div>
+      </div>
+
+      <div class="debug-group">
+        <div class="debug-group-title">⬆️ 강화 레벨 · 🪙 코인 · 📍 위치</div>
+        <div class="debug-group-desc">강화 레벨(0~7)은 평소엔 코인으로 사는 양수 확률 업그레이드를 즉시 올려 후반 밸런스를 보는 용도. 코인은 한 번에 채우고(+100), 순간이동은 7·12·14층 같은 상황을 바로 만들 때 씁니다.</div>
+        <div class="debug-row"><label>+1강화</label><input id="debug-perm-p1" type="range" min="0" max="7" step="1" value="0"><span id="debug-perm-val-p1" class="debug-val">0</span></div>
+        <div class="debug-row"><label>+2강화</label><input id="debug-perm-p2" type="range" min="0" max="7" step="1" value="0"><span id="debug-perm-val-p2" class="debug-val">0</span></div>
+        <div class="debug-row"><label>+3강화</label><input id="debug-perm-p3" type="range" min="0" max="7" step="1" value="0"><span id="debug-perm-val-p3" class="debug-val">0</span></div>
+        <div class="debug-row debug-row-spaced"><label>코인</label><input id="debug-coin-input" type="number" min="0" value="0"><button id="debug-add-100" class="debug-btn debug-btn-gold" type="button">+100</button></div>
+        <div class="debug-row"><label>이동</label>
+          <select id="debug-teleport-select">
+            <option value="0">0번</option><option value="1">1번</option><option value="2">2번</option><option value="3">3번</option>
+            <option value="4">4번</option><option value="5">5번</option><option value="6">6번</option><option value="7">7번</option>
+            <option value="8">8번</option><option value="9">9번</option><option value="10">10번</option><option value="11">11번</option>
+            <option value="12">12번</option><option value="13">13번</option><option value="14">14번</option><option value="15">15번</option>
+          </select>
+          <button id="debug-teleport-button" class="debug-btn" type="button">순간이동</button>
+        </div>
+      </div>
+
+      <div class="debug-group">
+        <div class="debug-group-title">✨ 특수요소 (등장률 + 강제발동)</div>
+        <div class="debug-group-desc">v4.3 새 요소들. 슬라이더로 등장 확률을 바꾸거나, [강제] 버튼으로 지금 즉시 띄워서 "이게 실제로 어떻게 작동하나"를 한 번에 확인할 수 있어요.</div>
+        <div class="debug-force-row"><span>도박티켓</span><input id="debug-special-gamble-ticket" type="range" min="0" max="100" step="0.1" value="1"><b id="debug-special-val-gamble-ticket">1%</b><button id="debug-force-gamble-ticket" class="debug-btn debug-btn-force" type="button">강제</button></div>
+        <div class="debug-force-row"><span>특별상점</span><input id="debug-special-shop" type="range" min="0" max="100" step="0.1" value="1"><b id="debug-special-val-shop">1%</b><button id="debug-force-special-shop" class="debug-btn debug-btn-force" type="button">강제</button></div>
+        <div class="debug-force-row"><span>뒤쪽 보물</span><input id="debug-special-treasure" type="range" min="0" max="100" step="0.1" value="12"><b id="debug-special-val-treasure">12%</b><button id="debug-force-treasure" class="debug-btn debug-btn-force" type="button">강제</button></div>
+        <div class="debug-force-row"><span>럭키 다리</span><input id="debug-special-bridge" type="range" min="0" max="100" step="0.1" value="8"><b id="debug-special-val-bridge">8%</b><button id="debug-force-bridge" class="debug-btn debug-btn-force" type="button">강제</button></div>
+        <div class="debug-force-row"><span>리스타트 보너스</span><input id="debug-special-restart" type="range" min="0" max="100" step="0.1" value="100"><b id="debug-special-val-restart">100%</b><button id="debug-force-restart" class="debug-btn debug-btn-force" type="button">강제</button></div>
+      </div>
+
+      <div class="debug-group">
+        <div class="debug-group-title">☠️ 함정 · 💾 세이브</div>
+        <div class="debug-group-desc">함정%는 +2·+3으로 지나갈 때 칸이 함정으로 변할 확률. 세이브는 부활 지점을 강제로 설정해, 7층 세이브 상태나 세이브 없는 상태를 골라 테스트합니다.</div>
+        <div class="debug-row"><label>함정%</label><input id="debug-trap-chance" type="range" min="0" max="100" step="0.1" value="18"><span id="debug-trap-val" class="debug-val">18%</span></div>
+        <div class="debug-row"><label>세이브</label>
+          <select id="debug-save-select">
+            <option value="none">없음</option>
+            <option value="0">0번</option><option value="1">1번</option><option value="2">2번</option><option value="3">3번</option>
+            <option value="4">4번</option><option value="5">5번</option><option value="6">6번</option><option value="7">7번</option>
+            <option value="8">8번</option><option value="9">9번</option><option value="10">10번</option><option value="11">11번</option>
+            <option value="12">12번</option><option value="13">13번</option><option value="14">14번</option><option value="15">15번</option>
+          </select>
+          <button id="debug-save-button" class="debug-btn" type="button">설정</button>
+        </div>
+      </div>
+    </div>
+
+    <pre id="debug-state" class="debug-hidden-field">{}</pre>
+    <button id="btn-log-copy" class="debug-hidden-field" type="button">로그 복사</button>
+    <button id="btn-log-download" class="debug-hidden-field" type="button">로그 다운로드</button>
+    <div id="log-action-status" class="debug-hidden-field"></div>
+  </div>
+</div>
+
+<!-- 진행 알림 토스트 (모달 금지 — 클릭 안 해도 게임 계속) -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- v4.3 — 보드 위 특별상점 아이콘을 밟으면 한 번 열리는 상점 -->
+<div id="special-shop-modal" class="special-shop-modal hidden" role="dialog" aria-modal="true" aria-labelledby="special-shop-title">
+  <div class="special-shop-panel">
+    <div class="special-shop-head">
+      <div>
+        <div id="special-shop-title" class="special-shop-title">특별상점</div>
+        <div class="special-shop-subtitle">보유 코인 <span id="special-shop-coin-count">0</span></div>
+      </div>
+      <button id="special-shop-leave" class="special-shop-close" type="button" aria-label="특별상점 나가기">×</button>
+    </div>
+
+    <div class="special-shop-grid">
+      <button id="special-shop-reroll" class="special-shop-card" type="button">
+        <span class="special-shop-card-name">리롤 1회</span>
+        <span class="special-shop-card-meta">5코인 · 보유 <b id="special-shop-reroll-held">0/2</b></span>
+      </button>
+      <button id="special-shop-shield" class="special-shop-card" type="button">
+        <span class="special-shop-card-name">보호막 1회</span>
+        <span class="special-shop-card-meta">5코인 · 보유 <b id="special-shop-shield-held">0</b></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PASSWORD_VALUE = 'baco2026';
+
+  (function setupPasswordGate() {
+    const gate = document.getElementById('password-gate');
+    const form = document.getElementById('password-gate-form');
+    const passwordInput = document.getElementById('password-gate-input');
+    const errorMessage = document.getElementById('password-gate-error');
+    let gameScriptLoaded = false;
+
+    function loadGameScript() {
+      if (gameScriptLoaded) return;
+      gameScriptLoaded = true;
+
+      const script = document.createElement('script');
+      script.src = 'game.js';
+      document.body.appendChild(script);
+    }
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      if (passwordInput.value === PASSWORD_VALUE) {
+        errorMessage.textContent = '';
+        document.body.classList.remove('password-locked');
+        gate.remove();
+        loadGameScript();
+        return;
+      }
+
+      errorMessage.textContent = '비밀번호가 틀렸어요';
+      passwordInput.value = '';
+      passwordInput.focus();
+    });
+
+    passwordInput.focus();
+  })();
+</script>
+</body>
+</html>
