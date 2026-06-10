@@ -850,6 +850,10 @@ html, body {
 .debug-group:nth-child(odd) {
   border-right: 1px solid #3a3a4a;
 }
+.debug-group-wide {
+  grid-column: 1 / -1;
+  border-right: none !important;
+}
 .debug-group-title {
   font-size: 12px;
   color: #6ab0f5;
@@ -938,6 +942,11 @@ html, body {
   color: #f57a7a;
   border-color: #5a3a3a;
 }
+.debug-btn-danger {
+  background: #3a2020;
+  color: #ffb0b0;
+  border-color: #704040;
+}
 .debug-force-row {
   display: flex;
   align-items: center;
@@ -956,6 +965,106 @@ html, body {
 }
 .debug-hidden-field {
   display: none !important;
+}
+.sim-control-row {
+  display: grid;
+  grid-template-columns: auto 90px auto auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.sim-control-row label {
+  color: #9a9ab0;
+  font-size: 12px;
+  font-weight: 700;
+}
+.sim-control-row input[type="number"] {
+  width: 90px;
+  background: #2c2c3a;
+  color: #e8e8f0;
+  border: 1px solid #3a3a4a;
+  border-radius: 6px;
+  padding: 5px 7px;
+  font-family: inherit;
+}
+.sim-progress {
+  justify-self: end;
+  color: #f5c87a;
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.sim-results {
+  margin-top: 10px;
+}
+.sim-empty {
+  color: #77778a;
+  font-size: 12px;
+  border: 1px dashed #3a3a4a;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+.sim-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.sim-kpi {
+  background: #191924;
+  border: 1px solid #3a3a4a;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.sim-kpi span {
+  display: block;
+  color: #9a9ab0;
+  font-size: 11px;
+}
+.sim-kpi b {
+  display: block;
+  margin-top: 3px;
+  color: #f5c87a;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.sim-table-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.sim-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #191924;
+  border: 1px solid #3a3a4a;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+}
+.sim-table caption {
+  text-align: left;
+  padding: 7px 9px;
+  color: #6ab0f5;
+  font-weight: 900;
+}
+.sim-table th,
+.sim-table td {
+  border-top: 1px solid #2c2c3a;
+  padding: 5px 9px;
+}
+.sim-table th {
+  color: #9a9ab0;
+  text-align: left;
+  font-weight: 700;
+}
+.sim-table td {
+  color: #e8e8f0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+#btn-sim-download {
+  margin-top: 8px;
 }
 
 /* ============================================================

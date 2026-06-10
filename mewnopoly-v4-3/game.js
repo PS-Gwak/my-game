@@ -87,6 +87,12 @@ const DEBUG_SPECIAL_DEFAULTS = {
   restartBonus: 1,
 };
 
+const SIM_DEFAULT_RUNS = 50;
+const SIM_MAX_TURNS = 2000;
+const SIM_REACH_TILES = [7, 12, 13, 14, 15];
+const SIM_FINAL_REWARD_TILES = [12, 13, 14];
+const SIM_POSITIVE_UPGRADE_IDS = ['p1_prob', 'p2_prob', 'p3_prob'];
+
 /* ------------------------------------------------------------
    영구 업그레이드
    v4.3 #3 — +1/+2/+3 새 공식:
@@ -201,6 +207,15 @@ const state = {
   diceProbabilityOverrides: {},           // 디버그 콘솔에서 칸별 주사위 확률을 덮어쓴 값
   debugSpecialChances: Object.assign({}, DEBUG_SPECIAL_DEFAULTS),
   debugTrapChanceOverride: null,          // null이면 기존 +2/+3 함정 확률을 그대로 사용
+  simMode: false,                         // 자동 시뮬 중이면 화면 연출을 모두 쉰다.
+  simRunning: false,
+  simStopRequested: false,
+  simTargetRuns: SIM_DEFAULT_RUNS,
+  simCompletedRuns: 0,
+  simProgressText: '',
+  simSummaries: [],
+  simAggregate: null,
+  activeSimSummary: null,
 
 };
 
@@ -229,6 +244,7 @@ function initSounds() {
   }
 }
 function play(name) {
+  if (state.simMode) return;
   try {
     const s = SOUNDS[name];
     if (!s) return;
@@ -255,9 +271,14 @@ function el(tag, cls, html) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+function waitForAnimation(ms) {
+  return state.simMode ? Promise.resolve() : sleep(ms);
+}
+
 function fmtVal(val) { return val > 0 ? '+' + val : String(val); }
 
 function logEvent(msg, kind) {
+  if (state.simMode) return;
   const log = $('event-log');
   if (!log.dataset.placeholderCleared) {
     log.innerHTML = '';
@@ -280,6 +301,7 @@ function recordEvent(type, data) {
     savePoint: state.savePoint,
     timestamp: Date.now(),
   }, data || {}));
+  updateSimSummaryFromEvent(type, data || {});
 }
 
 function recordDebugAction(action, data) {
@@ -315,6 +337,144 @@ function buildRunLogJson() {
   return JSON.stringify(state.runLog, null, 2);
 }
 
+function createSimRunSummary(runId) {
+  const firstReachRolls = {};
+  for (const tile of SIM_REACH_TILES) firstReachRolls[tile] = null;
+
+  const finalRewards = {};
+  for (const tile of SIM_FINAL_REWARD_TILES) finalRewards[tile] = 0;
+
+  return {
+    runId,
+    firstReachRolls,
+    cleared: false,
+    totalRolls: 0,
+    trapResetsToZero: 0,
+    specials: {
+      gambleTickets: 0,
+      specialShops: 0,
+      treasures: 0,
+      luckyBridges: 0,
+      restartBonuses: 0,
+      finalRewards,
+    },
+    gamblingNet: 0,
+    endedBy: null,
+  };
+}
+
+function markSimTileReached(tile) {
+  const summary = state.activeSimSummary;
+  if (!summary) return;
+  const key = Number(tile);
+  if (summary.firstReachRolls.hasOwnProperty(key) && summary.firstReachRolls[key] == null) {
+    summary.firstReachRolls[key] = state.rolls;
+  }
+  if (key === GOAL_TILE) {
+    summary.cleared = true;
+    summary.endedBy = 'clear';
+  }
+}
+
+function updateSimSummaryFromEvent(type, data) {
+  const summary = state.activeSimSummary;
+  if (!summary) return;
+
+  if (type === 'gamble') {
+    if (data.phase === 'pickup') summary.specials.gambleTickets += 1;
+    if (data.phase === 'settle') summary.gamblingNet += data.amount || 0;
+    return;
+  }
+
+  if (type === 'specialshop') {
+    if (data.phase === 'open') summary.specials.specialShops += 1;
+    return;
+  }
+
+  if (type === 'treasure') {
+    if (data.phase === 'spawn') summary.specials.treasures += 1;
+    return;
+  }
+
+  if (type === 'bridge') {
+    if (data.from != null && data.to != null && data.phase == null) {
+      summary.specials.luckyBridges += 1;
+    }
+    return;
+  }
+
+  if (type === 'restart_bonus') {
+    summary.specials.restartBonuses += 1;
+    return;
+  }
+
+  if (type === 'coin' && data.reason === 'tile_reward') {
+    const tile = Number(data.tile);
+    if (summary.specials.finalRewards.hasOwnProperty(tile)) {
+      summary.specials.finalRewards[tile] += 1;
+    }
+    return;
+  }
+
+  if (type === 'win_or_reset') {
+    if (data.result === 'reset') summary.trapResetsToZero += 1;
+    if (data.result === 'clear') {
+      summary.cleared = true;
+      summary.endedBy = 'clear';
+    }
+  }
+}
+
+function average(values) {
+  if (!values.length) return null;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+function buildSimAggregate(summaries) {
+  const runs = Array.isArray(summaries) ? summaries : [];
+  const cleared = runs.filter(run => run.cleared);
+  const clearRollValues = cleared.map(run => run.totalRolls);
+
+  const firstReachAverages = {};
+  for (const tile of SIM_REACH_TILES) {
+    const values = runs
+      .map(run => run.firstReachRolls && run.firstReachRolls[tile])
+      .filter(value => value != null);
+    firstReachAverages[tile] = average(values);
+  }
+
+  const averageSpecials = {
+    gambleTickets: average(runs.map(run => run.specials.gambleTickets)) || 0,
+    specialShops: average(runs.map(run => run.specials.specialShops)) || 0,
+    treasures: average(runs.map(run => run.specials.treasures)) || 0,
+    luckyBridges: average(runs.map(run => run.specials.luckyBridges)) || 0,
+    restartBonuses: average(runs.map(run => run.specials.restartBonuses)) || 0,
+    finalRewards: {},
+  };
+  for (const tile of SIM_FINAL_REWARD_TILES) {
+    averageSpecials.finalRewards[tile] = average(runs.map(run => run.specials.finalRewards[tile])) || 0;
+  }
+
+  return {
+    totalRuns: runs.length,
+    clearedRuns: cleared.length,
+    clearRate: runs.length ? cleared.length / runs.length : 0,
+    clearRolls: {
+      average: average(clearRollValues),
+      min: clearRollValues.length ? Math.min(...clearRollValues) : null,
+      max: clearRollValues.length ? Math.max(...clearRollValues) : null,
+    },
+    firstReachAverages,
+    averageSpecials,
+    averageTrapResetsToZero: average(runs.map(run => run.trapResetsToZero)) || 0,
+    averageGamblingNet: average(runs.map(run => run.gamblingNet)) || 0,
+  };
+}
+
+function buildSimSummariesJson() {
+  return JSON.stringify(state.simSummaries, null, 2);
+}
+
 function setLogActionStatus(msg) {
   const status = $('log-action-status');
   if (status) status.textContent = msg || '';
@@ -348,6 +508,7 @@ function downloadRunLog() {
 }
 
 function showToast(html, kind, ms) {
+  if (state.simMode) return;
   // v4.1 피드백 — 화면 중앙을 가리는 팝업 알림은 전부 끔.
   // 각 상황은 호출부에서 이미 우측 이벤트 로그(logEvent)에 기록한다.
   const t = $('toast');
@@ -358,6 +519,7 @@ function showToast(html, kind, ms) {
 }
 
 function showBigMessage(html, kind, ms) {
+  if (state.simMode) return;
   const t = $('toast');
   if (!t) return;
   clearTimeout(showToast._timer);
@@ -585,6 +747,7 @@ function makeTokenSVG() {
 }
 
 function renderBoard() {
+  if (state.simMode) return;
   const board = $('board');
   board.innerHTML = '';
   for (let i = 0; i < TOTAL_TILES; i++) {
@@ -642,6 +805,7 @@ function renderBoard() {
 // 렌더 — 위치별 6면 확률 도면
 // ============================================================
 function renderDicePattern() {
+  if (state.simMode) return;
   const wrap = $('dice-pattern');
   wrap.innerHTML = '';
   const probs = getEffectiveProbs(state.position);
@@ -669,10 +833,12 @@ function renderDicePattern() {
 // 렌더 — 코인 + 상점 + 보유 아이템
 // ============================================================
 function renderCoin() {
+  if (state.simMode) return;
   $('coin-count').textContent = String(state.coins);
 }
 
 function renderShop() {
+  if (state.simMode) return;
   const permList = $('shop-perm');
   permList.innerHTML = '';
   for (const u of PERM_UPGRADES) {
@@ -692,6 +858,7 @@ function renderShop() {
 }
 
 function renderSpecialShop() {
+  if (state.simMode) return;
   const modal = $('special-shop-modal');
   if (!modal) return;
 
@@ -727,6 +894,10 @@ function openSpecialShop() {
   play('upgradeClick');
   logEvent('🏪 특별상점 발견 — 리롤·보호막 구매 가능', 'good');
   recordEvent('specialshop', { phase: 'open', tile: state.position });
+  if (state.simMode) {
+    state.specialShopOpen = false;
+    return;
+  }
   renderAll();
 }
 
@@ -833,6 +1004,7 @@ function renderOwned() {
 }
 
 function renderRerollBtn() {
+  if (state.simMode) return;
   const reroll = $('btn-reroll');
   const visible = state.prevSnapshot != null
                   && state.rerollLeft > 0;
@@ -1079,7 +1251,77 @@ function renderDebugConsoleControls() {
   setDebugValue('debug-save-select', state.savePoint == null ? 'none' : state.savePoint);
 }
 
+function formatSimNumber(value, digits) {
+  if (value == null || !isFinite(value)) return '-';
+  const d = digits == null ? 1 : digits;
+  return Number(value).toFixed(d).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
+}
+
+function buildSimSummaryTable(aggregate) {
+  if (!aggregate || !aggregate.totalRuns) {
+    return '<div class="sim-empty">아직 실행 결과 없음</div>';
+  }
+
+  const reachRows = SIM_REACH_TILES.map(tile => (
+    '<tr><th>' + tile + '층</th><td>' + formatSimNumber(aggregate.firstReachAverages[tile], 1) + '</td></tr>'
+  )).join('');
+
+  const specialRows = [
+    ['도박티켓 획득', aggregate.averageSpecials.gambleTickets],
+    ['특별상점 등장', aggregate.averageSpecials.specialShops],
+    ['뒤보물 등장', aggregate.averageSpecials.treasures],
+    ['럭키다리 사용', aggregate.averageSpecials.luckyBridges],
+    ['리스타트보너스', aggregate.averageSpecials.restartBonuses],
+    ['막판보상 12층', aggregate.averageSpecials.finalRewards[12]],
+    ['막판보상 13층', aggregate.averageSpecials.finalRewards[13]],
+    ['막판보상 14층', aggregate.averageSpecials.finalRewards[14]],
+    ['함정 0번 복귀', aggregate.averageTrapResetsToZero],
+    ['도박 순손익', aggregate.averageGamblingNet],
+  ].map(row => '<tr><th>' + row[0] + '</th><td>' + formatSimNumber(row[1], 2) + '</td></tr>').join('');
+
+  const clearPct = formatSimNumber(aggregate.clearRate * 100, 1) + '%';
+  return ''
+    + '<div class="sim-summary-grid">'
+    +   '<div class="sim-kpi"><span>클리어율</span><b>' + clearPct + '</b></div>'
+    +   '<div class="sim-kpi"><span>클리어 판</span><b>' + aggregate.clearedRuns + ' / ' + aggregate.totalRuns + '</b></div>'
+    +   '<div class="sim-kpi"><span>평균 클릭수</span><b>' + formatSimNumber(aggregate.clearRolls.average, 1) + '</b></div>'
+    +   '<div class="sim-kpi"><span>최소 / 최대</span><b>' + formatSimNumber(aggregate.clearRolls.min, 0) + ' / ' + formatSimNumber(aggregate.clearRolls.max, 0) + '</b></div>'
+    + '</div>'
+    + '<div class="sim-table-wrap">'
+    +   '<table class="sim-table"><caption>층별 첫 도달 평균 클릭수</caption><tbody>' + reachRows + '</tbody></table>'
+    +   '<table class="sim-table"><caption>요소별 한 판 평균 발동 횟수</caption><tbody>' + specialRows + '</tbody></table>'
+    + '</div>';
+}
+
+function renderSimStatus() {
+  const runInput = $('sim-run-count');
+  const runBtn = $('btn-sim-run');
+  const stopBtn = $('btn-sim-stop');
+  const progress = $('sim-progress');
+  const results = $('sim-results');
+  const downloadBtn = $('btn-sim-download');
+
+  if (runInput) runInput.disabled = state.simRunning;
+  if (runBtn) runBtn.disabled = state.simRunning;
+  if (stopBtn) stopBtn.disabled = !state.simRunning;
+
+  if (progress) {
+    const fallback = state.simCompletedRuns + ' / ' + state.simTargetRuns + '판';
+    progress.textContent = state.simProgressText || fallback;
+  }
+
+  if (results) {
+    results.innerHTML = buildSimSummaryTable(state.simAggregate);
+  }
+
+  if (downloadBtn) {
+    downloadBtn.disabled = !state.simSummaries.length;
+    downloadBtn.classList.toggle('hidden', !state.simSummaries.length);
+  }
+}
+
 function renderDebugPanel() {
+  if (state.simMode) return;
   const panel = $('debug-panel');
   if (!panel) return;
 
@@ -1091,6 +1333,7 @@ function renderDebugPanel() {
     stateBox.textContent = JSON.stringify(buildDebugSnapshot(), null, 2);
   }
   if (state.debugPanelOpen) renderDebugConsoleControls();
+  renderSimStatus();
 }
 
 function toggleDebugPanel(force) {
@@ -1107,6 +1350,7 @@ function handleDebugKeydown(ev) {
 }
 
 function renderAll() {
+  if (state.simMode) return;
   renderBoard();
   renderDicePattern();
   renderCoin();
@@ -1298,15 +1542,16 @@ async function maybeUseBridge() {
   state.bridges.delete(from);
 
   logEvent('🌉 다리 발동 — ' + from + '번에서 ' + to + '번으로 이동', 'good');
-  await sleep(250);
+  await waitForAnimation(250);
   state.position = to;
   maybeUpdateSavePoint(to);
   if (to > state.bestTile) state.bestTile = to;
+  markSimTileReached(to);
   recordEvent('bridge', { from, to });
   renderBoard();
   renderDicePattern();
   play('move');
-  await sleep(250);
+  await waitForAnimation(250);
 }
 
 function collectGambleTicketAt(tile) {
@@ -1371,40 +1616,49 @@ async function rollDice(isFromReroll) {
 
   state.isAnimating = true;
   state.canReroll = false;
-  $('btn-roll').disabled = true;
-  renderRerollBtn();
-  renderShop();
+  if (!state.simMode) {
+    $('btn-roll').disabled = true;
+    renderRerollBtn();
+    renderShop();
+  }
 
   if (!isFromReroll) state.prevSnapshot = takeSnapshot();
 
-  const face = $('dice-face');
-  face.classList.remove('dice-face-ready', 'result-pop', 'face-neg');
-  face.classList.add('rolling');
-  $('roll-readout').classList.remove('neg');
-  $('roll-readout').innerHTML = '굴리는 중...';
+  let face = null;
+  if (!state.simMode) {
+    face = $('dice-face');
+    face.classList.remove('dice-face-ready', 'result-pop', 'face-neg');
+    face.classList.add('rolling');
+    $('roll-readout').classList.remove('neg');
+    $('roll-readout').innerHTML = '굴리는 중...';
 
-  const tumbleTimer = setInterval(() => {
-    const idx1 = Math.floor(Math.random() * 6);
-    face.textContent = fmtVal(FACE_IDX_TO_VAL[idx1]);
-    face.classList.toggle('face-neg', FACE_IDX_TO_VAL[idx1] < 0);
-  }, 70);
-  await sleep(400);
-  clearInterval(tumbleTimer);
+    const tumbleTimer = setInterval(() => {
+      const idx1 = Math.floor(Math.random() * 6);
+      face.textContent = fmtVal(FACE_IDX_TO_VAL[idx1]);
+      face.classList.toggle('face-neg', FACE_IDX_TO_VAL[idx1] < 0);
+    }, 70);
+    await waitForAnimation(400);
+    clearInterval(tumbleTimer);
+  }
 
   const chosenIdx = rollFaceIdx(state.position);
   const chosenVal = FACE_IDX_TO_VAL[chosenIdx];
 
-  face.classList.remove('rolling', 'result-pop');
-  void face.offsetWidth;
-  face.textContent = fmtVal(chosenVal);
-  face.classList.toggle('face-neg', chosenVal < 0);
-  face.classList.add('result-pop');
+  if (!state.simMode) {
+    face.classList.remove('rolling', 'result-pop');
+    void face.offsetWidth;
+    face.textContent = fmtVal(chosenVal);
+    face.classList.toggle('face-neg', chosenVal < 0);
+    face.classList.add('result-pop');
+  }
 
   state.lastRollIdx = chosenIdx;
   const val = FACE_IDX_TO_VAL[chosenIdx];
 
-  $('roll-readout').innerHTML = '결과: <strong>' + fmtVal(val) + '</strong>';
-  $('roll-readout').classList.toggle('neg', val < 0);
+  if (!state.simMode) {
+    $('roll-readout').innerHTML = '결과: <strong>' + fmtVal(val) + '</strong>';
+    $('roll-readout').classList.toggle('neg', val < 0);
+  }
   if (!isFromReroll) {
     state.rolls += 1;
     logEvent('굴림 #' + state.rolls + ' → ' + fmtVal(val), val < 0 ? 'bad' : 'good');
@@ -1417,15 +1671,17 @@ async function rollDice(isFromReroll) {
   });
   settleGamblingRoll(val);
 
-  await sleep(500);
+  await waitForAnimation(500);
 
   try {
     await applyMovement(val);
   } finally {
     state.isAnimating = false;
     state.canReroll = !isFromReroll && state.prevSnapshot != null;
-    $('btn-roll').disabled = false;
-    renderAll();
+    if (!state.simMode) {
+      $('btn-roll').disabled = false;
+      renderAll();
+    }
   }
 }
 
@@ -1499,10 +1755,12 @@ async function applyMovement(val) {
       renderBoard();
       renderDicePattern();
       play('move');
-      await sleep(200);
+      markSimTileReached(cur);
+      await waitForAnimation(200);
     }
   } else {
     if (state.position > state.bestTile) state.bestTile = state.position;
+    markSimTileReached(state.position);
     renderBoard();
     renderDicePattern();
   }
@@ -1525,7 +1783,7 @@ async function applyMovement(val) {
     state.wins += 1;
     logEvent('🏁 목표 도달! (' + state.wins + '번째 클리어)', 'good');
     showToast('목표 도달!<br><span style="font-size:18px">' + state.wins + '번째 클리어</span>', 'good', 1700);
-    await sleep(1500);
+    await waitForAnimation(1500);
     // v4.2 #1 답=b — 클리어 시 진척도까지 새 런처럼 초기화 (도달 보상 claimed·tileVisitCount·bestTile 도 0)
     // 단 영구 업그레이드·보유 코인은 유지
     resetAfterTrap(true);
@@ -1553,7 +1811,7 @@ async function applyMovement(val) {
       });
       showToast('함정!<br><span style="font-size:18px">0번으로 리셋</span>', 'bad', 1400);
       play('reset');
-      await sleep(900);
+      await waitForAnimation(900);
       resetAfterTrap();
       return;
     }
@@ -1802,8 +2060,196 @@ function resetAfterTrap(isClear) {
     grantRestartBonus(previousSavePoint, 'reset');
   }
 
-  state.runId += 1;
+  if (!(state.simMode && state.activeSimSummary)) {
+    state.runId += 1;
+  }
   renderAll();
+}
+
+// ============================================================
+// 자동 시뮬레이터 — 화면 없이 규칙만 빠르게 여러 판 실행
+// ============================================================
+function resetSimulationGameState(runId) {
+  state.position = 0;
+  state.coins = 0;
+  state.holes.clear();
+  state.boardCoins.clear();
+  state.doubleCoins.clear();
+  state.boardGambleTickets.clear();
+  state.boardSpecialShops.clear();
+  state.treasureChests.clear();
+  state.bridges.clear();
+  state.permLevels = {
+    p1_prob: 0,
+    p2_prob: 0,
+    p3_prob: 0,
+    coin_extra: 0,
+  };
+  state.ignoreTrap = 0;
+  state.rerollLeft = 0;
+  state.lastRollIdx = null;
+  state.canReroll = false;
+  state.isAnimating = false;
+  state.prevSnapshot = null;
+  state.rolls = 0;
+  state.bestTile = 0;
+  state.tileVisitCount = new Array(TOTAL_TILES).fill(0);
+  state.tileRewardClaimed = new Set();
+  state.savePoint = null;
+  state.gambling = false;
+  state.specialShopOpen = false;
+  state.restartCloudBridge = false;
+  state.runId = Math.max(1, Math.floor(Number(runId) || 1));
+}
+
+function findCheapestSimPositiveUpgrade() {
+  let best = null;
+  for (const id of SIM_POSITIVE_UPGRADE_IDS) {
+    const upgrade = PERM_UPGRADES.find(item => item.id === id);
+    if (!upgrade) continue;
+    const lv = state.permLevels[id];
+    if (lv >= upgrade.maxLv) continue;
+    if (!upgrade.unlock(state)) continue;
+    const cost = upgrade.cost(lv);
+    if (state.coins < cost) continue;
+    if (!best || cost < best.cost) {
+      best = { upgrade, cost, levelBefore: lv };
+    }
+  }
+  return best;
+}
+
+function buyCheapestSimPositiveUpgrades() {
+  const bought = [];
+  let guard = 0;
+  while (guard < 30) {
+    guard += 1;
+    const next = findCheapestSimPositiveUpgrade();
+    if (!next) break;
+    buyPerm(next.upgrade);
+    if (state.permLevels[next.upgrade.id] <= next.levelBefore) break;
+    bought.push({
+      id: next.upgrade.id,
+      cost: next.cost,
+      level: state.permLevels[next.upgrade.id],
+    });
+  }
+  return bought;
+}
+
+async function runSingleAutoSimulation(options) {
+  const opts = options || {};
+  const runId = Math.max(1, Math.floor(Number(opts.runId) || state.runId || 1));
+  const maxTurns = Math.max(1, Math.floor(Number(opts.maxTurns) || SIM_MAX_TURNS));
+  const previousSimMode = state.simMode;
+  const previousSummary = state.activeSimSummary;
+  const summary = createSimRunSummary(runId);
+
+  state.simMode = true;
+  resetSimulationGameState(runId);
+  state.activeSimSummary = summary;
+
+  try {
+    while (!summary.cleared && summary.totalRolls < maxTurns) {
+      buyCheapestSimPositiveUpgrades();
+      await rollDice(false);
+      if (state.specialShopOpen) state.specialShopOpen = false;
+      summary.totalRolls = state.rolls;
+    }
+
+    if (!summary.cleared) summary.endedBy = 'turn_limit';
+    summary.totalRolls = state.rolls;
+  } finally {
+    state.activeSimSummary = null;
+    resetSimulationGameState(runId + 1);
+    state.simMode = previousSimMode;
+    state.activeSimSummary = previousSummary;
+  }
+
+  return summary;
+}
+
+async function runAutoSimulation(runCount, options) {
+  if (state.simRunning) return state.simSummaries;
+
+  const opts = options || {};
+  const totalRuns = Math.max(1, Math.floor(Number(runCount) || SIM_DEFAULT_RUNS));
+  const startRunId = Math.max(1, Math.floor(Number(state.runId) || 1));
+
+  state.simRunning = true;
+  state.simStopRequested = false;
+  state.simTargetRuns = totalRuns;
+  state.simCompletedRuns = 0;
+  state.simSummaries = [];
+  state.simAggregate = null;
+  state.simProgressText = '0 / ' + totalRuns + '판';
+  renderSimStatus();
+
+  try {
+    for (let i = 0; i < totalRuns; i++) {
+      if (state.simStopRequested) break;
+
+      const summary = await runSingleAutoSimulation({
+        runId: startRunId + i,
+        maxTurns: opts.maxTurns || SIM_MAX_TURNS,
+      });
+      state.simSummaries.push(summary);
+      state.simCompletedRuns = state.simSummaries.length;
+      state.simProgressText = state.simCompletedRuns + ' / ' + totalRuns + '판';
+      renderSimStatus();
+
+      if (state.simStopRequested) break;
+      if (opts.yieldBetweenRuns !== false) await sleep(0);
+    }
+
+    state.simAggregate = buildSimAggregate(state.simSummaries);
+    state.simProgressText = state.simStopRequested
+      ? state.simCompletedRuns + ' / ' + totalRuns + '판에서 중지'
+      : state.simCompletedRuns + ' / ' + totalRuns + '판 완료';
+    return state.simSummaries;
+  } finally {
+    state.simRunning = false;
+    state.simStopRequested = false;
+    renderSimStatus();
+    renderAll();
+  }
+}
+
+function requestStopAutoSimulation() {
+  if (!state.simRunning) return false;
+  state.simStopRequested = true;
+  state.simProgressText = state.simCompletedRuns + ' / ' + state.simTargetRuns + '판 — 현재 판 끝나면 중지';
+  renderSimStatus();
+  return true;
+}
+
+function downloadSimSummaries() {
+  const text = buildSimSummariesJson();
+  const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  a.href = url;
+  a.download = 'mewnopoly-sim-' + state.simSummaries.length + '-runs-' + stamp + '.json';
+  if (document.body && document.body.appendChild) document.body.appendChild(a);
+  if (typeof a.click === 'function') a.click();
+  if (a.parentNode && a.parentNode.removeChild) a.parentNode.removeChild(a);
+  URL.revokeObjectURL(url);
+  return text;
+}
+
+function startAutoSimulationFromDebug() {
+  const input = $('sim-run-count');
+  const count = input ? input.value : SIM_DEFAULT_RUNS;
+  runAutoSimulation(count).catch(err => {
+    state.simMode = false;
+    state.simRunning = false;
+    state.simStopRequested = false;
+    state.simProgressText = '시뮬 오류: ' + (err && err.message ? err.message : String(err));
+    console.error(err);
+    renderSimStatus();
+    renderAll();
+  });
 }
 
 // ============================================================
@@ -1900,6 +2346,10 @@ function bindDebugConsole() {
 
   bindDebugInput('debug-trap-chance', () => setDebugTrapChance($('debug-trap-chance').value));
   bindDebugClick('debug-save-button', () => setDebugSavePoint($('debug-save-select').value));
+
+  bindDebugClick('btn-sim-run', startAutoSimulationFromDebug);
+  bindDebugClick('btn-sim-stop', requestStopAutoSimulation);
+  bindDebugClick('btn-sim-download', downloadSimSummaries);
 }
 
 // ============================================================

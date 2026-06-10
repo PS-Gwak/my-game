@@ -287,6 +287,21 @@
           <button id="debug-save-button" class="debug-btn" type="button">설정</button>
         </div>
       </div>
+
+      <div class="debug-group debug-group-wide">
+        <div class="debug-group-title">🤖 자동 시뮬레이터</div>
+        <div class="sim-control-row">
+          <label for="sim-run-count">판 수</label>
+          <input id="sim-run-count" type="number" min="1" max="10000" step="1" value="50">
+          <button id="btn-sim-run" class="debug-btn debug-btn-gold" type="button">자동 N판</button>
+          <button id="btn-sim-stop" class="debug-btn debug-btn-danger" type="button" disabled>중지</button>
+          <span id="sim-progress" class="sim-progress">0 / 50판</span>
+        </div>
+        <div id="sim-results" class="sim-results">
+          <div class="sim-empty">아직 실행 결과 없음</div>
+        </div>
+        <button id="btn-sim-download" class="debug-btn hidden" type="button">결과 JSON 다운로드</button>
+      </div>
     </div>
 
     <pre id="debug-state" class="debug-hidden-field">{}</pre>
@@ -342,9 +357,7 @@
       document.body.appendChild(script);
     }
 
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-
+    function submitPassword() {
       if (passwordInput.value === PASSWORD_VALUE) {
         errorMessage.textContent = '';
         document.body.classList.remove('password-locked');
@@ -356,6 +369,17 @@
       errorMessage.textContent = '비밀번호가 틀렸어요';
       passwordInput.value = '';
       passwordInput.focus();
+    }
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      submitPassword();
+    });
+
+    passwordInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      submitPassword();
     });
 
     passwordInput.focus();
