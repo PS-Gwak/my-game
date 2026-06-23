@@ -97,13 +97,9 @@
   .navbtn:hover { background: rgba(91,108,255,.85); }
   .navbtn.left { left: 26px; }
   .navbtn.right { right: 26px; }
-  #preloadStatus {
-    position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
-    z-index: 80; padding: 8px 12px; border-radius: 8px;
-    background: rgba(8,9,12,.92); color: #e7e9ee; border: 1px solid #2a2d35;
-    font-size: 12px; font-weight: 700; pointer-events: none;
-  }
-  #preloadStatus[hidden] { display: none; }
+  #tabArea { flex: 1 1 auto; min-height: 0; display: none; }
+  #tabArea .grid { height: 100%; }
+  #tabArea .grid[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -122,7 +118,6 @@
     </div>
     <span class="note">시안=클릭 확대 · 참고=클릭 링크</span>
   </header>
-  <div id="preloadStatus" role="status" aria-live="polite" hidden>그림 불러오는 중 0 / 총0</div>
 
   <!-- 개요 스토리 -->
   <div id="overview">
@@ -195,7 +190,7 @@
   </div>
 
   <!-- 이미지 그리드 -->
-  <div class="grid" id="grid" style="display:none"></div>
+  <div id="tabArea"></div>
 
   <div id="overlay">
     <button class="navbtn left" id="ovPrev" title="이전 (←)">‹</button>
@@ -211,7 +206,7 @@
       img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1061090/header.jpg",
       link: "https://store.steampowered.com/app/1061090/Jump_King/" },
     { n: "QWOP", v: "조잡한 플래시 웹게임, B급 개그 (원조가 달리기)", used: "진화·지옥·암벽·허들·현재UI",
-      img: "https://upload.wikimedia.org/wikipedia/en/7/7e/QWOP_screenshot.png",
+      img: "https://commons.wikimedia.org/wiki/Special:Redirect/file/QWOP_screenshot.jpg?width=500",
       link: "https://www.foddy.net/legacy/Athletics.html" },
     { n: "피쿠니쿠 (Pikuniku)", v: "말랑 플랫 카툰, 통통 단색", used: "진화·지옥·암벽·허들·현재UI",
       img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/572890/header.jpg",
@@ -241,7 +236,7 @@
       img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/240720/header.jpg",
       link: "https://store.steampowered.com/app/240720/Getting_Over_It_with_Bennett_Foddy/" },
     { n: "국립공원 포스터 (WPA)", v: "빈티지 여행 포스터, 플랫 색면", used: "암벽",
-      img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/North_Cascades_National_Park_Poster%2C_1972.jpg/480px-North_Cascades_National_Park_Poster%2C_1972.jpg",
+      img: "https://commons.wikimedia.org/wiki/Special:Redirect/file/North_Cascades_National_Park_Poster%2C_1972.jpg?width=500",
       link: "https://commons.wikimedia.org/wiki/Category:WPA_posters,_National_Park_Service" },
   ];
 
@@ -326,46 +321,81 @@
     ],
   };
 
-  const grid = document.getElementById('grid');
+  const tabArea = document.getElementById('tabArea');
   const overview = document.getElementById('overview');
   const overlay = document.getElementById('overlay');
   const ovImg = document.getElementById('ovImg');
   const ovCap = document.getElementById('ovCap');
-  const preloadStatus = document.getElementById('preloadStatus');
+  const TAB_ORDER = ['refs', 'demoui', 'layout', 'style', 'hell', 'climb', 'hurdle', 'penguin'];
+  const panelByTab = new Map();
+  const decodedBySrc = new Map();
+  let currentList = [];
+  let currentIndex = 0;
+
+  function tuneImage(img, priority) {
+    img.loading = 'eager';
+    img.decoding = 'async';
+    img.setAttribute('fetchpriority', priority);
+    if ('fetchPriority' in img) img.fetchPriority = priority;
+    return img;
+  }
+
+  function makeImage(src, alt, priority) {
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = alt || '';
+    return tuneImage(img, priority);
+  }
+
+  function makeText(tagName, className, text) {
+    const el = document.createElement(tagName);
+    if (className) el.className = className;
+    el.textContent = text;
+    return el;
+  }
+
+  function makeTag(index) {
+    return makeText('div', 'tag', String(index + 1));
+  }
+
+  function makeCaption(title, desc, withArrow) {
+    const cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.appendChild(makeText('b', '', title));
+    cap.appendChild(makeText('em', '', desc));
+    if (withArrow) cap.appendChild(makeText('span', 'arrow', '열기 ↗'));
+    return cap;
+  }
 
   // 개요 §3 그림체 미니 썸네일 채우기
-  document.getElementById('ovStrip').innerHTML =
-    REFS.map(r => '<img src="' + r.img + '" title="' + r.n + '" alt="' + r.n + '">').join('');
+  const ovStrip = document.getElementById('ovStrip');
+  REFS.forEach(r => {
+    const img = makeImage(r.img, r.n, 'auto');
+    img.title = r.n;
+    ovStrip.appendChild(img);
+  });
 
   function collectImageUrls() {
     const urls = new Set();
-    const imageFile = /\.(png|jpe?g|webp|avif)(\?.*)?(#.*)?$/i;
 
     function add(value) {
       if (typeof value !== 'string') return;
       const url = value.trim();
-      if (imageFile.test(url)) urls.add(url);
+      if (url) urls.add(url);
     }
 
-    function walk(value) {
-      if (Array.isArray(value)) {
-        value.forEach(walk);
-      } else if (value && typeof value === 'object') {
-        Object.values(value).forEach(walk);
-      } else {
-        add(value);
-      }
-    }
-
-    walk(REFS);
-    walk(SETS);
+    REFS.forEach(item => add(item.img));
+    Object.values(SETS).flat().forEach(item => add(item.f));
     document.querySelectorAll('img[src]').forEach(img => add(img.getAttribute('src')));
     return Array.from(urls);
   }
 
-  function preloadImage(src) {
-    return new Promise(resolve => {
+  function preloadImage(src, priority) {
+    if (decodedBySrc.has(src)) return decodedBySrc.get(src);
+
+    const promise = new Promise(resolve => {
       const img = new Image();
+      tuneImage(img, priority);
       let settled = false;
       const done = () => {
         if (settled) return;
@@ -385,30 +415,26 @@
 
       if (img.complete) img.onload();
     });
+
+    decodedBySrc.set(src, promise);
+    return promise;
   }
 
-  async function preloadAllImages() {
+  function warmImagesInBackground() {
+    const overviewUrls = new Set(Array.from(overview.querySelectorAll('img[src]'), img => img.getAttribute('src')));
     const urls = collectImageUrls();
-    const total = urls.length;
-    let loaded = 0;
 
-    if (!total) return;
-
-    const updateStatus = () => {
-      preloadStatus.textContent = '그림 불러오는 중 ' + loaded + ' / 총' + total;
+    const warm = () => {
+      urls.forEach(src => {
+        preloadImage(src, overviewUrls.has(src) ? 'high' : 'auto');
+      });
     };
 
-    preloadStatus.hidden = false;
-    updateStatus();
-
-    await Promise.all(urls.map(src =>
-      preloadImage(src).then(() => {
-        loaded += 1;
-        updateStatus();
-      })
-    ));
-
-    preloadStatus.hidden = true;
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(warm, { timeout: 1000 });
+    } else {
+      setTimeout(warm, 0);
+    }
   }
 
   function gridShape(tab, n) {
@@ -418,49 +444,70 @@
     return { rows, cols: Math.ceil(n / rows) };
   }
 
-  function render(tab) {
-    grid.innerHTML = '';
+  function buildPanel(tab) {
+    const panel = document.createElement('div');
+    panel.className = 'grid';
+    panel.dataset.tabPanel = tab;
+    panel.hidden = true;
+
     if (tab === 'refs') {
       const { rows, cols } = gridShape(tab, REFS.length);
-      grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
-      grid.style.gridTemplateRows = 'repeat(' + rows + ', 1fr)';
+      panel.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+      panel.style.gridTemplateRows = 'repeat(' + rows + ', 1fr)';
       REFS.forEach((it, i) => {
         const a = document.createElement('a');
         a.className = 'card link'; a.href = it.link; a.target = '_blank'; a.rel = 'noopener';
-        a.innerHTML =
-          '<div class="tag">' + (i + 1) + '</div>' +
-          '<img src="' + it.img + '" alt="' + it.n + '">' +
-          '<div class="cap"><b>' + it.n + '</b><em>' + it.v + '</em><span class="arrow">열기 ↗</span></div>' +
-          '<div class="used">쓴 곳: ' + it.used + '</div>';
-        grid.appendChild(a);
+        a.appendChild(makeTag(i));
+        a.appendChild(makeImage(it.img, it.n, 'auto'));
+        a.appendChild(makeCaption(it.n, it.v, true));
+        a.appendChild(makeText('div', 'used', '쓴 곳: ' + it.used));
+        panel.appendChild(a);
       });
-      return;
+      return panel;
     }
+
     const data = SETS[tab];
-    currentList = data;
     const { rows, cols } = gridShape(tab, data.length);
-    grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
-    grid.style.gridTemplateRows = 'repeat(' + rows + ', 1fr)';
+    panel.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    panel.style.gridTemplateRows = 'repeat(' + rows + ', 1fr)';
     data.forEach((it, i) => {
       const fig = document.createElement('div');
       fig.className = 'card';
-      fig.innerHTML =
-        '<div class="tag">' + (i + 1) + '</div>' +
-        '<img src="' + it.f + '" alt="' + it.n + '">' +
-        '<div class="cap"><b>' + it.n + '</b><em>' + it.v + '</em></div>';
-      fig.addEventListener('click', () => openOverlayAt(i));
-      grid.appendChild(fig);
+      fig.appendChild(makeTag(i));
+      fig.appendChild(makeImage(it.f, it.n, 'auto'));
+      fig.appendChild(makeCaption(it.n, it.v, false));
+      fig.addEventListener('click', () => {
+        currentList = data;
+        openOverlayAt(i);
+      });
+      panel.appendChild(fig);
+    });
+    return panel;
+  }
+
+  function buildPanels() {
+    TAB_ORDER.forEach(tab => {
+      const panel = buildPanel(tab);
+      tabArea.appendChild(panel);
+      panelByTab.set(tab, panel);
     });
   }
 
   function setView(tab) {
     if (tab === 'overview') {
       overview.style.display = 'block';
-      grid.style.display = 'none';
+      tabArea.style.display = 'none';
+      panelByTab.forEach(panel => {
+        panel.hidden = true;
+      });
+      currentList = [];
     } else {
       overview.style.display = 'none';
-      grid.style.display = 'grid';
-      render(tab);
+      tabArea.style.display = 'block';
+      panelByTab.forEach((panel, panelTab) => {
+        panel.hidden = panelTab !== tab;
+      });
+      currentList = SETS[tab] || [];
     }
   }
 
@@ -468,9 +515,6 @@
     document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     setView(tab);
   }
-
-  let currentList = [];
-  let currentIndex = 0;
 
   function openOverlayAt(i) {
     if (!currentList.length) return;
@@ -502,8 +546,11 @@
     btn.addEventListener('click', () => goTab(btn.dataset.tab));
   });
 
+  tuneImage(ovImg, 'high');
+  Array.from(overview.querySelectorAll('img[src]')).forEach(img => tuneImage(img, 'high'));
+  buildPanels();
   setView('overview');
-  preloadAllImages();
+  warmImagesInBackground();
 </script>
 </body>
 </html>
