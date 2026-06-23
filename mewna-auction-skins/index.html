@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>뮤나리자 경매 — 그림체 시안 비교 (AI 생성)</title>
+<style>
+  :root { --bg:#14110d; --panel:#1d1812; --gold:#f0c060; --text:#e8d6a8; --sub:#9a8060; --border:#5a3e1b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Noto Sans KR','Malgun Gothic',sans-serif; min-height:100vh; padding:24px 16px 60px; }
+  .head { text-align:center; max-width:1100px; margin:0 auto 18px; }
+  .head h1 { font-size:22px; color:var(--gold); letter-spacing:0.02em; }
+  .head p { font-size:13px; color:var(--sub); margin-top:6px; line-height:1.6; }
+  .tabs { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:18px auto; max-width:1100px; }
+  .tab { padding:9px 18px; border:1px solid var(--border); border-radius:999px; background:var(--panel); color:var(--text);
+         font-size:14px; font-weight:700; cursor:pointer; transition:all .15s; }
+  .tab:hover { border-color:var(--gold); }
+  .tab.active { background:var(--gold); color:#1a1208; border-color:var(--gold); }
+  .stage { max-width:1100px; margin:0 auto; }
+  .shot { display:none; }
+  .shot.active { display:block; }
+  .shot figure { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  .shot img { width:100%; height:auto; display:block; border-radius:8px; }
+  .shot figcaption { margin-top:10px; font-size:13px; color:var(--sub); line-height:1.6; }
+  .shot figcaption b { color:var(--gold); }
+  .note { max-width:1100px; margin:22px auto 0; font-size:12px; color:var(--sub); line-height:1.7; border-top:1px solid var(--border); padding-top:14px; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>뮤나리자 경매 — 그림체 시안 4종 (AI 생성 일러스트)</h1>
+    <p>같은 경매 화면(고양이 모나리자 · 순위표 중심 · 감정가 HOT 금색 · 최소입찰가+호가 올리기 · 5초 카운트)을 네 인디게임 그림체로.<br>
+       코덱스 내장 이미지 생성으로 룰만 듣고 백지에서 그린 것 — 글자는 깨질 수 있으니 <b>그림 느낌·레이아웃</b> 위주로 보세요.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-k="jumpking">점프킹</button>
+    <button class="tab" data-k="nidhogg">니드호그</button>
+    <button class="tab" data-k="pikuniku">피쿠니쿠</button>
+    <button class="tab" data-k="qwop">QWOP</button>
+  </div>
+
+  <div class="stage">
+    <div class="shot active" data-k="jumpking">
+      <figure>
+        <img src="_generated/auction/auction-jumpking.png" alt="점프킹 그림체 경매">
+        <figcaption><b>점프킹</b> — 16비트 중세 픽셀아트. 묵직하고 디테일한 도트, 어둑한 고성 경매장 분위기. 고양이 비더·화려한 액자.</figcaption>
+      </figure>
+    </div>
+    <div class="shot" data-k="nidhogg">
+      <figure>
+        <img src="_generated/auction/auction-nidhogg.png" alt="니드호그 그림체 경매">
+        <figcaption><b>니드호그</b> — 볼드한 아케이드 원색(마젠타·보라·노랑) 블록 픽셀, 1980년대 아케이드 느낌. 강한 대비.</figcaption>
+      </figure>
+    </div>
+    <div class="shot" data-k="pikuniku">
+      <figure>
+        <img src="_generated/auction/auction-pikuniku.png" alt="피쿠니쿠 그림체 경매">
+        <figcaption><b>피쿠니쿠</b> — 둥글고 귀여운 플랫 카툰, 굵은 윤곽·밝은 단색면(코랄·크림·틸). 경쾌하고 친근한 톤.</figcaption>
+      </figure>
+    </div>
+    <div class="shot" data-k="qwop">
+      <figure>
+        <img src="_generated/auction/auction-qwop.png" alt="QWOP 그림체 경매">
+        <figcaption><b>QWOP</b> — 투박한 낙서·B급 플래시게임 느낌, 단순 도형·막대인간·원색. 유쾌한 아마추어 감성.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="note">
+    방법론: 코덱스 image_gen으로 그림체별 한 컷씩 생성(뮤노폴리 skin-mockups 방식). 프롬프트·기록 = <b>PROMPT-auction-skins.md</b> / 원본 PNG = <b>_generated/auction/</b>.
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const shots = document.querySelectorAll('.shot');
+    tabs.forEach(t => t.addEventListener('click', () => {
+      const k = t.dataset.k;
+      tabs.forEach(x => x.classList.toggle('active', x.dataset.k === k));
+      shots.forEach(s => s.classList.toggle('active', s.dataset.k === k));
+    }));
+  </script>
+</body>
+</html>
