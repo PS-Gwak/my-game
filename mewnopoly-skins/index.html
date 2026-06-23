@@ -97,6 +97,13 @@
   .navbtn:hover { background: rgba(91,108,255,.85); }
   .navbtn.left { left: 26px; }
   .navbtn.right { right: 26px; }
+  #preloadStatus {
+    position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
+    z-index: 80; padding: 8px 12px; border-radius: 8px;
+    background: rgba(8,9,12,.92); color: #e7e9ee; border: 1px solid #2a2d35;
+    font-size: 12px; font-weight: 700; pointer-events: none;
+  }
+  #preloadStatus[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -115,6 +122,7 @@
     </div>
     <span class="note">시안=클릭 확대 · 참고=클릭 링크</span>
   </header>
+  <div id="preloadStatus" role="status" aria-live="polite" hidden>그림 불러오는 중 0 / 총0</div>
 
   <!-- 개요 스토리 -->
   <div id="overview">
@@ -323,10 +331,85 @@
   const overlay = document.getElementById('overlay');
   const ovImg = document.getElementById('ovImg');
   const ovCap = document.getElementById('ovCap');
+  const preloadStatus = document.getElementById('preloadStatus');
 
   // 개요 §3 그림체 미니 썸네일 채우기
   document.getElementById('ovStrip').innerHTML =
-    REFS.map(r => '<img src="' + r.img + '" title="' + r.n + '" alt="' + r.n + '" loading="lazy">').join('');
+    REFS.map(r => '<img src="' + r.img + '" title="' + r.n + '" alt="' + r.n + '">').join('');
+
+  function collectImageUrls() {
+    const urls = new Set();
+    const imageFile = /\.(png|jpe?g|webp|avif)(\?.*)?(#.*)?$/i;
+
+    function add(value) {
+      if (typeof value !== 'string') return;
+      const url = value.trim();
+      if (imageFile.test(url)) urls.add(url);
+    }
+
+    function walk(value) {
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+      } else if (value && typeof value === 'object') {
+        Object.values(value).forEach(walk);
+      } else {
+        add(value);
+      }
+    }
+
+    walk(REFS);
+    walk(SETS);
+    document.querySelectorAll('img[src]').forEach(img => add(img.getAttribute('src')));
+    return Array.from(urls);
+  }
+
+  function preloadImage(src) {
+    return new Promise(resolve => {
+      const img = new Image();
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+
+      img.onload = () => {
+        if (img.decode) {
+          img.decode().catch(() => {}).then(done);
+        } else {
+          done();
+        }
+      };
+      img.onerror = done;
+      img.src = src;
+
+      if (img.complete) img.onload();
+    });
+  }
+
+  async function preloadAllImages() {
+    const urls = collectImageUrls();
+    const total = urls.length;
+    let loaded = 0;
+
+    if (!total) return;
+
+    const updateStatus = () => {
+      preloadStatus.textContent = '그림 불러오는 중 ' + loaded + ' / 총' + total;
+    };
+
+    preloadStatus.hidden = false;
+    updateStatus();
+
+    await Promise.all(urls.map(src =>
+      preloadImage(src).then(() => {
+        loaded += 1;
+        updateStatus();
+      })
+    ));
+
+    preloadStatus.hidden = true;
+  }
 
   function gridShape(tab, n) {
     if (tab === 'refs') return { rows: 3, cols: 4 };
@@ -346,7 +429,7 @@
         a.className = 'card link'; a.href = it.link; a.target = '_blank'; a.rel = 'noopener';
         a.innerHTML =
           '<div class="tag">' + (i + 1) + '</div>' +
-          '<img src="' + it.img + '" alt="' + it.n + '" loading="lazy">' +
+          '<img src="' + it.img + '" alt="' + it.n + '">' +
           '<div class="cap"><b>' + it.n + '</b><em>' + it.v + '</em><span class="arrow">열기 ↗</span></div>' +
           '<div class="used">쓴 곳: ' + it.used + '</div>';
         grid.appendChild(a);
@@ -420,6 +503,7 @@
   });
 
   setView('overview');
+  preloadAllImages();
 </script>
 </body>
 </html>
