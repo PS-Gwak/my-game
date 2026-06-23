@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>뮤노폴리(가제) — 아트 컨셉 & 그림체 탐색</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: #15171c;
+    color: #e7e9ee;
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    display: flex; flex-direction: column; height: 100vh;
+  }
+  header {
+    flex: 0 0 auto; padding: 9px 16px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    border-bottom: 1px solid #2a2d35;
+  }
+  header h1 { font-size: 15px; font-weight: 700; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab {
+    font-size: 12.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px;
+    background: #1d2026; color: #aeb3bf; border: 1px solid #2a2d35; cursor: pointer;
+  }
+  .tab.active { background: #5b6cff; color: #fff; border-color: #5b6cff; }
+  header .note { margin-left: auto; font-size: 11px; color: #8b909c; }
+
+  /* ── 이미지 그리드 (시안 탭) ── */
+  .grid {
+    flex: 1 1 auto; display: grid; gap: 10px; padding: 12px; min-height: 0;
+  }
+  .card {
+    position: relative; background: #1d2026; border: 1px solid #2a2d35; border-radius: 10px;
+    overflow: hidden; display: flex; flex-direction: column; min-height: 0;
+    text-decoration: none; color: inherit; cursor: zoom-in;
+    transition: border-color .15s, transform .15s;
+  }
+  .card.link { cursor: pointer; }
+  .card:hover { border-color: #5b6cff; transform: translateY(-2px); }
+  .card img { flex: 1 1 auto; width: 100%; min-height: 0; object-fit: contain; background: #0e0f12; padding: 4px; }
+  .card.link img { object-fit: cover; }
+  .cap { flex: 0 0 auto; padding: 7px 10px; display: flex; align-items: baseline; gap: 8px; border-top: 1px solid #2a2d35; }
+  .cap b { font-size: 13px; white-space: nowrap; }
+  .cap em { font-size: 11px; color: #8b909c; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cap .arrow { margin-left: auto; color: #5b6cff; font-weight: 700; font-size: 12px; }
+  .used { font-size: 10px; color: #6b7280; padding: 0 10px 7px; }
+  .tag {
+    position: absolute; top: 8px; left: 8px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+    background: rgba(0,0,0,.55); color: #fff; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── 개요 스토리 (스크롤) ── */
+  #overview { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 30px 40px 70px; }
+  .ov-wrap { max-width: 1700px; margin: 0 auto; }
+  .ov-hero h2 { font-size: 32px; font-weight: 800; letter-spacing: -.3px; }
+  .ov-hero p { margin-top: 12px; color: #b6bbc6; font-size: 17px; line-height: 1.7; }
+  .ov-sec { margin-top: 44px; }
+  .ov-sec > h3 { font-size: 23px; font-weight: 700; display: flex; align-items: center; gap: 11px; }
+  .ov-sec > h3 .num { background: #5b6cff; color: #fff; width: 31px; height: 31px; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-size: 16px; }
+  .ov-sec > .lead { margin: 12px 0 18px; color: #b6bbc6; font-size: 16px; line-height: 1.7; }
+  .concepts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .concept { background: #1d2026; border: 1px solid #2a2d35; border-radius: 14px; padding: 20px; }
+  .concept .ico { font-size: 40px; }
+  .concept b { display: block; margin-top: 10px; font-size: 18px; }
+  .concept span { display: block; margin-top: 8px; color: #9aa0ac; font-size: 14.5px; line-height: 1.55; }
+  .ov-shot { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .ov-shot img { width: 620px; max-width: 100%; border-radius: 12px; border: 1px solid #2a2d35; }
+  .ov-shot .txt { flex: 1; min-width: 320px; color: #b6bbc6; font-size: 16px; line-height: 1.85; }
+  .stylestrip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 6px; }
+  .stylestrip img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; border: 1px solid #2a2d35; }
+  .preview4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .preview4 figure { background:#1d2026; border:1px solid #2a2d35; border-radius:12px; overflow:hidden; }
+  .preview4 img { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+  .preview4 figcaption { font-size: 14px; color: #9aa0ac; padding: 9px 11px; }
+  .gotab { display: inline-block; margin-top: 14px; font-size: 15px; font-weight: 700; color: #fff; background:#5b6cff; padding: 10px 18px; border-radius: 9px; border: none; cursor: pointer; }
+  .conclusion { margin-top: 24px; background: linear-gradient(135deg,#23304d,#1d2330); border: 1px solid #3a4a6b; border-radius: 14px; padding: 24px; }
+  .conclusion b { font-size: 18px; }
+  .conclusion p { margin-top: 11px; color: #c7ccd6; font-size: 16px; line-height: 1.8; }
+
+  /* ── 확대 오버레이 ── */
+  #overlay { position: fixed; inset: 0; background: rgba(8,9,12,.94); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 50; cursor: zoom-out; padding: 24px; }
+  #overlay.on { display: flex; }
+  #overlay img { max-width: 86vw; max-height: 84vh; object-fit: contain; border-radius: 8px; }
+  #overlay .cap2 { font-size: 14px; color: #cfd2da; }
+  .hint { font-size: 11px; color: #6b7280; }
+  .navbtn {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(255,255,255,.10); color: #fff; border: 1px solid rgba(255,255,255,.25);
+    font-size: 34px; line-height: 1; cursor: pointer; z-index: 60;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .navbtn:hover { background: rgba(91,108,255,.85); }
+  .navbtn.left { left: 26px; }
+  .navbtn.right { right: 26px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>뮤노폴리(가제) · 아트 탐색</h1>
+    <div class="tabs">
+      <button class="tab active" data-tab="overview">개요</button>
+      <button class="tab" data-tab="refs">참고 그림체</button>
+      <button class="tab" data-tab="demoui">현재 UI · 16종 ⭐</button>
+      <button class="tab" data-tab="layout">과정 · 레이아웃 탐색</button>
+      <button class="tab" data-tab="style">과정 · 진화 그림체 6종</button>
+      <button class="tab" data-tab="hell">지옥→천국 8종</button>
+      <button class="tab" data-tab="climb">암벽 8종</button>
+      <button class="tab" data-tab="hurdle">허들 6종</button>
+      <button class="tab" data-tab="penguin">펭귄 14종 🐧</button>
+    </div>
+    <span class="note">시안=클릭 확대 · 참고=클릭 링크</span>
+  </header>
+
+  <!-- 개요 스토리 -->
+  <div id="overview">
+    <div class="ov-wrap">
+      <div class="ov-hero">
+        <h2>뮤노폴리(가제) — 아트 컨셉 &amp; 그림체 탐색</h2>
+        <p><b>게임 한 줄:</b> 0번 칸에서 시작해 주사위를 굴려 15번 칸에 도달하면 승리하는 짧은 확률 보드게임.
+        주사위는 -3~+3칸 이동(마이너스 쪽이 잘 나와 약오름), 지나온 칸은 함정으로 변해 0으로 리셋, 코인을 모아 상점에서 확률을 강화.<br>
+        <b>이 자료의 목적:</b> 이 게임에 어떤 <b>컨셉(테마)</b>과 <b>그림체</b>를 입힐지 함께 정하기 위해, 지금까지 탐색한 가능성들을 모았습니다.</p>
+      </div>
+
+      <!-- ① 4컨셉 -->
+      <div class="ov-sec">
+        <h3><span class="num">1</span> 내가 고안한 5개 컨셉</h3>
+        <div class="lead">게임 규칙(0→15·주사위·함정·코인·상점)은 그대로 두고, 거기에 입힐 <b>테마(주인공 + 무대)</b>를 5개 고안했어요. 전부 "밑바닥에서 꼭대기까지 오른다"는 구조가 같습니다.</div>
+        <div class="concepts">
+          <div class="concept"><div class="ico">🐵</div><b>① 진화</b><span>유인원(0) → 현대인(15). 실패하면 이상하게 퇴화.</span></div>
+          <div class="concept"><div class="ico">😈</div><b>② 지옥→천국</b><span>꼬마 악마가 지옥 밑바닥(0) → 천국(15).</span></div>
+          <div class="concept"><div class="ico">🧗</div><b>③ 암벽 등반</b><span>등반가가 절벽 밑(0) → 정상 깃발(15).</span></div>
+          <div class="concept"><div class="ico">🏃</div><b>④ 허들 달리기</b><span>선수가 출발선(0) → 결승선(15).</span></div>
+          <div class="concept"><div class="ico">🐧</div><b>⑤ 펭귄 (NEW)</b><span>펭귄이 얼음 경사를 밑(0) → 정상(15). 미끄러짐 연출·크레바스 함정·물고기 코인. 목표 2종(둥지알/직장인 출근).</span></div>
+        </div>
+      </div>
+
+      <!-- ② UI 디벨롭 -->
+      <div class="ov-sec">
+        <h3><span class="num">2</span> 현재 게임 UI를 이렇게 디벨롭</h3>
+        <div class="lead">현재 데모는 길을 아래→위로 올라가는 화면인데, 디자인을 거의 안 입힌 상태였어요.</div>
+        <div class="ov-shot">
+          <img src="_generated/current-ui-v4-3.png" alt="현재 데모 UI">
+          <div class="txt">
+            현재 UI = <b>가로 3분할 대시보드</b> (왼쪽 세로 보드 0→15 · 가운데 확률표/주사위/ROLL · 오른쪽 코인/상점).<br><br>
+            여기서 두 갈래로 디벨롭했어요:<br>
+            • <b>ⓐ 백지 설계</b> — "지금 UI는 잊고 규칙만 보고 새로 그려봐" → 길 모양·배치를 자유롭게 탐색<br>
+            • <b>ⓑ 현재 구조 유지</b> — 이 3분할은 그대로 두고 <b>그림체만</b> 갈아입히기 ← 최종 채택 방향<br><br>
+            <b>※ 펭귄 컨셉(⑤)은 예외:</b> 얼음 <b>경사</b>가 보여야 미끄러지는 맛이 살기 때문에, 이 3분할 데모 UI는 안 맞아요. 그래서 펭귄은 <b>화면을 AI가 자유롭게 설계</b>한 버전으로만 봅니다(아래 [펭귄 14종] 탭).<br>
+            <button class="gotab" onclick="goTab('layout')">→ 레이아웃 탐색 보기</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ③ 그림체 -->
+      <div class="ov-sec">
+        <h3><span class="num">3</span> 검토한 그림체 12종</h3>
+        <div class="lead">인디 게임 아트에서 후보 그림체 12종을 모았어요. 실제 게임은 [참고 그림체] 탭에서 링크로 볼 수 있어요.</div>
+        <div class="stylestrip" id="ovStrip"></div>
+        <button class="gotab" onclick="goTab('refs')">→ 참고 그림체 12종 (링크)</button>
+      </div>
+
+      <!-- ④ 결과 -->
+      <div class="ov-sec">
+        <h3><span class="num">4</span> 적용해보니 이런 결과</h3>
+        <div class="lead">현재 3분할 UI에 <b>4컨셉 × 4그림체(점프킹·QWOP·피쿠니쿠·니드호그) = 16장</b>을 입혀봤어요. (컨셉별로 더 많은 그림체를 본 탭도 있어요)</div>
+        <div class="preview4">
+          <figure><img src="_generated/current-ui-skins/evolution-jumpking.png" alt=""><figcaption>진화 · 점프킹</figcaption></figure>
+          <figure><img src="_generated/current-ui-skins/hell-nidhogg.png" alt=""><figcaption>지옥 · 니드호그</figcaption></figure>
+          <figure><img src="_generated/current-ui-skins/climb-pikuniku.png" alt=""><figcaption>암벽 · 피쿠니쿠</figcaption></figure>
+          <figure><img src="_generated/current-ui-skins/hurdle-qwop.png" alt=""><figcaption>허들 · QWOP</figcaption></figure>
+        </div>
+        <button class="gotab" onclick="goTab('demoui')">→ 현재 UI · 16종 전체 보기 ⭐</button>
+        <button class="gotab" onclick="goTab('penguin')" style="background:#2b8a6b">→ 펭귄 14종 보기 🐧 (목표 2종 × 7그림체)</button>
+
+        <div class="conclusion">
+          <b>👉 이 회의에서 정하고 싶은 것</b>
+          <p><b>우선 "어느 컨셉으로 갈지"</b>를 먼저 정하면 좋겠어요(진화 / 지옥→천국 / 암벽 / 허들 / 펭귄). 그림체는 컨셉이 정해진 뒤에 좁히면 됩니다.<br>
+          ※ 지금 그림들은 느낌 확인용 초안이라 <b>계속 다듬을 예정</b>이에요(컨셉·그림체 종류와 개수는 유지, 이미지만 교체).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 이미지 그리드 -->
+  <div class="grid" id="grid" style="display:none"></div>
+
+  <div id="overlay">
+    <button class="navbtn left" id="ovPrev" title="이전 (←)">‹</button>
+    <img id="ovImg" alt="">
+    <button class="navbtn right" id="ovNext" title="다음 (→)">›</button>
+    <div class="cap2" id="ovCap"></div>
+    <div class="hint">← → 방향키 또는 좌우 화살표로 이동 · 빈 곳 클릭하면 닫혀요</div>
+  </div>
+
+<script>
+  const REFS = [
+    { n: "점프킹 (Jump King)", v: "레트로 16비트 픽셀, 묵직한 등반", used: "진화·지옥·암벽·허들·현재UI",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1061090/header.jpg",
+      link: "https://store.steampowered.com/app/1061090/Jump_King/" },
+    { n: "QWOP", v: "조잡한 플래시 웹게임, B급 개그 (원조가 달리기)", used: "진화·지옥·암벽·허들·현재UI",
+      img: "https://upload.wikimedia.org/wikipedia/en/7/7e/QWOP_screenshot.png",
+      link: "https://www.foddy.net/legacy/Athletics.html" },
+    { n: "피쿠니쿠 (Pikuniku)", v: "말랑 플랫 카툰, 통통 단색", used: "진화·지옥·암벽·허들·현재UI",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/572890/header.jpg",
+      link: "https://store.steampowered.com/app/572890/Pikuniku/" },
+    { n: "니드호그 (Nidhogg)", v: "네온 색면 + 픽셀, 레트로 아케이드", used: "진화·암벽·허들·현재UI",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/94400/header.jpg",
+      link: "https://store.steampowered.com/app/94400/Nidhogg/" },
+    { n: "셀레스트 (Celeste)", v: "감성 픽셀, 황혼빛 분위기", used: "진화·암벽",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/504230/header.jpg",
+      link: "https://store.steampowered.com/app/504230/Celeste/" },
+    { n: "헬테이커 (Helltaker)", v: "굵은 라인 만화·애니, 검정+레드", used: "진화·지옥",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1289310/header.jpg",
+      link: "https://store.steampowered.com/app/1289310/Helltaker/" },
+    { n: "Mount Your Friends", v: "조잡 근육 럭돌, 물리 개그", used: "지옥·암벽·허들",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/296470/header.jpg",
+      link: "https://store.steampowered.com/app/296470/Mount_Your_Friends/" },
+    { n: "Reigns", v: "미니멀 플랫 중세 카드", used: "지옥·허들",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/474750/header.jpg",
+      link: "https://store.steampowered.com/app/474750/Reigns/" },
+    { n: "두들갓 (Doodle God)", v: "칠판 분필 낙서, 연금술 아이콘", used: "지옥",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/348360/header.jpg",
+      link: "https://store.steampowered.com/app/348360/Doodle_God/" },
+    { n: "Skul: The Hero Slayer", v: "정교한 다크판타지 픽셀", used: "지옥",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1147560/header.jpg",
+      link: "https://store.steampowered.com/app/1147560/Skul_The_Hero_Slayer/" },
+    { n: "Getting Over It", v: "항아리맨 + 잡동사니 산, 멜랑콜리", used: "암벽",
+      img: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/240720/header.jpg",
+      link: "https://store.steampowered.com/app/240720/Getting_Over_It_with_Bennett_Foddy/" },
+    { n: "국립공원 포스터 (WPA)", v: "빈티지 여행 포스터, 플랫 색면", used: "암벽",
+      img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/North_Cascades_National_Park_Poster%2C_1972.jpg/480px-North_Cascades_National_Park_Poster%2C_1972.jpg",
+      link: "https://commons.wikimedia.org/wiki/Category:WPA_posters,_National_Park_Service" },
+  ];
+
+  const SETS = {
+    demoui: [
+      { n: "진화 · 점프킹",   v: "현재 3분할 UI · 레트로 픽셀", f: "_generated/current-ui-skins/evolution-jumpking.png" },
+      { n: "진화 · QWOP",     v: "현재 3분할 UI · 막대 B급", f: "_generated/current-ui-skins/evolution-qwop.png" },
+      { n: "진화 · 피쿠니쿠", v: "현재 3분할 UI · 말랑 플랫", f: "_generated/current-ui-skins/evolution-pikuniku.png" },
+      { n: "진화 · 니드호그", v: "현재 3분할 UI · 네온 픽셀", f: "_generated/current-ui-skins/evolution-nidhogg.png" },
+      { n: "지옥 · 점프킹",   v: "현재 3분할 UI · 레트로 픽셀", f: "_generated/current-ui-skins/hell-jumpking.png" },
+      { n: "지옥 · QWOP",     v: "현재 3분할 UI · 막대 B급", f: "_generated/current-ui-skins/hell-qwop.png" },
+      { n: "지옥 · 피쿠니쿠", v: "현재 3분할 UI · 말랑 플랫", f: "_generated/current-ui-skins/hell-pikuniku.png" },
+      { n: "지옥 · 니드호그", v: "현재 3분할 UI · 네온 픽셀", f: "_generated/current-ui-skins/hell-nidhogg.png" },
+      { n: "암벽 · 점프킹",   v: "현재 3분할 UI · 레트로 픽셀", f: "_generated/current-ui-skins/climb-jumpking.png" },
+      { n: "암벽 · QWOP",     v: "현재 3분할 UI · 막대 B급", f: "_generated/current-ui-skins/climb-qwop.png" },
+      { n: "암벽 · 피쿠니쿠", v: "현재 3분할 UI · 말랑 플랫", f: "_generated/current-ui-skins/climb-pikuniku.png" },
+      { n: "암벽 · 니드호그", v: "현재 3분할 UI · 네온 픽셀", f: "_generated/current-ui-skins/climb-nidhogg.png" },
+      { n: "허들 · 점프킹",   v: "현재 3분할 UI · 레트로 픽셀", f: "_generated/current-ui-skins/hurdle-jumpking.png" },
+      { n: "허들 · QWOP",     v: "현재 3분할 UI · 막대 B급", f: "_generated/current-ui-skins/hurdle-qwop.png" },
+      { n: "허들 · 피쿠니쿠", v: "현재 3분할 UI · 말랑 플랫", f: "_generated/current-ui-skins/hurdle-pikuniku.png" },
+      { n: "허들 · 니드호그", v: "현재 3분할 UI · 네온 픽셀", f: "_generated/current-ui-skins/hurdle-nidhogg.png" },
+    ],
+    style: [
+      { n: "피쿠니쿠 (Pikuniku)", v: "말랑·귀여운 플랫 카툰", f: "_generated/evolution-1/v4-style-pikuniku.png" },
+      { n: "Nidhogg",            v: "네온 색면+픽셀, 쨍·강렬", f: "_generated/evolution-1/v4-style-nidhogg.png" },
+      { n: "점프킹 (Jump King)",  v: "돌·중세 레트로 픽셀", f: "_generated/evolution-1/v4-style-jumpking.png" },
+      { n: "셀레스트 (Celeste)",  v: "황혼빛 감성 픽셀", f: "_generated/evolution-1/v4-style-celeste.png" },
+      { n: "헬테이커 (Helltaker)", v: "검정+레드 만화, 힙·강렬", f: "_generated/evolution-1/v4-style-helltaker.png" },
+      { n: "QWOP",               v: "조잡한 웹게임, B급 개그", f: "_generated/evolution-1/v4-style-qwop.png" },
+    ],
+    layout: [
+      { n: "점프킹 · 구불길",     v: "S자로 굽이치는 길 + 하단 액션바", f: "_generated/blank-slate/blank-jumpking.png" },
+      { n: "점프킹 · 세로 상승",  v: "0→15 위로 등반하는 돌탑", f: "_generated/blank-slate/layouts/layout-jk-vertical.png" },
+      { n: "점프킹 · 나선형",     v: "바깥→중심으로 감기는 나선", f: "_generated/blank-slate/layouts/layout-jk-spiral.png" },
+      { n: "QWOP · 가로 한 줄",   v: "한 줄 트랙 + 중앙 큰 ROLL", f: "_generated/blank-slate/blank-qwop.png" },
+      { n: "QWOP · 가운데 큰 보드", v: "보드가 화면 꽉, HUD는 코너", f: "_generated/blank-slate/layouts/layout-qwop-arena.png" },
+      { n: "QWOP · 세로 양분",    v: "왼쪽 길 + 오른쪽 상점 대시보드", f: "_generated/blank-slate/layouts/layout-qwop-split.png" },
+    ],
+    hell: [
+      { n: "두들갓 (Doodle God)", v: "칠판 분필 낙서 + 펜타그램", f: "_generated/hell-to-heaven/hell-doodlegod.png" },
+      { n: "헬테이커 (Helltaker)", v: "검정+레드 만화, 힙", f: "_generated/hell-to-heaven/hell-helltaker.png" },
+      { n: "점프킹 (Jump King)",  v: "중세 돌·레트로 픽셀", f: "_generated/hell-to-heaven/hell-jumpking.png" },
+      { n: "Mount Your Friends",  v: "조잡·근육 럭돌 B급", f: "_generated/hell-to-heaven/hell-mountyourfriends.png" },
+      { n: "피쿠니쿠 (Pikuniku)", v: "말랑 플랫 카툰", f: "_generated/hell-to-heaven/hell-pikuniku.png" },
+      { n: "QWOP",               v: "막대인간 웹게임 B급", f: "_generated/hell-to-heaven/hell-qwop.png" },
+      { n: "Reigns",             v: "미니멀 플랫 중세 카드", f: "_generated/hell-to-heaven/hell-reigns.png" },
+      { n: "Skul: Hero Slayer",  v: "정교한 다크판타지 픽셀", f: "_generated/hell-to-heaven/hell-skul.png" },
+    ],
+    climb: [
+      { n: "점프킹 (Jump King)",  v: "절벽 돌홀드 레트로 픽셀", f: "_generated/climbing/climb-jumpking.png" },
+      { n: "셀레스트 (Celeste)",  v: "황혼빛 감성 픽셀 산", f: "_generated/climbing/climb-celeste.png" },
+      { n: "Getting Over It",     v: "잡동사니 산+항아리맨, 멜랑콜리", f: "_generated/climbing/climb-gettingoverit.png" },
+      { n: "Mount Your Friends",  v: "조잡·근육 럭돌 B급", f: "_generated/climbing/climb-mountyourfriends.png" },
+      { n: "국립공원 포스터",      v: "빈티지 WPA 여행 포스터", f: "_generated/climbing/climb-nationalpark.png" },
+      { n: "QWOP",               v: "막대인간 웹게임 B급", f: "_generated/climbing/climb-qwop.png" },
+      { n: "피쿠니쿠 (Pikuniku)", v: "말랑 플랫 카툰", f: "_generated/climbing/climb-pikuniku.png" },
+      { n: "니드호그 (Nidhogg)",  v: "네온 색면 + 픽셀", f: "_generated/climbing/climb-nidhogg.png" },
+    ],
+    hurdle: [
+      { n: "Reigns",             v: "미니멀 플랫 카드", f: "_generated/hurdle/hurdle-reigns.png" },
+      { n: "점프킹 (Jump King)",  v: "레트로 픽셀 트랙", f: "_generated/hurdle/hurdle-jumpking.png" },
+      { n: "Mount Your Friends",  v: "조잡·근육 럭돌 B급", f: "_generated/hurdle/hurdle-mountyourfriends.png" },
+      { n: "QWOP",               v: "막대인간 웹게임 B급 (원조 달리기)", f: "_generated/hurdle/hurdle-qwop.png" },
+      { n: "피쿠니쿠 (Pikuniku)", v: "말랑 플랫 카툰", f: "_generated/hurdle/hurdle-pikuniku.png" },
+      { n: "니드호그 (Nidhogg)",  v: "네온 색면 + 픽셀", f: "_generated/hurdle/hurdle-nidhogg.png" },
+    ],
+    penguin: [
+      { n: "알 · 두들갓",   v: "정상 둥지알 · 칠판 낙서", f: "_generated/penguin/penguin-egg-doodlegod.png" },
+      { n: "알 · Reigns",   v: "정상 둥지알 · 미니멀 카드", f: "_generated/penguin/penguin-egg-reigns.png" },
+      { n: "알 · 점프킹",   v: "정상 둥지알 · 레트로 픽셀", f: "_generated/penguin/penguin-egg-jumpking.png" },
+      { n: "알 · MYF",      v: "정상 둥지알 · 럭돌 B급", f: "_generated/penguin/penguin-egg-mountyourfriends.png" },
+      { n: "알 · QWOP",     v: "정상 둥지알 · 막대 B급", f: "_generated/penguin/penguin-egg-qwop.png" },
+      { n: "알 · 피쿠니쿠", v: "정상 둥지알 · 말랑 플랫", f: "_generated/penguin/penguin-egg-pikuniku.png" },
+      { n: "알 · 니드호그", v: "정상 둥지알 · 네온 픽셀", f: "_generated/penguin/penguin-egg-nidhogg.png" },
+      { n: "직장인 · 두들갓",   v: "정상 OFFICE · 칠판 낙서", f: "_generated/penguin/penguin-office-doodlegod.png" },
+      { n: "직장인 · Reigns",   v: "정상 OFFICE · 미니멀 카드", f: "_generated/penguin/penguin-office-reigns.png" },
+      { n: "직장인 · 점프킹",   v: "정상 OFFICE · 레트로 픽셀", f: "_generated/penguin/penguin-office-jumpking.png" },
+      { n: "직장인 · MYF",      v: "정상 OFFICE · 럭돌 B급", f: "_generated/penguin/penguin-office-mountyourfriends.png" },
+      { n: "직장인 · QWOP",     v: "정상 OFFICE · 막대 B급", f: "_generated/penguin/penguin-office-qwop.png" },
+      { n: "직장인 · 피쿠니쿠", v: "정상 OFFICE · 말랑 플랫", f: "_generated/penguin/penguin-office-pikuniku.png" },
+      { n: "직장인 · 니드호그", v: "정상 OFFICE · 네온 픽셀", f: "_generated/penguin/penguin-office-nidhogg.png" },
+    ],
+  };
+
+  const grid = document.getElementById('grid');
+  const overview = document.getElementById('overview');
+  const overlay = document.getElementById('overlay');
+  const ovImg = document.getElementById('ovImg');
+  const ovCap = document.getElementById('ovCap');
+
+  // 개요 §3 그림체 미니 썸네일 채우기
+  document.getElementById('ovStrip').innerHTML =
+    REFS.map(r => '<img src="' + r.img + '" title="' + r.n + '" alt="' + r.n + '" loading="lazy">').join('');
+
+  function gridShape(tab, n) {
+    if (tab === 'refs') return { rows: 3, cols: 4 };
+    if (tab === 'penguin') return { rows: 2, cols: 7 };   // 알 7 / 직장인 7
+    const rows = n > 8 ? 4 : 2;
+    return { rows, cols: Math.ceil(n / rows) };
+  }
+
+  function render(tab) {
+    grid.innerHTML = '';
+    if (tab === 'refs') {
+      const { rows, cols } = gridShape(tab, REFS.length);
+      grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+      grid.style.gridTemplateRows = 'repeat(' + rows + ', 1fr)';
+      REFS.forEach((it, i) => {
+        const a = document.createElement('a');
+        a.className = 'card link'; a.href = it.link; a.target = '_blank'; a.rel = 'noopener';
+        a.innerHTML =
+          '<div class="tag">' + (i + 1) + '</div>' +
+          '<img src="' + it.img + '" alt="' + it.n + '" loading="lazy">' +
+          '<div class="cap"><b>' + it.n + '</b><em>' + it.v + '</em><span class="arrow">열기 ↗</span></div>' +
+          '<div class="used">쓴 곳: ' + it.used + '</div>';
+        grid.appendChild(a);
+      });
+      return;
+    }
+    const data = SETS[tab];
+    currentList = data;
+    const { rows, cols } = gridShape(tab, data.length);
+    grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    grid.style.gridTemplateRows = 'repeat(' + rows + ', 1fr)';
+    data.forEach((it, i) => {
+      const fig = document.createElement('div');
+      fig.className = 'card';
+      fig.innerHTML =
+        '<div class="tag">' + (i + 1) + '</div>' +
+        '<img src="' + it.f + '" alt="' + it.n + '">' +
+        '<div class="cap"><b>' + it.n + '</b><em>' + it.v + '</em></div>';
+      fig.addEventListener('click', () => openOverlayAt(i));
+      grid.appendChild(fig);
+    });
+  }
+
+  function setView(tab) {
+    if (tab === 'overview') {
+      overview.style.display = 'block';
+      grid.style.display = 'none';
+    } else {
+      overview.style.display = 'none';
+      grid.style.display = 'grid';
+      render(tab);
+    }
+  }
+
+  function goTab(tab) {
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    setView(tab);
+  }
+
+  let currentList = [];
+  let currentIndex = 0;
+
+  function openOverlayAt(i) {
+    if (!currentList.length) return;
+    currentIndex = (i + currentList.length) % currentList.length;
+    const it = currentList[currentIndex];
+    ovImg.src = it.f;
+    ovCap.textContent = it.n + " — " + it.v + "  (" + (currentIndex + 1) + "/" + currentList.length + ")";
+    overlay.classList.add('on');
+  }
+  function navOverlay(d) {
+    if (!overlay.classList.contains('on') || !currentList.length) return;
+    openOverlayAt(currentIndex + d);
+  }
+
+  // 빈 곳 클릭 → 닫기 (이미지/화살표 클릭은 제외)
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target === ovImg) overlay.classList.remove('on');
+  });
+  document.getElementById('ovPrev').addEventListener('click', (e) => { e.stopPropagation(); navOverlay(-1); });
+  document.getElementById('ovNext').addEventListener('click', (e) => { e.stopPropagation(); navOverlay(1); });
+  document.addEventListener('keydown', e => {
+    if (!overlay.classList.contains('on')) return;
+    if (e.key === 'Escape') overlay.classList.remove('on');
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); navOverlay(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); navOverlay(1); }
+  });
+
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => goTab(btn.dataset.tab));
+  });
+
+  setView('overview');
+</script>
+</body>
+</html>
