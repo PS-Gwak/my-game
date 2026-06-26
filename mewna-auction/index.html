@@ -1,0 +1,3809 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>경매장 시연 — 뮤나리자 v11.05</title>
+
+  <!-- 경매 엔진 스타일시트 — 단독 페이지라 처음부터 항상 켠 상태 (본 게임과 달리 disabled 없음) -->
+  <link rel="stylesheet" href="modules/auction-engine/v6-engine.css">
+
+  <style>
+    /* ── 데모 전용 스타일 ──────────────────────────────────────────── */
+
+    /* 시작·결과 화면을 경매 엔진 위에 덮는 레이어 */
+    /* 시안 A: 반투명(0.97) → 풀 불투명 단색으로 변경.
+       비유: 반투명 커튼이라 뒤(규칙·인격 화면)가 희미하게 비치던 걸,
+             빛이 안 새는 암막 커튼으로 바꿔 설정 팝업만 깔끔히 보이게. */
+    .demo-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: #0c0905;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+    }
+
+    /* 화면 숨기기 토글 */
+    .demo-screen.hidden { display: none !important; }
+
+    /* 시작·결과 화면 안쪽 카드 */
+    .demo-card {
+      background: #1a1208;
+      border: 1px solid #5a3e1b;
+      border-radius: 12px;
+      padding: 40px 48px;
+      min-width: 380px;
+      max-width: 520px;
+      width: 90vw;
+      color: #e8d6a8;
+      font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    }
+
+    .demo-card h1 {
+      font-size: 1.8rem;
+      color: #f0c060;
+      margin: 0 0 6px 0;
+    }
+
+    .demo-card .sub {
+      font-size: 0.9rem;
+      color: #9a8060;
+      margin: 0 0 28px 0;
+    }
+
+    .demo-card label {
+      display: block;
+      font-size: 0.85rem;
+      color: #b09070;
+      margin-bottom: 6px;
+      margin-top: 18px;
+    }
+
+    .demo-card input[type="range"] {
+      width: 100%;
+      accent-color: #c88030;
+      cursor: pointer;
+    }
+
+    .demo-card select {
+      width: 100%;
+      background: #2a1f0e;
+      border: 1px solid #5a3e1b;
+      color: #e8d6a8;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      appearance: auto;
+    }
+
+    .money-display {
+      text-align: right;
+      font-size: 1.2rem;
+      color: #f0c060;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+
+    .btn-big {
+      display: block;
+      width: 100%;
+      margin-top: 24px;
+      padding: 14px 0;
+      background: linear-gradient(135deg, #8b5a1a, #c88030);
+      color: #fff8ec;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.15s;
+    }
+    .btn-big:hover { opacity: 0.88; }
+    .btn-big:active { opacity: 0.75; }
+
+    .demo-card .hint {
+      font-size: 0.78rem;
+      color: #7a6040;
+      margin-top: 14px;
+      text-align: center;
+    }
+
+    /* A안 3번 수정: 형식 배지가 화면 상단 정중앙에 떠서 상단 바(라운드·경매방식·자금) 글씨를
+       가리던 문제 해결. 시안 식별용 라벨이므로 화면 우측 '하단' 구석으로 내려 어떤 상단 타이틀과도
+       겹치지 않게 한다. (비유: 무대 한가운데 걸려 배우 얼굴 가리던 안내판을, 무대 구석 바닥으로 옮긴 것.) */
+    .format-spec-badge {
+      position: fixed;
+      bottom: 10px;
+      right: 12px;
+      z-index: 1100;
+      max-width: calc(100vw - 28px);
+      box-sizing: border-box;
+      padding: 5px 12px;
+      border: 1px solid #8a6a28;
+      border-radius: 999px;
+      background: rgba(20, 14, 6, 0.88);
+      color: #f5d37b;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: center;
+      white-space: nowrap;
+      opacity: 0.85;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+    }
+
+    /* 시안 A: 규칙·인격 보기 버튼 (설정 팝업 안, 경매 시작 바로 아래) */
+    #demo-rules-btn {
+      width: 100%;
+      margin-top: 10px;
+      background: transparent;
+      border: 1px solid #6a521e;
+      color: #d9c89a;
+      border-radius: 10px;
+      padding: 11px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    /* 규칙 참고 화면을 볼 때는 엔진 자체의 "경매 시작" 버튼을 숨긴다.
+       비유: 참고용으로 잠깐 펼친 규칙판이라 거기 박힌 진짜 시작 버튼은
+             가려두고, 오직 "설정으로 돌아가기"만 쓰게 한다. */
+    body.rules-view-open #btn-start { display: none; }
+
+    /* 시안 A: 규칙 화면(screen-start) 상단 "설정으로 돌아가기" 버튼 */
+    .rules-back-btn {
+      display: block;
+      margin: 0 auto 16px;
+      background: transparent;
+      border: 1px solid #6a521e;
+      color: #d9c89a;
+      border-radius: 10px;
+      padding: 11px 22px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    /* 결과 화면 전용 */
+    .result-card { max-width: 580px; }
+    .result-card h1 { font-size: 1.6rem; }
+    .result-card h2 { font-size: 1.1rem; color: #c8a860; margin: 22px 0 8px 0; }
+
+    .result-summary {
+      background: #2a1f0e;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 8px;
+    }
+    .result-summary .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      font-size: 0.95rem;
+    }
+    .result-summary .row span:last-child { color: #f0c060; font-weight: bold; }
+
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    .result-table th {
+      background: #2a1f0e;
+      color: #b09070;
+      padding: 7px 10px;
+      text-align: left;
+      border-bottom: 1px solid #5a3e1b;
+    }
+    .result-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid #2a1f0e;
+      color: #e8d6a8;
+    }
+    .result-table tr:last-child td { border-bottom: none; }
+    .participant-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .participant-inline .participant-cat-icon {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* ── 디버그 패널 (D 키 토글, 우측에서 슬라이드 등장) ─────────── */
+    .demo-debug {
+      position: fixed;
+      top: 0; right: 0;
+      width: 300px;
+      height: 100vh;
+      background: rgba(14, 10, 4, 0.97);
+      border-left: 1px solid #5a3e1b;
+      color: #e8d6a8;
+      padding: 28px 22px;
+      transform: translateX(100%);
+      transition: transform 0.28s ease;
+      z-index: 9999;
+      overflow-y: auto;
+      box-sizing: border-box;
+      font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    }
+    .demo-debug.open { transform: translateX(0); }
+
+    .demo-debug h3 {
+      font-size: 1rem;
+      color: #f0c060;
+      margin: 0 0 20px 0;
+      border-bottom: 1px solid #3a2a10;
+      padding-bottom: 10px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      margin-bottom: 16px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #c8b080;
+    }
+    .toggle-row input[type="checkbox"] {
+      accent-color: #c88030;
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      cursor: pointer;
+    }
+
+    .dbg-btn {
+      display: block;
+      width: 100%;
+      padding: 10px 0;
+      background: #4a2a0a;
+      border: 1px solid #8a4a1a;
+      color: #f0c060;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: background 0.15s;
+    }
+    .dbg-btn:hover { background: #6a3a12; }
+
+    .dbg-hint {
+      font-size: 0.75rem;
+      color: #5a4020;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    /* CPU 성격 라벨 숨기기 (디버그 토글로 제어) */
+    body.hide-persona-label .cpu-type { display: none; }
+
+    /* 경매 컨테이너 — 시작/결과 화면이 overlay로 덮기 때문에 항상 DOM에 존재 */
+    #screen-auction-engine {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* 디렉터 사이클 #3 (다1): intermission 그림 정보 가격 한 줄 */
+    .painting-price-line {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #888;
+    }
+    .painting-price-line .start-num { color: #b08a4f; font-weight: bold; font-size: 16px; }
+    .painting-price-line .expected-num { color: #f0c674; font-weight: bold; font-size: 16px; }
+
+    /* 시안 B: 첫 화면 버전 박스 (버전 숫자는 폴더 버저닝 시 sed로 자동 갱신됨) */
+    .ver-box {
+      display: block;
+      width: fit-content;
+      margin: 6px auto 16px;
+      background: linear-gradient(180deg, #2a1f0e, #1a1408);
+      border: 1px solid #6a521e;
+      border-radius: 10px;
+      padding: 8px 24px;
+      color: #f5a700;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-align: center;
+    }
+    .ver-box small {
+      display: block;
+      color: #aa936a;
+      font-size: 12px;
+      font-weight: normal;
+      margin-top: 3px;
+      letter-spacing: 0;
+    }
+
+    /* APP_ROP 등 긴 라벨 겹침 수정 — persona-code 폭 확대 (전역) */
+    .persona-code { width: 64px !important; }
+
+    /* 규칙 참고 화면: 스크롤 없이 한 화면에 — 압축하되 130% 여유 */
+    body.rules-view-open #screen-start .start-wrap { padding: 14px 40px !important; max-height: 100vh; overflow: hidden !important; }
+    body.rules-view-open .title-main { font-size: 40px !important; margin-bottom: 6px !important; }
+    body.rules-view-open .rules-back-btn { margin: 0 auto 11px !important; }
+    body.rules-view-open .rules-card { padding: 14px 28px !important; margin-bottom: 16px !important; }
+    body.rules-view-open .rules-card h2 { font-size: 20px !important; margin-bottom: 9px !important; }
+    body.rules-view-open .rules-list li { font-size: 16px !important; line-height: 1.55 !important; }
+    body.rules-view-open .persona-legend { padding: 14px 24px !important; margin-bottom: 0 !important; }
+    body.rules-view-open .persona-legend h2 { font-size: 18px !important; margin-bottom: 9px !important; }
+    body.rules-view-open .persona-row { font-size: 15px !important; padding: 3px 8px !important; }
+    body.rules-view-open .persona-grid { gap: 5px 16px !important; }
+
+    /* CODEX-FIX-2: 그림은 사진을 자르는 창문이 아니라, 액자 안에 통째로 거는 방식으로 맞춘다. */
+    .painting-frame-fixed {
+      width: 340px;
+      height: 340px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      background: #120c05;
+      border: 3px solid #7a5a28;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(122,90,40,0.28),
+        0 8px 22px rgba(0,0,0,0.54),
+        inset 0 0 16px rgba(0,0,0,0.42);
+    }
+    .painting-frame-fixed img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+      display: block;
+      border-radius: 1px;
+      background: #090604;
+    }
+    /* 디렉터 사이클 #7 (후보 A): intermission 화면 짤림 수정 — 그림 축소(500→340) + 아래 영역 가운데 정렬 */
+    /* 비유: 그림 액자를 적당히 줄여서 한 화면에 다 담고, 설명 카드를 가운데로 모음 */
+    #screen-intermission .painting-frame-fixed { width: 340px !important; height: 340px !important; }
+    #screen-intermission .painting-frame-fixed img {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain !important;
+      object-position: center !important;
+    }
+    #screen-intermission .painting-stage { width: 380px !important; align-items: center !important; }
+    #screen-intermission .auction-rule-card {
+      text-align: center;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #screen-intermission .auction-rule-card h2,
+    #screen-intermission .auction-rule-card p { text-align: center; }
+    #screen-intermission .tap-hint { text-align: center; }
+
+    /* 디렉터 사이클 #5 v2 (#5): 이름 강조 — 배경 박스(태그형)로 어떤 기본 색상 위에서도 시각적으로 떠오르게 */
+    /* 비유: 사회자가 말할 때 누구한테 말하는지 이름표 스티커를 붙여놓는 느낌 */
+    .log-msg .name-cpu {
+      color: #ffe680;
+      font-weight: bold;
+      background: rgba(255,138,40,0.32);
+      padding: 0 5px;
+      border-radius: 3px;
+    }
+    .log-msg .name-player {
+      color: #b6f5ff;
+      font-weight: bold;
+      background: rgba(72,178,204,0.32);
+      padding: 0 5px;
+      border-radius: 3px;
+    }
+
+    /* 디렉터 사이클 #5 hotfix v3 (Phase 2): 판매 세션 한 화면 압축 + 그림별 낙찰자 위로 올림 */
+    /* 비유: 식당 영수증을 종이 한 장에 다 담고, "오늘 산 메뉴 목록"을 첫 줄로 옮긴 것 */
+    #screen-sale .sale-main {
+      overflow: hidden !important;
+      grid-template-columns: 1fr 420px !important;
+    }
+    #screen-sale .sale-left {
+      overflow: hidden !important;
+      padding: 12px 18px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+    }
+    #screen-sale .sale-left h2 {
+      margin: 4px 0 8px !important;
+      font-size: 22px !important;
+    }
+    #screen-sale .painting-stage {
+      padding: 8px !important;
+      width: auto !important;
+      max-width: 320px !important;
+    }
+    #screen-sale .painting-img {
+      width: auto !important;
+      max-width: 280px !important;
+      max-height: 30vh !important;
+      height: auto !important;
+    }
+    #screen-sale .painting-title { font-size: 16px !important; }
+    #screen-sale .painting-category { font-size: 12px !important; margin-top: 2px !important; }
+    #screen-sale .sale-info {
+      width: 100% !important;
+      max-width: 460px !important;
+      padding: 10px 14px !important;
+      margin: 8px auto !important;
+    }
+    #screen-sale .sale-info .row {
+      padding: 4px 0 !important;
+      font-size: 14px !important;
+    }
+    #screen-sale #btn-sell, #screen-sale #btn-keep {
+      margin-top: 6px !important;
+      padding: 10px 18px !important;
+      font-size: 14px !important;
+      width: 100% !important;
+      max-width: 320px !important;
+    }
+    /* 오른쪽 컬럼 — 그림별 낙찰자를 위로, CPU 정산을 아래로 */
+    #screen-sale .sale-right {
+      padding: 12px 14px !important;
+      gap: 10px !important;
+      overflow: hidden !important;
+    }
+    #screen-sale .sale-right h3 { font-size: 16px !important; margin-bottom: 2px !important; }
+    #screen-sale .paintings-ledger {
+      order: -1 !important;          /* CPU ledger보다 위로 */
+      padding: 12px 14px !important;
+      flex-shrink: 0 !important;
+      background: #1a1408 !important;
+      border: 1px solid #f5a700 !important;  /* 강조 테두리 */
+    }
+    #screen-sale .paintings-ledger h4 {
+      font-size: 14px !important;
+      margin-bottom: 8px !important;
+      color: #f5a700 !important;
+    }
+    #screen-sale .painting-row {
+      font-size: 13px !important;
+      padding: 4px 0 !important;
+      color: #d9c89a !important;
+    }
+    #screen-sale .cpu-ledger {
+      flex: 1 !important;
+      min-height: 0 !important;
+    }
+    #screen-sale .ledger-row {
+      font-size: 11px !important;
+      padding: 6px 8px !important;
+    }
+
+    /* 디렉터 사이클 #5 (#4): 라운드 성격 태그 */
+    .round-flavor-tag {
+      margin-top: 10px;
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: bold;
+      background: #2a1f0e;
+      color: #f0c674;
+      border: 1px solid #443a25;
+    }
+    .round-flavor-tag.flavor-rush { color: #ff7a3a; border-color: #6a3a14; background: #2a1208; }
+    .round-flavor-tag.flavor-quiet { color: #88c5e0; border-color: #2c4858; background: #0d1822; }
+    .round-flavor-tag.flavor-balanced { color: #d9c89a; border-color: #443a25; background: #1a1408; }
+
+    /* 디렉터 사이클 #4.5 (나안): 디버그 패널 슬라이더 7개 한 줄 + debug-info 아래로 */
+    /* 비유: 책상 위에 펜 7개 일렬로 놓고, 메모지는 책상 아래 칸으로 옮긴 것 */
+    #debug-panel {
+      grid-template-columns: repeat(7, 1fr) !important;
+      height: auto !important;
+      min-height: 130px;
+      padding-bottom: 12px !important;
+    }
+    #debug-panel .debug-info {
+      grid-column: 1 / -1;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid #2a1f0e;
+    }
+
+    /* ==========================================================
+       UI 대개편 — 중앙 원형 무대 (사이클 #2)
+       v6-engine.css의 옛 3컬럼 클래스를 덮어쓰고 무대형 배치
+    ========================================================== */
+    #screen-auction.active {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      height: 100%;
+      overflow: hidden;
+    }
+    /* 옛 3컬럼 잔재 무력화 */
+    #screen-auction .main,
+    #screen-auction .topbar,
+    #screen-auction .col-left,
+    #screen-auction .col-mid,
+    #screen-auction .col-right { display: none !important; }
+
+    /* --- 상단 핵심 정보 띠 --- */
+    .stage-infobar {
+      display: flex; align-items: center; justify-content: center;
+      flex-wrap: wrap; gap: 8px;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, #2a1f0e, #16110a);
+      border-bottom: 2px solid #443a25;
+      flex-shrink: 0;
+      z-index: 5;
+    }
+    .info-chip {
+      display: flex; flex-direction: column; align-items: center;
+      background: #21190c; border: 1px solid #443a25; border-radius: 9px;
+      padding: 5px 14px; min-width: 78px;
+    }
+    .info-chip .ic-label { color: #9a8a66; font-size: 11px; margin-bottom: 1px; }
+    .info-chip .ic-value { color: #f0c674; font-size: 20px; font-weight: bold; line-height: 1.1; }
+    .info-chip .ic-value.strong { font-size: 26px; color: #f5a700; }
+    .info-chip.primary { border-color: #f5a700; box-shadow: 0 0 12px rgba(245,167,0,0.18); }
+    .info-chip.accent { border-color: #6aa0d8; }
+    .info-chip.accent .ic-value { color: #9cc6ee; }
+    .info-chip.budget { border-color: #5a8a45; }
+    .info-chip.budget .ic-value { color: #9fe09f; }
+    .info-chip.round .ic-value { font-size: 18px; }
+    .info-auction { color: #f0c674; font-size: 18px; font-weight: bold; padding: 0 8px; }
+    .info-hidden { display: none !important; }
+
+    /* --- 원형 무대 --- */
+    .round-stage {
+      position: relative;
+      flex: 1; min-height: 0;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 42%, rgba(245,167,0,0.10), transparent 70%),
+        radial-gradient(ellipse 120% 90% at 50% 50%, #19130a, #0d0a05 80%);
+    }
+
+    /* 무대 중앙: 사회자 + 경매품 */
+    .stage-center {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 6px;
+      z-index: 3;
+    }
+    .host-figure {
+      display: flex; flex-direction: column; align-items: center;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,0.5));
+    }
+    .host-emoji { font-size: 56px; line-height: 1; }
+    .host-podium {
+      width: 96px; height: 16px; margin-top: -4px;
+      background: linear-gradient(180deg, #5a4424, #2e2210);
+      border-radius: 6px 6px 3px 3px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    }
+    .art-stand {
+      position: relative;
+      background: #110d06; border: 2px solid #6a5430; border-radius: 10px;
+      padding: 8px;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      box-shadow: 0 0 22px rgba(245,167,0,0.16);
+    }
+    .art-stand .art-img {
+      width: 168px; height: 168px;
+      background: #2a1f0e; border-radius: 6px; overflow: hidden;
+      border: 1px solid #443a25;
+    }
+    .art-stand .art-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .art-stand .art-name { font-size: 16px; font-weight: bold; color: #f0c674; text-align: center; line-height: 1.25; }
+    .art-stand .art-cat { font-size: 12px; color: #9a8a66; text-align: center; }
+
+    /* 사회자 말풍선 */
+    .host-bubble {
+      position: absolute;
+      bottom: 100%;
+      left: 50%; transform: translateX(-50%);
+      margin-bottom: 10px;
+      max-width: 340px; min-width: 120px;
+      background: #fff6e0; color: #3a2a10;
+      border: 2px solid #f5a700; border-radius: 14px;
+      padding: 9px 14px;
+      font-size: 14px; font-weight: 600; line-height: 1.35; text-align: center;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+      opacity: 0; transition: opacity 0.25s;
+      pointer-events: none; z-index: 6;
+    }
+    .host-bubble.show { opacity: 1; }
+    .host-bubble::after {
+      content: ''; position: absolute; top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 9px solid transparent; border-top-color: #f5a700;
+    }
+    .host-bubble .name-cpu { color: #b8741a; font-weight: 700; }
+    .host-bubble .name-player { color: #1a7a86; font-weight: 700; }
+
+    /* 무대 우상단 후반 타이머 */
+    .stage-timer {
+      position: absolute; top: 12px; right: 16px; z-index: 5;
+    }
+    .stage-timer .timer-big {
+      color: #f5a700; font-size: 26px; font-weight: bold;
+      background: rgba(0,0,0,0.45); border: 1px solid #443a25; border-radius: 8px;
+      padding: 2px 12px;
+    }
+    .stage-timer .timer-big:empty,
+    .stage-timer .timer-big.is-dash { opacity: 0.25; }
+    .stage-timer .timer-big.warn { color: #ff6060; animation: blink 0.5s ease-in-out infinite alternate; }
+
+    /* 무대 하단 1위 띠 */
+    .stage-topbidder {
+      position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+      color: #f0c674; font-size: 13px;
+      background: rgba(0,0,0,0.4); border-radius: 20px;
+      padding: 3px 16px; z-index: 4;
+    }
+
+    /* --- CPU 좌석들: 무대 둘레 반원 배치 --- */
+    .cpu-ring {
+      position: absolute; inset: 0;
+      pointer-events: none;
+      z-index: 4;
+    }
+    /* 엔진이 만든 .cpu-card 4장을 절대좌표로 반원 배치 (좌상·우상·좌하·우하) */
+    .cpu-ring .cpu-card {
+      position: absolute;
+      width: 132px; min-height: auto;
+      background: #251c0d; border: 1px solid #443a25; border-radius: 12px;
+      padding: 8px 8px 9px;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      transition: all 0.18s;
+      pointer-events: auto;
+    }
+    .cpu-ring .cpu-card:nth-child(1) { top: 12%;  left: 7%; }
+    .cpu-ring .cpu-card:nth-child(2) { top: 12%;  right: 7%; }
+    .cpu-ring .cpu-card:nth-child(3) { bottom: 14%; left: 9%; }
+    .cpu-ring .cpu-card:nth-child(4) { bottom: 14%; right: 9%; }
+
+    /* 상태 표현: 현재 차례=파란 테두리 / 포기·탈락=회색 처짐. 1등은 LIVE RANKING에서만 본다. */
+    .cpu-ring .cpu-card.turn {
+      border-color: #6aa0d8;
+      box-shadow: 0 0 16px rgba(106,160,216,0.4);
+      transform: translateY(-3px);
+    }
+    .cpu-ring .cpu-card.duel {
+      border-color: #ff6060;
+      box-shadow: 0 0 0 1px rgba(255,96,96,0.5), 0 0 22px rgba(255,96,96,0.4);
+    }
+    /* 포기/탈락: 회색 처짐 */
+    .cpu-ring .cpu-card.retired,
+    .cpu-ring .cpu-card.bankrupt {
+      opacity: 0.4; filter: grayscale(0.9);
+      transform: translateY(6px) scale(0.94);
+      border-color: #333;
+    }
+    .cpu-avatar {
+      position: relative;
+      font-size: 34px; line-height: 1;
+    }
+    .cpu-face { display: inline-block; }
+    /* 생각풍선 */
+    .cpu-think {
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      margin-bottom: 6px;
+      background: #fff; color: #333;
+      border-radius: 14px; padding: 4px 10px;
+      font-size: 16px; line-height: 1;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      white-space: nowrap; z-index: 7;
+    }
+    .cpu-think::after {
+      content: ''; position: absolute; top: 100%; left: 42%;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #fff; box-shadow: -6px 4px 0 -1px #fff;
+    }
+    .cpu-think .dots span {
+      display: inline-block;
+      animation: think-bounce 1.2s infinite;
+    }
+    .cpu-think .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .cpu-think .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes think-bounce {
+      0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+      30% { opacity: 1; transform: translateY(-2px); }
+    }
+    /* CPU 입찰 말풍선 (금액) */
+    .cpu-bubble {
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      margin-bottom: 6px;
+      background: #fff6e0; color: #b8741a;
+      border: 2px solid #f5a700; border-radius: 12px;
+      padding: 4px 12px;
+      font-size: 17px; font-weight: bold; line-height: 1;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+      white-space: nowrap; z-index: 8;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .cpu-bubble.show { opacity: 1; }
+    .cpu-bubble::after {
+      content: ''; position: absolute; top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 7px solid transparent; border-top-color: #f5a700;
+    }
+    .cpu-name-line { color: #c8b48a; font-size: 12px; }
+    .cpu-persona-emoji { font-size: 13px; opacity: 0.85; }
+    .cpu-money-line { color: #80d080; font-size: 11px; }
+    .cpu-money-line.low { color: #f5a700; }
+    .cpu-money-line.broke { color: #ff8080; }
+    .cpu-status-line { color: #9a8a66; font-size: 11px; min-height: 13px; }
+
+    /* --- 플레이어 도크 (하단 내 시점) --- */
+    .player-dock {
+      display: flex; align-items: stretch; gap: 14px;
+      padding: 12px 18px 14px;
+      background: linear-gradient(0deg, #2a1f0e, #16110a);
+      border-top: 2px solid #443a25;
+      flex-shrink: 0; z-index: 5;
+    }
+    .player-seat {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-width: 96px;
+      background: #21190c; border: 2px solid #6aa0d8; border-radius: 12px;
+      padding: 8px 10px;
+    }
+    .player-seat.my-turn { box-shadow: 0 0 18px rgba(106,160,216,0.55); transform: translateY(-2px); }
+    .player-seat .player-avatar { font-size: 36px; line-height: 1; }
+    .player-seat .player-name { color: #9cc6ee; font-size: 13px; font-weight: bold; margin-top: 2px; }
+    .player-bubble {
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      margin-bottom: 8px;
+      background: #e0f2ff; color: #16435a;
+      border: 2px solid #6aa0d8; border-radius: 12px;
+      padding: 4px 12px; font-size: 14px; font-weight: bold; line-height: 1.2;
+      white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+      opacity: 0; transition: opacity 0.2s; z-index: 8;
+    }
+    .player-bubble.show { opacity: 1; }
+    .player-bubble::after {
+      content: ''; position: absolute; top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 7px solid transparent; border-top-color: #6aa0d8;
+    }
+    .dock-main { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .dock-main .turn-status {
+      color: #f0c674; background: #100c05;
+      border: 1px solid #3b2f19; border-radius: 8px;
+      font-size: 14px; font-weight: bold; text-align: center;
+      padding: 7px 10px;
+    }
+
+    /* 흘러가는 로그 컬럼 제거 — 데이터만 숨겨 보존 */
+    .log-box-hidden { display: none !important; }
+
+    /* --- 1대1 돌입 컷인 --- */
+    .duel-cutin {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.78);
+      animation: cutin-fade 1.5s ease forwards;
+    }
+    .duel-cutin.hidden { display: none; }
+    .duel-cutin-inner {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      animation: cutin-pop 1.5s ease forwards;
+    }
+    .duel-cutin-icon { font-size: 84px; line-height: 1; }
+    .duel-cutin-text {
+      color: #ff6060; font-size: 56px; font-weight: 900; letter-spacing: 4px;
+      text-shadow: 0 0 24px rgba(255,96,96,0.9), 0 4px 8px rgba(0,0,0,0.7);
+    }
+    @keyframes cutin-fade {
+      0% { opacity: 0; } 14% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; }
+    }
+    @keyframes cutin-pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      16% { transform: scale(1.12); opacity: 1; }
+      28% { transform: scale(1); }
+      80% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.05); opacity: 0; }
+    }
+
+    /* 후반 1:1 스포트라이트 — 무대에서 비참가자 흐리게 */
+    #screen-auction.duel-spotlight .cpu-ring .cpu-card:not(.duel) {
+      opacity: 0.2; filter: grayscale(0.85);
+    }
+    #screen-auction.duel-spotlight .stage-center { filter: saturate(0.7) brightness(0.8); }
+
+    /* ==========================================================
+       UI 니드호그 구조
+       오른쪽 큰 순위판, 중앙 좌측 그림, 왼쪽 경매사, 하단 전폭 비더 줄로 다시 배치한다.
+    ========================================================== */
+    #screen-auction.active {
+      display: block;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0c0905;
+    }
+
+    #screen-auction .hybrid-wrap {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      background: #0f0c07;
+    }
+
+    #screen-auction .stage {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 44% 52% at 50% 4%, rgba(240,192,96,0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 74% 34% at 50% 84%, rgba(200,128,48,0.10) 0%, transparent 68%),
+        linear-gradient(180deg, #110d07 0%, #0c0905 62%, #080603 100%);
+    }
+
+    #screen-auction .stage::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(980px, 82vw);
+      height: 270px;
+      background: radial-gradient(ellipse at 50% 100%, rgba(200,128,48,0.09) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    #screen-auction .stage::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(90,62,27,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(90,62,27,0.035) 1px, transparent 1px);
+      background-size: 56px 56px;
+      pointer-events: none;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.08) 70%);
+    }
+
+    #screen-auction .stage-corner-meta {
+      position: absolute;
+      top: 2%;
+      left: 3%;
+      z-index: 8;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 4px;
+      width: 45%;
+      height: 16%;
+      color: #9a8060;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+    }
+
+    #screen-auction .stage-corner-meta b,
+    #screen-auction .stage-corner-meta #auc-auction-name {
+      color: #f0c060;
+      font-weight: 700;
+    }
+
+    #screen-auction .stage-title-main {
+      color: #f0c060;
+      font-size: clamp(24px, 3.2vw, 42px);
+      font-weight: 1000;
+      line-height: 0.95;
+      letter-spacing: 0;
+      text-shadow: 0 0 22px rgba(240,192,96,0.24);
+    }
+
+    #screen-auction .stage-title-sub {
+      color: #b8903a;
+      font-size: clamp(11px, 1.2vw, 15px);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    #screen-auction .table-arc {
+      position: absolute;
+      bottom: 148px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(980px, 86vw);
+      height: 72px;
+      border-top: 2px solid #3a2a10;
+      border-left: 1px solid #2a1f0e;
+      border-right: 1px solid #2a1f0e;
+      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      box-shadow: 0 -16px 50px rgba(240,192,96,0.04);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    #screen-auction .stage-center {
+      position: absolute;
+      top: 14%;
+      left: 4%;
+      transform: none;
+      z-index: 4;
+      width: 56%;
+      height: 52%;
+      display: block;
+      filter: none;
+    }
+
+    #screen-auction .auctioneer {
+      position: absolute;
+      top: 23%;
+      left: 0;
+      width: 28.5%;
+      height: 54%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      filter: drop-shadow(0 5px 10px rgba(0,0,0,0.55));
+    }
+
+    #screen-auction .auctioneer-emoji {
+      font-size: clamp(38px, 5vw, 76px);
+      line-height: 1;
+    }
+
+    #screen-auction .auctioneer-name {
+      color: #9a8060;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    #screen-auction .host-bubble {
+      position: relative;
+      inset: auto;
+      transform: none;
+      margin: 0;
+      min-width: 150px;
+      max-width: 286px;
+      background: #1a1208;
+      color: #e8d6a8;
+      border: 1px solid #5a3e1b;
+      border-radius: 10px 10px 10px 2px;
+      padding: 8px 13px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.45;
+      text-align: center;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.42);
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    /* CODEX-FIX-A: 사회자 자리는 두되, 멘트 종이는 잠시 뒤집어 둔다. */
+    #screen-auction .host-bubble.show { opacity: 0; }
+    #screen-auction .host-bubble::after { display: none; }
+    #screen-auction .host-bubble .name-cpu { color: #f0c060; font-weight: 800; }
+    #screen-auction .host-bubble .name-player { color: #60c8d8; font-weight: 800; }
+
+    #screen-auction .auction-item {
+      position: absolute;
+      left: 32%;
+      top: 0;
+      width: 43%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    #screen-auction .auction-item-frame {
+      position: relative;
+      width: min(100%, 260px);
+      height: min(78%, 340px);
+      aspect-ratio: 0.78 / 1;
+      background: #1e1608;
+      border: 3px solid #7a5a28;
+      border-radius: 4px;
+      padding: 10px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(122,90,40,0.28),
+        0 8px 22px rgba(0,0,0,0.54),
+        inset 0 0 16px rgba(0,0,0,0.42);
+    }
+
+    #screen-auction .auction-item-frame::before,
+    #screen-auction .auction-item-frame::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-color: #a07830;
+      border-style: solid;
+      z-index: 2;
+    }
+
+    #screen-auction .auction-item-frame::before { top: 4px; left: 4px; border-width: 2px 0 0 2px; }
+    #screen-auction .auction-item-frame::after { bottom: 4px; right: 4px; border-width: 0 2px 2px 0; }
+
+    #screen-auction .auction-item-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+      border-radius: 1px;
+      display: block;
+      background: #090604;
+    }
+
+    #screen-auction .auction-item-frame.image-missing::before {
+      content: '🖼️';
+      position: static;
+      width: auto;
+      height: auto;
+      border: 0;
+      font-size: 42px;
+      display: block;
+    }
+
+    #screen-auction .auction-item-title {
+      color: #b8903a;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-align: center;
+      max-width: 220px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #screen-auction .auction-item-cat {
+      color: #5a4820;
+      font-size: 10px;
+      text-align: center;
+    }
+
+    #screen-auction .appraisal-tag {
+      position: absolute;
+      top: 7px;
+      right: -84px;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 70px;
+      padding: 5px 8px;
+      border: 1px solid #3a2a10;
+      border-radius: 3px;
+      background: rgba(20,15,6,0.96);
+      white-space: nowrap;
+      box-shadow: 0 5px 12px rgba(0,0,0,0.35);
+    }
+
+    #screen-auction .appraisal-tag::before {
+      content: '';
+      position: absolute;
+      left: -12px;
+      top: 50%;
+      width: 11px;
+      height: 1px;
+      background: #3a2a10;
+      transform: translateY(-50%);
+    }
+
+    #screen-auction .appraisal-tag::after {
+      content: '';
+      position: absolute;
+      left: -4px;
+      top: 50%;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #5a3e1b;
+      transform: translateY(-50%);
+    }
+
+    #screen-auction .appraisal-tag-label {
+      color: #5a4820;
+      font-size: 8px;
+      letter-spacing: 0.14em;
+    }
+
+    #screen-auction .appraisal-tag-num {
+      color: #9a8060;
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    #screen-auction .center-price-overlay {
+      position: absolute;
+      top: 30%;
+      left: 48%;
+      transform: none;
+      z-index: 5;
+      text-align: center;
+      width: 12%;
+      min-width: 128px;
+      pointer-events: none;
+    }
+
+    #screen-auction .cpo-label {
+      margin-bottom: 4px;
+      color: #9a8060;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+    }
+
+    #screen-auction .cpo-price-num {
+      color: #ffd878;
+      font-size: clamp(34px, 4.6vw, 68px);
+      font-weight: 900;
+      line-height: 0.98;
+      text-shadow:
+        0 0 24px rgba(255,216,120,0.52),
+        0 0 60px rgba(255,216,120,0.14);
+      white-space: nowrap;
+    }
+
+    #screen-auction .center-price-overlay.is-over-appraisal .cpo-price-num {
+      color: #ffd878;
+      text-shadow:
+        0 0 18px rgba(255,216,120,0.8),
+        0 0 34px rgba(255,216,120,0.66),
+        0 0 72px rgba(255,216,120,0.3);
+    }
+
+    #screen-auction .appraisal-threshold-line {
+      width: min(220px, 100%);
+      margin: 7px auto 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #b8903a;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    #screen-auction .appraisal-threshold-rule {
+      width: 54px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #b8903a, transparent);
+      box-shadow: 0 0 8px rgba(184,144,58,0.5);
+    }
+
+    #screen-auction .appraisal-threshold-value {
+      color: #e8d6a8;
+      letter-spacing: 0;
+    }
+
+    #screen-auction .cpo-winner-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 6px;
+      color: #e8d6a8;
+    }
+
+    #screen-auction .cpo-winner-crown {
+      font-size: 18px;
+      filter: drop-shadow(0 0 5px rgba(255,200,64,0.85));
+    }
+
+    #screen-auction .cpo-winner-name {
+      color: #e8d6a8;
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    #screen-auction .all-players {
+      position: absolute;
+      top: 66%;
+      left: 2%;
+      transform: none;
+      z-index: 6;
+      width: 96%;
+      height: 14%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: clamp(10px, 2.2vw, 34px);
+      padding: 0;
+      pointer-events: none;
+    }
+
+    #screen-auction .cpu-list-contents { display: contents; }
+
+    #screen-auction .all-players .cpu-card,
+    #screen-auction .all-players #player-seat {
+      position: relative;
+      width: min(16vw, 148px);
+      min-height: 86px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 4px 6px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      box-shadow: none;
+      pointer-events: auto;
+      transition: transform 0.18s, opacity 0.18s, border-color 0.18s, box-shadow 0.18s;
+    }
+
+    #screen-auction .all-players .cpu-card:nth-child(1) { order: 1; }
+    #screen-auction .all-players .cpu-card:nth-child(2) { order: 2; transform: none; }
+    #screen-auction .all-players #player-seat { order: 3; transform: none; }
+    #screen-auction .all-players .cpu-card:nth-child(3) { order: 4; transform: none; }
+    #screen-auction .all-players .cpu-card:nth-child(4) { order: 5; }
+
+    #screen-auction .all-players .cpu-card.turn {
+      border-color: #60c8d8;
+      box-shadow: 0 0 18px rgba(96,200,216,0.34);
+      transform: translateY(-6px);
+    }
+
+    #screen-auction .all-players .cpu-card.duel {
+      border-color: #e04040;
+      box-shadow: 0 0 0 1px rgba(224,64,64,0.38), 0 0 22px rgba(224,64,64,0.32);
+    }
+
+    #screen-auction .all-players #player-seat.duel {
+      border-color: #e04040;
+      box-shadow: 0 0 0 1px rgba(224,64,64,0.38), 0 0 22px rgba(224,64,64,0.32);
+    }
+
+    #screen-auction .all-players .cpu-card.retired,
+    #screen-auction .all-players .cpu-card.bankrupt {
+      opacity: 0.42;
+      filter: grayscale(0.9);
+    }
+
+    #screen-auction .cpu-avatar,
+    #screen-auction .player-avatar {
+      position: relative;
+      font-size: 31px;
+      line-height: 1;
+    }
+
+    #screen-auction .bidder-face-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 70px;
+    }
+
+    #screen-auction .cpu-face { display: inline-block; }
+
+    #screen-auction .cpu-name-line,
+    #screen-auction .player-name {
+      color: #c8b48a;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-align: center;
+      max-width: 118px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #screen-auction .player-name { color: #60c8d8; }
+
+    #screen-auction .cpu-persona-emoji { font-size: 12px; opacity: 0.85; }
+
+    #screen-auction .cpu-money-line,
+    #screen-auction .cpu-status-line {
+      color: #50b870;
+      font-size: 10px;
+      line-height: 1.15;
+      min-height: 12px;
+      text-align: center;
+    }
+
+    #screen-auction .cpu-money-line.low { color: #f0c060; }
+    #screen-auction .cpu-money-line.broke { color: #e08080; }
+    #screen-auction .cpu-status-line { color: #7a6040; }
+
+    #screen-auction .cpu-bubble,
+    #screen-auction .player-bubble {
+      position: relative;
+      inset: auto;
+      left: auto;
+      top: auto;
+      bottom: auto;
+      transform: none;
+      transform-origin: 0% 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      min-width: 62px;
+      max-width: 82px;
+      height: 31px;
+      margin: 0;
+      padding: 4px 9px 5px;
+      border-radius: 9px;
+      background: linear-gradient(180deg, #fff8e8 0%, #f8efd3 58%, #e8d6a8 100%);
+      border: 1px solid rgba(23,17,10,0.84);
+      color: #17110a;
+      font-family: 'Bebas Neue', 'Noto Sans KR', sans-serif;
+      font-size: clamp(12px, 1.08vw, 15px);
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.82),
+        inset 0 -2px 0 rgba(64,45,18,0.16),
+        0 0 0 1px rgba(255,248,232,0.22),
+        0 7px 12px rgba(0,0,0,0.46),
+        0 0 10px rgba(240,192,96,0.16);
+      box-sizing: border-box;
+      opacity: 0.82;
+      transition: opacity 0.12s ease-out, filter 0.12s ease-out, box-shadow 0.12s ease-out;
+      z-index: 9;
+    }
+
+    #screen-auction .cpu-bubble::after,
+    #screen-auction .player-bubble::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: -7px;
+      width: 3px;
+      height: 40px;
+      transform: translateY(-50%);
+      border: 1px solid rgba(232,214,168,0.58);
+      border-radius: 999px;
+      background: linear-gradient(180deg, #f2eee2 0%, #9c927f 45%, #4d4639 100%);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.42), inset 0 0 2px rgba(255,255,255,0.55);
+    }
+
+    #screen-auction .cpu-bubble.show,
+    #screen-auction .player-bubble.show {
+      opacity: 1;
+      filter: saturate(1.1);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.88),
+        inset 0 -2px 0 rgba(64,45,18,0.18),
+        0 0 0 1px rgba(255,248,232,0.28),
+        0 7px 12px rgba(0,0,0,0.46),
+        0 0 18px rgba(240,192,96,0.46);
+    }
+
+    #screen-auction .cpu-bubble.just-bid,
+    #screen-auction .player-bubble.just-bid {
+      animation: bid-picket-lift 520ms cubic-bezier(.18,.86,.22,1) both;
+    }
+
+    #screen-auction .cpu-think { display: none !important; }
+
+    #screen-auction .cpu-decision-timer {
+      --cpu-think-scale: 1;
+      position: relative;
+      width: min(92px, 74%);
+      height: 10px;
+      flex: 0 0 auto;
+      margin: -1px auto 0;
+      overflow: hidden;
+      border: 1px solid rgba(90,62,27,0.9);
+      border-radius: 999px;
+      background: rgba(12,9,5,0.76);
+      box-shadow: inset 0 0 0 1px rgba(255,248,232,0.06), 0 0 8px rgba(224,64,64,0.28);
+    }
+
+    #screen-auction .cpu-decision-timer::before {
+      content: '';
+      position: absolute;
+      inset: 1px;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #ff7a58 0%, var(--red) 72%, #9f1f1f 100%);
+      box-shadow: 0 0 8px rgba(224,64,64,0.72);
+      transform: scaleX(var(--cpu-think-scale));
+      transform-origin: left center;
+      transition: transform 90ms linear;
+      will-change: transform;
+    }
+
+    #screen-auction .cpu-decision-timer::after {
+      content: attr(data-sec);
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff8e8;
+      font-family: 'Bebas Neue', 'Noto Sans KR', sans-serif;
+      font-size: 9px;
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 0 6px rgba(12,9,5,0.9);
+    }
+
+    #screen-auction .cpu-decision-timer.urgent {
+      border-color: rgba(224,64,64,0.92);
+      animation: cpu-decision-pulse 0.48s ease-in-out infinite alternate;
+    }
+
+    @keyframes cpu-decision-pulse {
+      from { box-shadow: inset 0 0 0 1px rgba(255,248,232,0.06), 0 0 6px rgba(224,64,64,0.28); }
+      to { box-shadow: inset 0 0 0 1px rgba(255,248,232,0.12), 0 0 14px rgba(224,64,64,0.68); }
+    }
+
+    @keyframes bid-picket-lift {
+      0% { opacity: 0.72; transform: translateY(5px) rotate(-4deg) scale(0.94); }
+      58% { opacity: 1; transform: translateY(-5px) rotate(2deg) scale(1.06); }
+      78% { transform: translateY(1px) rotate(-1deg) scale(1); }
+      100% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+    }
+
+    #screen-auction .me-seat-label {
+      color: #60c8d8;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      opacity: 0.86;
+    }
+
+    #screen-auction #player-seat.my-turn {
+      border-color: #60c8d8;
+      box-shadow: 0 0 18px rgba(96,200,216,0.46), 0 8px 18px rgba(0,0,0,0.38);
+    }
+
+    #screen-auction .player-cockpit {
+      position: absolute;
+      top: 82%;
+      left: 2%;
+      width: 97%;
+      height: 16%;
+      right: auto;
+      bottom: auto;
+      z-index: 7;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 28% 1fr;
+      grid-template-areas: "left action";
+      align-items: stretch;
+      justify-content: stretch;
+      gap: 10px;
+      padding: 0;
+      background: transparent;
+      border-top: 0;
+    }
+
+    #screen-auction .cockpit-left,
+    #screen-auction .cockpit-right {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #screen-auction .cockpit-left {
+      grid-area: left;
+      flex-direction: row;
+      align-items: stretch;
+    }
+    #screen-auction .cockpit-right {
+      align-items: center;
+      justify-content: center;
+      min-width: 118px;
+      padding: 8px 10px;
+      border: 1px solid #3a2a10;
+      border-radius: 6px;
+      background: rgba(20,15,6,0.86);
+    }
+
+    #screen-auction .cockpit-timer,
+    #screen-auction .cockpit-budget {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+      padding: 9px 12px;
+      border: 1px solid #3a2a10;
+      border-radius: 6px;
+      background: rgba(20,15,6,0.86);
+    }
+
+    #screen-auction .cockpit-timer-icon { font-size: 22px; }
+    #screen-auction .cockpit-timer-label,
+    #screen-auction .cockpit-budget-label,
+    #screen-auction .cockpit-next-label {
+      color: #9a8060;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+
+    #screen-auction .cockpit-timer-num,
+    #screen-auction .cockpit-budget-value,
+    #screen-auction .cockpit-next-value {
+      color: #e8d6a8;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1.05;
+      white-space: nowrap;
+    }
+
+    #screen-auction .cockpit-timer-num {
+      color: #f0c060;
+      min-width: 38px;
+    }
+
+    #screen-auction .cockpit-timer-num.is-dash { opacity: 0.36; }
+    #screen-auction .cockpit-timer-num.warn { color: #e04040; animation: blink 0.5s ease-in-out infinite alternate; }
+    #screen-auction .cockpit-budget-value { color: #60c8d8; }
+    #screen-auction .cockpit-next-value { color: #50b870; font-size: 30px; }
+
+    #screen-auction .cockpit-next-hint {
+      margin-top: 4px;
+      color: #7a6040;
+      font-size: 11px;
+      line-height: 1.25;
+      max-width: 230px;
+    }
+
+    #screen-auction .cockpit-center {
+      grid-area: action;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: stretch;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    #screen-auction .turn-status {
+      min-width: 132px;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 12px;
+      border: 1px solid #3a2a10;
+      border-radius: 6px;
+      background: rgba(16,12,5,0.92);
+      color: #f0c060;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    #screen-auction .bid-section {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: stretch;
+    }
+
+    #screen-auction .bid-buy:not(.hidden),
+    #screen-auction .limited-row,
+    #screen-auction .sealed-row {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 10px;
+      min-width: 0;
+      width: 100%;
+    }
+
+    #screen-auction .bid-sealed:not(.hidden),
+    #screen-auction .bid-limited:not(.hidden) {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #screen-auction .bid-btn,
+    #screen-auction .bid-btn-sm {
+      min-width: 176px;
+      min-height: 46px;
+      padding: 9px 18px;
+      border-radius: 6px;
+      border: 0;
+      background: linear-gradient(135deg, #8b5a1a, #c88030);
+      color: #fff8ec;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.28);
+    }
+
+    #screen-auction .bid-raise-group {
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+    }
+
+    #screen-auction .bid-btn-raise {
+      min-width: 86px;
+      min-height: 46px;
+      padding: 8px 11px;
+      border: 1px solid #8a6a28;
+      border-radius: 6px;
+      background: rgba(42,31,14,0.96);
+      color: #ffd878;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.22);
+    }
+
+    #screen-auction .bid-btn-raise:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+      filter: grayscale(0.55);
+    }
+
+    #screen-auction .bid-btn-main {
+      display: block;
+      font-size: 16px;
+      white-space: nowrap;
+    }
+
+    #screen-auction .bid-btn-sub,
+    #screen-auction .bid-hotkey-hint,
+    #screen-auction .hint {
+      display: none;
+    }
+
+    #screen-auction .bid-btn-pass,
+    #screen-auction .bid-btn-pass-sm {
+      min-width: 108px;
+      padding: 9px 14px;
+      border: 1px solid #4a3517;
+      border-radius: 6px;
+      background: rgba(26,18,8,0.92);
+      color: #c8b48a;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    #screen-auction .bid-btn:disabled,
+    #screen-auction .bid-btn-sm:disabled,
+    #screen-auction .bid-btn-pass:disabled,
+    #screen-auction .bid-btn-pass-sm:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+      filter: grayscale(0.55);
+    }
+
+    #screen-auction input[type="number"] {
+      min-height: 42px;
+      min-width: 190px;
+      border: 1px solid #5a3e1b;
+      border-radius: 6px;
+      background: #100c05;
+      color: #e8d6a8;
+      padding: 8px 10px;
+      font-size: 15px;
+    }
+
+    #screen-auction .countdown-overlay {
+      position: absolute;
+      inset: -10px;
+      z-index: 12;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.74);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #screen-auction .countdown-overlay.hidden { display: none !important; }
+
+    #screen-auction .countdown-overlay.duel-countdown {
+      position: fixed;
+      inset: 0;
+      border-radius: 0;
+      background: rgba(0,0,0,0.66);
+    }
+
+    #screen-auction .countdown-number {
+      color: #ffd878;
+      font-size: 46px;
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 0 20px rgba(255,216,120,0.62);
+    }
+
+    #screen-auction .countdown-label {
+      margin-top: 4px;
+      color: #e8d6a8;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    #screen-auction .tension-rank-bar {
+      position: absolute;
+      top: 2%;
+      right: 1%;
+      z-index: 9;
+      width: 37%;
+      height: 64%;
+      min-width: 250px;
+      padding: 12px;
+      border: 1px solid rgba(96,200,216,0.34);
+      border-radius: 8px;
+      background: rgba(10, 12, 13, 0.82);
+      box-shadow: 0 12px 26px rgba(0,0,0,0.34);
+      pointer-events: none;
+    }
+
+    #screen-auction .rank-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+      color: #60c8d8;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+    }
+
+    #screen-auction .rank-title small {
+      color: #8a7a58;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    #screen-auction .rank-list {
+      display: grid;
+      grid-template-rows: repeat(5, minmax(42px, 1fr));
+      gap: 8px;
+      height: calc(100% - 29px);
+    }
+
+    #screen-auction .rank-row {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 7px;
+      min-height: 0;
+      padding: 8px 10px;
+      border: 1px solid rgba(90,62,27,0.58);
+      border-radius: 6px;
+      background: rgba(26,18,8,0.78);
+      color: #d8c8a8;
+      will-change: transform;
+      transition: transform 0.44s cubic-bezier(.2,.8,.2,1), opacity 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+    }
+
+    #screen-auction .rank-row.is-leader {
+      border-color: rgba(240,192,96,0.78);
+      background: linear-gradient(90deg, rgba(92,64,18,0.92), rgba(26,18,8,0.82));
+      color: #ffe39a;
+      box-shadow: 0 0 16px rgba(240,192,96,0.22);
+    }
+
+    #screen-auction .rank-row.is-retired {
+      opacity: 0.42;
+      filter: grayscale(0.9);
+      border-color: rgba(70,70,70,0.55);
+    }
+
+    #screen-auction .rank-row.is-moving-up {
+      box-shadow: 0 0 18px rgba(96,200,216,0.22);
+    }
+
+    #screen-auction .rank-row.is-moving-down {
+      box-shadow: 0 0 14px rgba(240,192,96,0.16);
+    }
+
+    #screen-auction .rank-pos {
+      color: #9a8060;
+      font-size: 13px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    #screen-auction .rank-name {
+      min-width: 0;
+      overflow: hidden;
+      color: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #screen-auction .rank-bid {
+      color: #50b870;
+      font-size: 14px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    #screen-auction .rank-row.is-leader .rank-pos,
+    #screen-auction .rank-row.is-leader .rank-bid {
+      color: #ffd878;
+    }
+
+    #screen-auction .turn-countdown-ring {
+      --turn-progress: 0deg;
+      position: relative;
+      width: 46px;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: conic-gradient(#60c8d8 var(--turn-progress), rgba(90,62,27,0.46) 0deg);
+      box-shadow: inset 0 0 0 1px rgba(96,200,216,0.14);
+    }
+
+    #screen-auction .turn-countdown-ring::before {
+      content: '';
+      position: absolute;
+      inset: 5px;
+      border-radius: 50%;
+      background: #151006;
+      box-shadow: inset 0 0 12px rgba(0,0,0,0.42);
+    }
+
+    #screen-auction .turn-countdown-ring .timer-big {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      font-size: 19px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    #screen-auction .turn-countdown-ring.idle {
+      background: conic-gradient(rgba(90,62,27,0.4) 360deg, rgba(90,62,27,0.4) 0deg);
+      opacity: 0.72;
+    }
+
+    #screen-auction .turn-countdown-ring.urgent {
+      background: conic-gradient(#e04040 var(--turn-progress), rgba(90,62,27,0.46) 0deg);
+      animation: countdown-pulse 0.52s ease-in-out infinite alternate;
+    }
+
+    @keyframes countdown-pulse {
+      from { transform: scale(1); box-shadow: 0 0 0 rgba(224,64,64,0); }
+      to { transform: scale(1.08); box-shadow: 0 0 18px rgba(224,64,64,0.36); }
+    }
+
+    .sold-hammer-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.14s ease;
+    }
+
+    .sold-hammer-overlay.hidden { display: none; }
+    .sold-hammer-overlay.show { opacity: 1; }
+
+    .sold-hammer-flash {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,232,160,0.28);
+      animation: hammer-flash 0.72s ease-out forwards;
+    }
+
+    .sold-hammer-card {
+      position: relative;
+      min-width: 280px;
+      padding: 24px 34px 26px;
+      border: 2px solid #ffd878;
+      border-radius: 8px;
+      background: rgba(15,10,4,0.94);
+      color: #fff4c4;
+      text-align: center;
+      box-shadow: 0 0 34px rgba(240,192,96,0.45), 0 18px 44px rgba(0,0,0,0.52);
+      animation: hammer-card-hit 0.78s cubic-bezier(.2,.95,.25,1.1) forwards;
+    }
+
+    .sold-hammer-count {
+      color: #60c8d8;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+    }
+
+    .sold-hammer-icon {
+      margin-top: 4px;
+      font-size: 58px;
+      line-height: 1;
+      transform-origin: 70% 70%;
+      animation: hammer-swing 0.55s ease-out forwards;
+    }
+
+    .sold-hammer-title {
+      margin-top: 2px;
+      color: #ffd878;
+      font-size: 42px;
+      font-weight: 1000;
+      line-height: 1;
+      text-shadow: 0 0 18px rgba(255,216,120,0.55);
+    }
+
+    .sold-hammer-detail {
+      margin-top: 8px;
+      color: #d8c8a8;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    @keyframes hammer-flash {
+      0% { opacity: 0; }
+      18% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes hammer-card-hit {
+      0% { transform: scale(0.72) translateY(12px); opacity: 0; }
+      48% { transform: scale(1.06) translateY(0); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes hammer-swing {
+      0% { transform: rotate(-34deg) translateY(-8px); }
+      62% { transform: rotate(12deg) translateY(2px); }
+      100% { transform: rotate(0deg) translateY(0); }
+    }
+
+    /* ==========================================================
+       CODEX-BUILD: 니드호그 최종 시안 실제 화면
+       비유: 기존 무대 위 소품은 그대로 보관하고, 관객이 보는 전면 간판만
+             확정 시안(#s-nd)처럼 다시 걸어 둔다.
+    ========================================================== */
+    #screen-auction {
+      --bg: #0c0905;
+      --bg-panel: #150f07;
+      --bg-card: #1a1208;
+      --border: #5a3e1b;
+      --border-lo: #3a2a10;
+      --border-hi: #8a6a2a;
+      --gold: #f0c060;
+      --gold-br: #ffd878;
+      --gold-dim: #b8903a;
+      --amber: #c88030;
+      --text: #e8d6a8;
+      --text-sub: #9a8060;
+      --text-dim: #5a4820;
+      --text-ghost: #3a2a10;
+      --red: #e04040;
+      --cyan: #60c8d8;
+      --green: #6aaa30;
+      --green-br: #90d840;
+      --white-hot: #fff8e8;
+    }
+
+    #screen-auction .stage {
+      background:
+        linear-gradient(rgba(90,62,27,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(90,62,27,0.04) 1px, transparent 1px),
+        radial-gradient(ellipse at 50% 0%, rgba(240,192,96,0.05) 0%, transparent 38%),
+        var(--bg);
+      background-size: 40px 40px, 40px 40px, auto, auto;
+    }
+
+    #screen-auction .stage::before,
+    #screen-auction .stage::after,
+    #screen-auction .stage-corner-meta,
+    #screen-auction .table-arc,
+    #screen-auction .auctioneer,
+    #screen-auction .host-bubble,
+    #screen-auction .center-price-overlay,
+    #screen-auction .appraisal-tag {
+      display: none !important;
+    }
+
+    #screen-auction .price-bar-wrap {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 12;
+      height: 88px;
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      padding: 12px 20px 0;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+    }
+    #screen-auction .pb-label {
+      flex-shrink: 0;
+      margin-right: 16px;
+      padding-top: 4px;
+      color: var(--gold-br);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      white-space: nowrap;
+    }
+    #screen-auction .pb-track-wrap {
+      position: relative;
+      flex: 1;
+      height: 22px;
+      margin-top: 2px;
+    }
+    #screen-auction .pb-track {
+      position: absolute;
+      top: 4px;
+      right: 0;
+      bottom: 4px;
+      left: 0;
+      overflow: visible;
+      border: 1px solid var(--border-lo);
+      border-radius: 2px;
+      background: #0a0704;
+    }
+    #screen-auction .pb-fill-base,
+    #screen-auction .pb-fill-hot,
+    #screen-auction .pb-mark-appraisal,
+    #screen-auction .pb-mark-current,
+    #screen-auction .pb-current-pointer {
+      transition: left 0.22s ease-in-out, width 0.22s ease-in-out, opacity 0.14s ease;
+    }
+    #screen-auction .pb-fill-base {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 0%;
+      border-radius: 2px 0 0 2px;
+      background: linear-gradient(90deg, #7a5010 0%, var(--amber) 60%, var(--gold-dim) 100%);
+    }
+    #screen-auction .pb-fill-hot {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0%;
+      width: 0%;
+      opacity: 0;
+      border-radius: 0 2px 2px 0;
+      background: linear-gradient(90deg, var(--gold), #fff4c0, #ffffff);
+      box-shadow: 0 0 12px rgba(255,248,200,0.6), 0 0 4px rgba(255,255,255,0.5);
+    }
+    #screen-auction .price-bar-wrap.is-over-appraisal .pb-fill-hot { opacity: 1; }
+    #screen-auction .pb-mark-appraisal {
+      position: absolute;
+      top: -18px;
+      bottom: -6px;
+      left: 40%;
+      width: 2px;
+      border-radius: 1px;
+      background: repeating-linear-gradient(to bottom, var(--gold-dim) 0, var(--gold-dim) 3px, transparent 3px, transparent 6px);
+    }
+    #screen-auction .pb-mark-current {
+      position: absolute;
+      top: -7px;
+      bottom: -7px;
+      left: 0%;
+      width: 3px;
+      border-radius: 1px;
+      background: var(--gold-br);
+      box-shadow: 0 0 10px rgba(255,220,100,0.7);
+    }
+    #screen-auction .pb-current-pointer {
+      position: absolute;
+      top: -7px;
+      left: 0%;
+      z-index: 6;
+      transform: translateX(-50%);
+      color: var(--gold-br);
+      font-size: 10px;
+      line-height: 1;
+      text-shadow: 0 0 6px rgba(255,220,100,0.8);
+    }
+    #screen-auction .pb-appraisal-label {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 40%;
+      z-index: 5;
+      transform: translateX(-50%);
+      padding: 3px 8px;
+      border: 1px solid var(--gold-dim);
+      border-radius: 3px;
+      background: var(--bg-card);
+      color: var(--gold);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+    #screen-auction .pb-appraisal-label::before,
+    #screen-auction .pb-appraisal-label::after {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-bottom-color: var(--gold-dim);
+    }
+    #screen-auction .pb-appraisal-label::after {
+      bottom: calc(100% - 1px);
+      border-width: 4px;
+      border-bottom-color: var(--bg-card);
+    }
+
+    #screen-auction .stage-center {
+      top: 12.2%;
+      left: 1%;
+      width: 43%;
+      height: 46%;
+      z-index: 4;
+    }
+    #screen-auction .auction-item {
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      gap: 0;
+    }
+    #screen-auction .auction-item-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-height: none;
+      aspect-ratio: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      padding: 0;
+      border-radius: 4px;
+      border-color: var(--border);
+      background: #100b05;
+      box-shadow:
+        0 0 0 1px rgba(90,62,27,0.24),
+        0 8px 22px rgba(0,0,0,0.54),
+        inset 0 0 30px rgba(0,0,0,0.5);
+      transition: border-color 0.18s ease-out, box-shadow 0.18s ease-out;
+    }
+    #screen-auction .auction-item-frame::before,
+    #screen-auction .auction-item-frame::after {
+      content: '';
+      display: none;
+    }
+    #screen-auction .auction-title-bar {
+      position: relative;
+      z-index: 6;
+      flex: 0 0 auto;
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px 8px 12px;
+      border-bottom: 1px solid var(--border-lo);
+      background: linear-gradient(180deg, #21170a 0%, #130d06 100%);
+      color: var(--text);
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.34);
+      transition: background 0.18s ease-out, color 0.18s ease-out, border-color 0.18s ease-out, box-shadow 0.18s ease-out;
+    }
+    #screen-auction .auction-item-frame img {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      object-position: center;
+      border-radius: 0;
+      display: block;
+      background: #090604;
+    }
+    #screen-auction .auction-item.is-over-appraisal .auction-item-frame {
+      border-color: var(--gold);
+      box-shadow:
+        0 0 0 1px rgba(255,248,232,0.42),
+        0 0 42px rgba(240,192,96,0.54),
+        0 0 14px rgba(255,216,120,0.42),
+        inset 0 0 30px rgba(0,0,0,0.5);
+      animation: appraisal-frame-gold 1120ms ease-in-out infinite;
+    }
+    #screen-auction .auction-item.is-over-appraisal .auction-title-bar {
+      border-bottom-color: rgba(255,216,120,0.58);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.34), 0 0 18px rgba(240,192,96,0.26);
+      animation: appraisal-title-hot 720ms cubic-bezier(.2,.8,.2,1) both;
+    }
+    #screen-auction .auction-item.is-over-appraisal .auction-item-title {
+      color: var(--text);
+      text-shadow: 0 0 8px rgba(255,216,120,0.28);
+    }
+    #screen-auction .auction-item.is-over-appraisal .auction-title-hot {
+      display: inline-flex;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    @keyframes appraisal-title-hot {
+      0% { filter: brightness(1); }
+      45% { filter: brightness(1.38); }
+      100% { filter: brightness(1); }
+    }
+    @keyframes appraisal-frame-gold {
+      0%, 100% {
+        border-color: var(--gold);
+        filter: brightness(1);
+      }
+      50% {
+        border-color: var(--gold-br);
+        filter: brightness(1.16);
+      }
+    }
+    #screen-auction .auction-item-title {
+      max-width: none;
+      color: inherit;
+      font-size: clamp(15px, 1.65vw, 24px);
+      font-weight: 900;
+      line-height: 1.16;
+      letter-spacing: 0;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #screen-auction .auction-title-hot {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      min-width: clamp(112px, 13vw, 162px);
+      max-width: 42%;
+      padding: 4px 8px 5px;
+      border: 1px solid rgba(255,216,120,0.82);
+      border-radius: 3px;
+      background: linear-gradient(180deg, var(--white-hot) 0%, var(--gold-br) 42%, var(--gold) 100%);
+      color: #241706;
+      font-size: clamp(11px, 1.1vw, 14px);
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: 0;
+      white-space: nowrap;
+      box-shadow: 0 0 18px rgba(240,192,96,0.58), inset 0 1px 0 rgba(255,255,255,0.65);
+      opacity: 0;
+      transform: translateY(-3px) scale(0.96);
+      transition: opacity 0.16s ease-out, transform 0.16s ease-out;
+    }
+    #screen-auction .auction-item-cat {
+      display: none;
+    }
+
+    #screen-auction .tension-rank-bar {
+      top: 12.2%;
+      left: 46%;
+      right: auto;
+      width: 53%;
+      height: 46%;
+      min-width: 0;
+      padding: 0;
+      border-color: var(--border);
+      border-radius: 3px;
+      background: var(--bg-panel);
+      box-shadow: none;
+    }
+    #screen-auction .rank-title {
+      height: 29px;
+      margin: 0;
+      padding: 6px 10px 5px;
+      border-bottom: 1px solid var(--border-lo);
+      color: var(--text-dim);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+    }
+    #screen-auction .rank-title span { color: var(--text-dim); }
+    #screen-auction .rank-title small { display: none; }
+    #screen-auction .rank-list {
+      --rank-gap: 0px;
+      --rank-row-h: calc((100% - 0px) / 5);
+      position: relative;
+      display: block;
+      height: calc(100% - 29px);
+      overflow: hidden;
+    }
+    #screen-auction .rank-row {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--rank-row-h);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 0;
+      padding: 0 10px;
+      border: 0;
+      border-bottom: 1px solid var(--border-lo);
+      border-radius: 0;
+      background: transparent;
+      color: var(--text);
+      transform: translateY(var(--rank-y, 0px));
+      transition: transform 0.42s cubic-bezier(.2,.8,.2,1), opacity 0.18s ease, background 0.18s ease;
+      will-change: transform;
+    }
+    #screen-auction .rank-row.is-leader {
+      background: rgba(240,192,96,0.07);
+      color: var(--gold-br);
+      box-shadow: none;
+    }
+    #screen-auction .rank-row.is-my-turn {
+      border-left: 2px solid var(--cyan);
+      background: rgba(96,200,216,0.05);
+    }
+    #screen-auction .rank-row.is-retired {
+      opacity: 0.38;
+      filter: grayscale(0.9);
+    }
+    #screen-auction .rank-pos {
+      flex: 0 0 18px;
+      color: var(--text-dim);
+      font-family: 'Bebas Neue', 'Noto Sans KR', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+    }
+    #screen-auction .rank-avatar {
+      flex: 0 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+    #screen-auction .rank-avatar .participant-cat-icon {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      display: block;
+    }
+    #screen-auction .rank-name {
+      flex: 1;
+      min-width: 0;
+      color: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    #screen-auction .rank-bid {
+      flex: 0 0 auto;
+      color: var(--gold);
+      font-family: 'Bebas Neue', 'Noto Sans KR', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    #screen-auction .rank-row.is-my-turn .rank-pos,
+    #screen-auction .rank-row.is-my-turn .rank-name,
+    #screen-auction .rank-row.is-my-turn .rank-bid { color: var(--cyan); }
+    #screen-auction .rank-crown {
+      flex: 0 0 18px;
+      color: var(--gold-br);
+      font-size: 16px;
+      text-align: center;
+    }
+
+    #screen-auction .all-players {
+      top: 60.2%;
+      left: 1%;
+      width: 98%;
+      height: 23.8%;
+      gap: 0;
+      justify-content: space-around;
+    }
+    #screen-auction .all-players .cpu-card,
+    #screen-auction .all-players #player-seat {
+      flex: 0 1 calc(20% - 2px);
+      width: calc(20% - 2px);
+      max-width: 180px;
+      min-height: 0;
+      height: 100%;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      gap: 3px;
+      padding-top: 10px;
+    }
+    #screen-auction .all-players .cpu-card.turn,
+    #screen-auction .all-players #player-seat.my-turn {
+      box-sizing: border-box;
+      border: 1px solid var(--cyan);
+      box-shadow: 0 0 0 1px rgba(96,200,216,0.20), 0 0 18px rgba(96,200,216,0.34);
+    }
+    #screen-auction .cpu-avatar,
+    #screen-auction .player-avatar {
+      position: relative;
+      isolation: isolate;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      border: 1px solid var(--border-lo);
+      background: var(--bg-card);
+      font-size: 38px;
+      transition: box-shadow 220ms ease-in-out, border-color 220ms ease-in-out;
+    }
+    #screen-auction .cpu-avatar .participant-cat-icon,
+    #screen-auction .player-avatar .participant-cat-icon {
+      position: relative;
+      z-index: 1;
+      width: 88%;
+      height: 88%;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+      filter: none;
+    }
+    #screen-auction .cpo-winner-name .participant-inline .participant-cat-icon,
+    #screen-auction #result-winner .participant-inline .participant-cat-icon,
+    #screen-auction .ledger-name .participant-inline .participant-cat-icon,
+    #screen-auction .painting-row .participant-inline .participant-cat-icon {
+      width: 20px;
+      height: 20px;
+    }
+    #screen-auction .cpu-name-line,
+    #screen-auction .player-name {
+      max-width: 140px;
+      color: var(--text-sub);
+      font-size: 15px;
+    }
+    #screen-auction .cpu-money-line,
+    #screen-auction .cpu-status-line {
+      color: var(--gold-dim);
+      font-size: 13px;
+    }
+    #screen-auction .me-seat-label { display: none; }
+
+    /* 번호판은 얼굴 오른쪽에 붙은 작은 가격표다.
+       비유: 고양이가 앞을 가리지 않고 옆 손잡이에 팻말을 세워 두는 방식입니다. */
+    #screen-auction .player-bubble,
+    #screen-auction .cpu-bubble {
+      position: relative;
+      inset: auto;
+      left: auto;
+      top: auto;
+      bottom: auto;
+      margin: 0;
+      z-index: 4;
+    }
+
+    #screen-auction .player-cockpit {
+      top: 85.5%;
+      left: 1%;
+      width: 98%;
+      height: 14.5%;
+      display: grid;
+      grid-template-columns: 130px minmax(0, 1fr);
+      gap: 6px;
+      padding: 0;
+      position: absolute;
+    }
+    #screen-auction .cockpit-left {
+      grid-area: auto;
+      display: block;
+      min-width: 0;
+    }
+    #screen-auction .cockpit-budget {
+      width: 100%;
+      height: 100%;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 8px 14px;
+      border: 1px solid var(--border-lo);
+      border-radius: 3px;
+      background: var(--bg-panel);
+      text-align: center;
+    }
+    #screen-auction .cockpit-budget-label {
+      color: var(--gold-br);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+    }
+    #screen-auction .cockpit-budget-value {
+      color: var(--gold-br);
+      font-family: 'Bebas Neue', 'Noto Sans KR', sans-serif;
+      font-size: 32px;
+      text-shadow: 0 0 8px rgba(255,216,120,0.35);
+    }
+    #screen-auction .cockpit-center {
+      grid-area: auto;
+      display: block;
+      min-width: 0;
+      height: 100%;
+    }
+    #screen-auction .turn-status,
+    #screen-auction .cockpit-right {
+      display: none !important;
+    }
+    #screen-auction .cockpit-timer {
+      position: absolute;
+      top: 6px;
+      right: calc(180px + 148px + 60px + 10px);
+      z-index: 15;
+      display: block;
+      width: auto;
+      min-width: 0;
+      height: auto;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      pointer-events: none;
+    }
+    #screen-auction .cockpit-timer-icon,
+    #screen-auction .cockpit-timer-label {
+      display: none;
+    }
+    #screen-auction .turn-countdown-ring {
+      width: auto;
+      height: auto;
+      border-radius: 0;
+      background: transparent !important;
+      box-shadow: none;
+    }
+    #screen-auction .turn-countdown-ring::before { display: none; }
+    #screen-auction .turn-countdown-ring .timer-big {
+      position: static;
+      min-width: 0;
+      color: #ff5050;
+      font-family: 'Bebas Neue', 'Noto Sans KR', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 0 8px rgba(255,40,40,0.6);
+    }
+    #screen-auction .bid-section {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #screen-auction #bid-btn-next-wrap:not(.hidden) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 60px 148px 180px;
+      gap: 0;
+      width: 100%;
+      height: 100%;
+      align-items: stretch;
+    }
+    #screen-auction #bid-btn-next {
+      --turn-fill: 0%;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      overflow: hidden;
+      padding: 8px 70px 12px 18px;
+      border: 0;
+      border-radius: 6px 0 0 6px;
+      background: linear-gradient(180deg,#4a8028 0%,#2a5016 100%);
+      color: #f0e8d0;
+      box-shadow: inset 0 1px 0 rgba(200,255,120,.30), inset 0 -2px 0 rgba(0,0,0,.30), 0 4px 16px rgba(40,100,10,.45);
+    }
+    #screen-auction #bid-btn-next::before {
+      content: '';
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 5px;
+      background: rgba(0,0,0,0.45);
+    }
+    #screen-auction #bid-btn-next::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      left: auto;
+      width: var(--turn-fill);
+      height: 5px;
+      background: linear-gradient(90deg,#b82020,#e83030 75%,#ff5858);
+      box-shadow: 0 0 8px rgba(220,50,50,0.85);
+      transition: width 0.12s linear;
+    }
+    #screen-auction #bid-btn-next.timer-urgent {
+      background: linear-gradient(180deg,#7c2a1e 0%,#3b130f 100%);
+      box-shadow: inset 0 1px 0 rgba(255,216,120,.22), inset 0 -2px 0 rgba(0,0,0,.34), 0 0 18px rgba(224,64,64,.36);
+    }
+    #screen-auction #bid-btn-next.timer-urgent::after {
+      height: 7px;
+      background: linear-gradient(90deg,#e04040,#ff6060 70%,#fff8e8);
+      box-shadow: 0 0 14px rgba(224,64,64,0.92);
+    }
+    #screen-auction #bid-btn-next .bid-btn-main {
+      display: block;
+      color: #f0e8d0;
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1.1;
+      text-align: center;
+      text-shadow: 0 1px 3px rgba(0,30,0,0.55);
+      white-space: nowrap;
+    }
+    #screen-auction #bid-btn-next .bid-btn-sub {
+      display: block;
+      color: #cfe6b0;
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
+    }
+    #screen-auction .bid-raise-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      height: 100%;
+      border-radius: 0 6px 6px 0;
+      background: linear-gradient(180deg,#4a8028 0%,#2a5016 100%);
+      box-shadow: inset 0 1px 0 rgba(200,255,120,.22), inset 0 -2px 0 rgba(0,0,0,.26);
+    }
+    #screen-auction .bid-btn-raise {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: #f4e6a4;
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+      box-shadow: none;
+    }
+    #screen-auction .bid-btn-pass {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: linear-gradient(180deg,#1e1408 0%,#130e05 100%);
+      color: var(--text-sub);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+    #screen-auction .bid-btn-pass:hover {
+      color: var(--text);
+      border-color: var(--border-hi);
+    }
+    #screen-auction .bid-btn-turn-skip {
+      border-color: rgba(96,200,216,0.55);
+      color: var(--cyan);
+      background: linear-gradient(180deg,#16242a 0%,#10161a 100%);
+    }
+    #screen-auction .bid-btn-turn-skip:hover {
+      color: #d8fbff;
+      border-color: var(--cyan);
+    }
+    #screen-auction .bid-hotkey-hint { display: none !important; }
+
+    #screen-auction .candle-mid {
+      margin-top: 2px;
+      transform: scale(0.84);
+      transform-origin: top center;
+    }
+
+    #screen-auction .log-box-hidden { display: none !important; }
+    #screen-auction .ff-badge { bottom: 154px; z-index: 20; }
+
+    #screen-auction.duel-spotlight .all-players .cpu-card:not(.duel),
+    #screen-auction.duel-spotlight #player-seat:not(.duel) {
+      opacity: 0.22;
+      filter: grayscale(0.85);
+    }
+
+    #screen-auction.duel-spotlight .center-price-overlay {
+      filter: drop-shadow(0 0 18px rgba(224,64,64,0.38));
+    }
+
+    @media (max-width: 700px) {
+      #screen-auction .price-bar-wrap {
+        height: 88px;
+        padding: 12px 10px 0;
+      }
+      #screen-auction .pb-label {
+        margin-right: 8px;
+        font-size: 12px;
+      }
+      #screen-auction .all-players .cpu-avatar,
+      #screen-auction #player-seat .player-avatar {
+        width: clamp(28px, 7vw, 50px);
+        height: clamp(28px, 7vw, 50px);
+        font-size: 28px;
+      }
+      #screen-auction .bidder-face-row {
+        justify-content: flex-start;
+        gap: clamp(1px, 0.45vw, 4px);
+        min-height: 42px;
+      }
+      #screen-auction .cpu-bubble,
+      #screen-auction .player-bubble {
+        min-width: clamp(24px, 6.4vw, 44px);
+        max-width: clamp(24px, 6.4vw, 44px);
+        height: 20px;
+        padding: 1px 3px 2px;
+        font-size: clamp(6px, 1.6vw, 10px);
+      }
+      #screen-auction .cpu-bubble::after,
+      #screen-auction .player-bubble::after {
+        left: -5px;
+        width: 3px;
+        height: 24px;
+      }
+      #screen-auction .cpu-decision-timer {
+        width: clamp(36px, 10vw, 58px);
+        height: 8px;
+        margin-top: 0;
+      }
+      #screen-auction .cpu-decision-timer::after {
+        font-size: 7px;
+      }
+      #screen-auction .cpu-name-line,
+      #screen-auction .player-name {
+        max-width: 70px;
+        font-size: 11px;
+      }
+      #screen-auction .cpu-money-line,
+      #screen-auction .cpu-status-line {
+        max-width: 70px;
+        font-size: 11px;
+        line-height: 1.15;
+      }
+      #screen-auction .player-cockpit {
+        grid-template-columns: clamp(96px, 28vw, 118px) minmax(0, 1fr);
+        gap: 6px;
+      }
+      #screen-auction #bid-btn-next-wrap:not(.hidden) {
+        grid-template-columns: minmax(76px, 1fr) 32px 62px 72px;
+      }
+      #screen-auction #bid-btn-next {
+        padding: 6px 6px 12px;
+      }
+      #screen-auction #bid-btn-next .bid-btn-main {
+        font-size: 12px;
+        line-height: 1.15;
+        white-space: nowrap;
+      }
+      #screen-auction #bid-btn-next .bid-btn-sub {
+        display: none;
+      }
+      #screen-auction .bid-btn-raise {
+        font-size: 16px;
+      }
+      #screen-auction .bid-btn-pass {
+        padding: 6px 5px;
+        font-size: 9px;
+        line-height: 1.1;
+      }
+      #screen-auction .cockpit-timer {
+        right: calc(72px + 62px + 32px + 6px);
+      }
+      #screen-auction .turn-countdown-ring .timer-big {
+        font-size: 18px;
+      }
+    }
+
+    @media (max-height: 760px) {
+      #screen-auction .auction-item-frame { max-height: 285px; }
+      #screen-auction .center-price-overlay { top: 29%; }
+      #screen-auction .rank-list { gap: 5px; }
+      #screen-auction .all-players .cpu-card,
+      #screen-auction .all-players #player-seat { min-height: 74px; }
+    }
+  </style>
+</head>
+<body class="password-locked">
+  <style>
+    body.password-locked { overflow: hidden; }
+    body.password-locked > *:not(#password-gate) { visibility: hidden; }
+    #password-gate {
+      position: fixed; inset: 0; z-index: 100000;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+      visibility: visible !important;
+      background:
+        radial-gradient(circle at center, rgba(245,200,122,0.12), transparent 34%),
+        linear-gradient(180deg, #1f1a12 0%, #0e0c08 100%);
+      color: #e8dec5; font-family: 'Noto Sans KR','Apple SD Gothic Neo',system-ui,sans-serif;
+    }
+    #password-gate .pg-panel {
+      width: min(420px,100%); padding: 32px; text-align: center;
+      border: 1px solid #5a4010; border-radius: 8px;
+      background: linear-gradient(180deg, #221c12 0%, #17120c 100%);
+      box-shadow: 0 18px 56px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,220,160,0.08);
+    }
+    #password-gate .pg-title { margin: 0 0 8px; color: #f5c87a; font-size: 28px; font-weight: 900; }
+    #password-gate .pg-sub { margin: 0 0 22px; color: #9a8a66; font-size: 13px; }
+    #password-gate form { display: grid; gap: 12px; }
+    #password-gate input {
+      width: 100%; height: 52px; padding: 0 16px; box-sizing: border-box;
+      border: 1px solid #5a4010; border-radius: 8px; background: #0e0b07;
+      color: #e8dec5; font-size: 16px; text-align: center;
+    }
+    #password-gate input:focus { outline: none; border-color: #f5c87a; }
+    #password-gate button {
+      width: 100%; height: 50px; border: none; border-radius: 8px; cursor: pointer;
+      background: linear-gradient(180deg, #f5c87a, #d8a64a); color: #1a1208;
+      font-size: 16px; font-weight: 900;
+    }
+    #password-gate button:hover { filter: brightness(1.06); }
+    #password-gate .pg-error { min-height: 18px; color: #e87a7a; font-size: 13px; }
+  </style>
+  <div id="password-gate" role="dialog" aria-modal="true">
+    <div class="pg-panel">
+      <h1 class="pg-title">🎪 뮤나리자 경매</h1>
+      <p class="pg-sub">BACO GAMES · 비공개 데모</p>
+      <form id="pg-form">
+        <input id="pg-input" type="password" autocomplete="off" placeholder="비밀번호" aria-label="비밀번호">
+        <button type="submit">입장</button>
+        <div id="pg-error" class="pg-error" aria-live="polite"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- (A) 시작 화면 ─────────────────────────────────────────────── -->
+  <div id="demo-start" class="demo-screen demo-overlay">
+    <div class="demo-card">
+      <h1>🎪 경매장 — 시연 모드</h1>
+      <div class="ver-box">v11.05<small>뮤나리자 경매 시연</small></div>
+      <p class="sub">플레이어 이름·시작 자금을 정하고 아래 버튼을 누르면 형식 A 자유경매가 시작됩니다.</p>
+
+      <!-- 플레이어 이름 -->
+      <label for="demo-player-name">플레이어 이름 (사회자가 부를 이름)</label>
+      <input type="text" id="demo-player-name" maxlength="12" placeholder="예: 동현" style="width:100%;padding:8px;font-size:1rem;margin-bottom:12px;box-sizing:border-box;">
+
+      <!-- 자금 슬라이더 -->
+      <label for="demo-money">경매 시작 자금 (슬라이더로 조절)</label>
+      <input type="range" id="demo-money" min="100" max="50000" step="100" value="3000">
+      <div class="money-display">$<span id="demo-money-val">3,000</span></div>
+
+      <!-- 형식 A 비교 시안은 자유경매 1등가 하나만 연다.
+           비유: 오늘 검증할 트랙 하나만 열어 두고, 옆 트랙 문은 닫아둔 상태. -->
+      <label for="demo-mode">경매 형식</label>
+      <select id="demo-mode">
+        <option value="free10_1st">형식 A — 자유경매 1등가</option>
+      </select>
+
+      <button id="demo-start-btn" class="btn-big">🔔 경매 시작</button>
+      <!-- 시안 A: 경매 시작 바로 아래 규칙·인격 참고 화면 토글 버튼 -->
+      <button id="demo-rules-btn">📖 경매 규칙 · CPU 인격 보기</button>
+      <p class="hint">경매 진행 중 D 키를 누르면 우측에서 자체 검증 패널이 열립니다.</p>
+    </div>
+  </div>
+
+  <!-- (B) v6 경매 엔진 컨테이너 ─────────────────────────────────── -->
+  <!-- index.html과 동일하게 v6-engine.html 내용을 인라인으로 그대로 넣습니다 -->
+  <section id="screen-auction-engine">
+
+<!-- v6-engine.html 인라인 시작 (수정 없이 그대로) ──────────────── -->
+
+<!-- 시작 화면 -->
+<section id="screen-start" class="screen active">
+  <div class="start-wrap">
+    <!-- 시안 A: 설정 팝업으로 돌아가는 버튼 (참고용 규칙 화면 상단) -->
+    <button id="demo-rules-back-btn" class="rules-back-btn">← 설정으로 돌아가기</button>
+    <h1 class="title-main">경매장</h1>
+
+    <div class="rules-card">
+      <h2>경매 규칙</h2>
+      <ul class="rules-list">
+        <li>플레이어 1명 + CPU 4명이 경매를 진행합니다.</li>
+        <li>경매 1회 = 그림 A→B→C→D→E 5라운드 경매 + 판매 세션.</li>
+        <li>5라운드 모두 자유경매 1등가로 진행합니다.</li>
+        <!-- v8 패치 4: 감정가 공개 룰로 변경 -->
+        <li><b>감정가는 화면에 공개됩니다.</b> 호가 판단 참고하세요.</li>
+        <li><b>본인 재입찰 불가</b> — 누구든 연속으로 두 번 부르지 않습니다.</li>
+        <!-- v8 패치 1: '입찰 포기' → '10배속 보기' 룰 설명 -->
+        <li><b>10배속 보기</b> 누르면 남은 시간이 <b>⏩ ×10 가속</b>. 도중 다시 입찰하면 1배속 복귀.</li>
+        <li><b>자유경매</b>에서 <b>마우스 휠 (위↑) / ↑↓ 방향키</b>로 호가 단계 조절. <b>Enter/Space</b>로 입찰.</li>
+        <li>자유경매는 CPU가 한 명씩 차례를 갖고, 내 차례에서 멈춰 입찰 또는 패스를 고릅니다.</li>
+        <li>후반 1:1이 되면 3초 카운트다운이 돌고, 새 입찰이 들어오면 다시 3초로 돌아갑니다.</li>
+        <li>모든 화면에서 <b>아무 키 / 아무 클릭</b>으로 다음 단계 진행.</li>
+        <li>판매 세션 종료 시 재산 &lt; 0 이면 게임 오버. 시작 자금 $3,000.</li>
+        <li>CPU 4명도 각자 시작 자금 보유. <b>잔고 부족하면 파산💸 — 입찰 안 함</b>.</li>
+      </ul>
+    </div>
+
+    <div class="persona-legend">
+      <!-- v8 패치 2: 인격 이름 v7 기준으로 변경 -->
+      <h2>CPU 11종 인격 (v7 라벨 기준)</h2>
+      <div class="persona-grid">
+        <div class="persona-row"><span class="persona-emoji">💼</span><span class="persona-code">APP</span><span class="persona-name">시세형</span><span class="persona-desc">감정가 근처 활발</span></div>
+        <div class="persona-row"><span class="persona-emoji">🛡️</span><span class="persona-code">CON</span><span class="persona-name">절약형</span><span class="persona-desc">안전제일·빠른 10배속</span></div>
+        <div class="persona-row"><span class="persona-emoji">🔥</span><span class="persona-code">MAN</span><span class="persona-name">광기형</span><span class="persona-desc">호가 점프·천장 ×3</span></div>
+        <div class="persona-row"><span class="persona-emoji">🎭</span><span class="persona-code">BLF</span><span class="persona-name">고객형</span><span class="persona-desc">광기 카운터·체크레이즈 80%</span></div>
+        <div class="persona-row"><span class="persona-emoji">🃏</span><span class="persona-code">SHK</span><span class="persona-name">잠복형</span><span class="persona-desc">조용하다 일격</span></div>
+        <div class="persona-row"><span class="persona-emoji">💢</span><span class="persona-code">TLT</span><span class="persona-name">도박형</span><span class="persona-desc">손실 후 무리수</span></div>
+        <div class="persona-row"><span class="persona-emoji">👯</span><span class="persona-code">MIR</span><span class="persona-name">추종형</span><span class="persona-desc">다수 따라가기</span></div>
+        <div class="persona-row"><span class="persona-emoji">🎯</span><span class="persona-code">SNI</span><span class="persona-name">저격형</span><span class="persona-desc">마지막 1초 입찰</span></div>
+        <div class="persona-row"><span class="persona-emoji">↩️</span><span class="persona-code">WTH</span><span class="persona-name">왔다갔다형</span><span class="persona-desc">2~3회 빠졌다 복귀</span></div>
+        <div class="persona-row"><span class="persona-emoji">⚡</span><span class="persona-code">FSP</span><span class="persona-name">불꽃 스프린터</span><span class="persona-desc">초반 질주·후반 급감</span></div>
+        <div class="persona-row"><span class="persona-emoji">🪢</span><span class="persona-code">APP_ROP</span><span class="persona-name">줄다리기형</span><span class="persona-desc">한 단계씩 끝까지 추격</span></div>
+      </div>
+    </div>
+
+    <button id="btn-start" class="btn-big">경매 시작 (아무 키 가능)</button>
+  </div>
+</section>
+
+<!-- 경매 라인업 미리보기 화면 -->
+<section id="screen-cycle-preview" class="screen">
+  <div class="preview-wrap">
+    <h1 id="preview-cycle-title">경매 라인업</h1>
+    <p class="preview-sub">이번 5라운드 경매 종류</p>
+    <div id="preview-table" class="preview-table"></div>
+    <button id="btn-start-cycle" class="btn-big">시작하기 (아무 키 가능)</button>
+  </div>
+</section>
+
+<!-- 인터미션 화면 -->
+<section id="screen-intermission" class="screen">
+  <div class="intermission-wrap">
+    <div class="top-bar">
+      <span id="inter-cycle-round">라운드 1/5</span>
+      <span id="inter-money">자금: $3,000</span>
+    </div>
+    <div class="painting-stage">
+      <div class="painting-frame-fixed inter-painting-frame">
+        <img id="inter-painting-img" class="painting-img" alt="painting">
+      </div>
+      <div class="painting-info">
+        <div id="inter-painting-title" class="painting-title">제목</div>
+        <div id="inter-painting-category" class="painting-category">카테고리 A</div>
+        <!-- 디렉터 사이클 #3 (다1): 그림 제목 아래 시작가·감정가 한 줄 -->
+        <div id="inter-price-line" class="painting-price-line">시작가 <span class="start-num">$0</span> · 감정가 <span class="expected-num">$0</span></div>
+      </div>
+    </div>
+    <div class="auction-rule-card">
+      <h2 id="inter-auction-name">경매 방식</h2>
+      <p id="inter-auction-rule">룰 한 줄</p>
+      <!-- 디렉터 사이클 #5 (#4): 라운드 성격 태그 -->
+      <div id="inter-flavor-tag" class="round-flavor-tag">⚖️ 균형 라운드</div>
+    </div>
+    <p class="tap-hint">화면 어디든 클릭 / 아무 키로 경매 시작</p>
+  </div>
+</section>
+
+<!-- 경매 화면 -->
+<section id="screen-auction" class="screen">
+  <!-- ============================================================
+       니드호그 구조 레이아웃
+       - 우측: 큰 LIVE RANKING
+       - 중앙 좌측: 경매품 / 좌측: 경매사 / 중앙: 감정가+HOT
+       - 하단: 전폭 비더 줄, 그 아래 내 예산·타이머와 액션바
+       기존 DOM id는 모두 보존 (엔진이 그 id로 값을 채움)
+  ============================================================ -->
+
+  <div class="hybrid-wrap">
+      <div class="stage">
+        <div class="price-bar-wrap" id="price-bar-wrap" aria-label="가격 현황">
+          <div class="pb-label">가격 현황</div>
+          <div class="pb-track-wrap">
+            <div class="pb-track">
+              <div class="pb-fill-base" id="pb-fill-base"></div>
+              <div class="pb-fill-hot" id="pb-fill-hot"></div>
+              <div class="pb-mark-appraisal" id="pb-mark-appraisal"></div>
+              <div class="pb-mark-current" id="pb-mark-current"></div>
+            </div>
+            <div class="pb-current-pointer" id="pb-current-pointer">▼</div>
+            <div class="pb-appraisal-label" id="pb-appraisal-label">감정가 $0</div>
+          </div>
+        </div>
+        <div class="stage-corner-meta">
+        <span class="stage-title-main">🐱 MEWNA LISA 🐱</span>
+        <span class="stage-title-sub">고양이 경매 게임 · ROUND <b id="auc-round-num">1</b> / 5 · <span id="auc-auction-name">경매 방식</span></span>
+      </div>
+
+      <!-- 엔진이 참조하지만 3-D 무대에서 직접 보이지 않는 값들 -->
+      <div class="info-hidden">
+        <span id="auc-money">$3,000</span>
+        <span id="bid-start">$0</span>
+        <span id="auc-min-bid">$5</span>
+        <span id="bid-expected">$0</span>
+      </div>
+
+      <div class="table-arc"></div>
+
+      <!-- 중앙 무대: 사회자 + 경매품 -->
+      <div class="stage-center">
+        <div class="host-bubble" id="host-bubble"></div>
+        <div class="auctioneer host-figure" id="host-figure">
+          <div class="auctioneer-emoji host-emoji">🎩</div>
+          <div class="auctioneer-name">경매사</div>
+        </div>
+
+        <div class="auction-item">
+          <div class="auction-item-frame">
+            <div class="auction-title-bar">
+              <div id="auc-painting-title" class="auction-item-title">제목</div>
+              <div id="appraisal-title-hot" class="auction-title-hot" aria-hidden="true"></div>
+            </div>
+            <img id="auc-painting-img" alt="painting"
+                 onerror="this.style.display='none';this.parentNode.classList.add('image-missing')">
+          </div>
+          <div id="auc-painting-category" class="auction-item-cat">카테고리 A</div>
+          <div id="countdown-overlay" class="countdown-overlay hidden">
+            <div id="countdown-number" class="countdown-number">5</div>
+            <div class="countdown-label">곧 경매 시작</div>
+          </div>
+        </div>
+
+        <!-- 촛불경매 신호등 (해당 모드만 표시) -->
+        <div id="auc-traffic-wrap" class="candle-mid hidden">
+          <div class="candle-panel">
+            <div class="candle-icon">🕯️</div>
+            <div class="signal-row">
+              <div id="traffic-green" class="signal green"></div>
+              <div id="traffic-yellow" class="signal yellow"></div>
+              <div id="traffic-red" class="signal red"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 무대 중앙: 현재최고가 + 1등 -->
+      <div class="center-price-overlay">
+        <div class="cpo-label">현재 최고가</div>
+        <div id="auc-current-price" class="cpo-price-num">$0</div>
+        <div id="appraisal-threshold-line" class="appraisal-threshold-line">
+          <span class="appraisal-threshold-rule"></span>
+          <span>감정가 기준선 <span id="appraisal-threshold-value" class="appraisal-threshold-value">$0</span></span>
+        </div>
+        <div class="cpo-winner-row">
+          <span class="cpo-winner-crown">👑</span>
+          <span id="auc-top-bidder" class="cpo-winner-name">최고 입찰자 —</span>
+        </div>
+      </div>
+
+      <aside id="tension-rank-bar" class="tension-rank-bar" aria-label="현재 입찰 순위">
+        <div class="rank-title">
+          <span>LIVE RANKING</span>
+          <small>실시간 순위</small>
+        </div>
+        <div id="tension-rank-list" class="rank-list"></div>
+      </aside>
+
+      <!-- CPU 4명 + 플레이어가 같은 반원 테이블에 앉는다. -->
+      <div class="all-players">
+        <div id="cpu-list" class="cpu-list-contents"></div>
+        <div class="player-seat me-seat" id="player-seat">
+          <div class="me-seat-label">▲ 나</div>
+          <div class="bidder-face-row">
+            <div class="player-avatar me-seat-avatar" aria-label="옐로 고양이"><img class="participant-cat-icon cat-yellow player-cat-icon" src="assets/cats/cat-yellow.png" alt="옐로"></div>
+            <div class="player-bubble bid-picket" id="player-bubble" aria-label="내 입찰 번호판">-</div>
+          </div>
+          <div class="player-name me-seat-name" id="player-seat-name">나</div>
+        </div>
+      </div>
+
+      <!-- 내 행동정보 + 입찰 버튼 -->
+      <div class="player-cockpit">
+        <div class="cockpit-left">
+          <div class="cockpit-timer">
+            <span class="cockpit-timer-icon">⏱</span>
+            <div>
+              <div class="cockpit-timer-label">내 차례</div>
+              <div id="turn-countdown-ring" class="turn-countdown-ring idle" style="--turn-progress: 0deg">
+                <div id="auc-timer" class="cockpit-timer-num timer-big">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="cockpit-budget">
+            <div class="cockpit-budget-label">내 예산</div>
+            <div id="auc-budget-spot" class="cockpit-budget-value">$3,000</div>
+          </div>
+        </div>
+
+        <div class="cockpit-center">
+          <div id="auc-turn-status" class="turn-status">진행 중</div>
+          <div class="cockpit-right">
+            <div class="cockpit-next-label">최소 입찰가</div>
+            <div id="auc-next-bid" class="cockpit-next-value">$0</div>
+            <div id="auc-tick-info" class="cockpit-next-hint">호가 단위: $5</div>
+          </div>
+          <div class="bid-section">
+            <div id="bid-buy" class="bid-buy hidden">
+              <button id="bid-btn-buy" class="bid-btn">
+                <span class="bid-btn-main">지금 산다</span>
+                <span class="bid-btn-sub">GO 직전 클릭은 큐잉 → GO 즉시 발사</span>
+              </button>
+              <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+              <button id="bid-btn-give-up" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+            </div>
+            <div id="bid-btn-next-wrap" class="bid-buy hidden">
+              <button id="bid-btn-next" class="bid-btn">
+                <span class="bid-btn-main">최소 입찰가 부르기</span>
+                <span class="bid-btn-sub">최소 입찰가 기준</span>
+              </button>
+              <div class="bid-raise-group" aria-label="최소 입찰가보다 더 높게 부르기">
+                <button id="bid-btn-raise-50" class="bid-btn-raise" type="button" title="호가 올리기">▲</button>
+                <button id="bid-btn-raise-100" class="bid-btn-raise" type="button" title="호가 내리기">▼</button>
+              </div>
+              <div class="bid-hotkey-hint">⬆️⬇️ 또는 마우스 휠(위↑) = 호가 조절 · Enter/Space = 입찰</div>
+              <button id="bid-btn-next-skip" class="bid-btn-pass bid-btn-turn-skip" type="button">이번 턴 넘기기</button>
+              <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+              <button id="bid-btn-next-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+            </div>
+            <div id="bid-sealed" class="bid-sealed hidden">
+              <div id="sealed-timer" class="sealed-timer">남은 시간: —</div>
+              <div class="sealed-row">
+                <input type="number" id="bid-sealed-input" min="0" placeholder="비밀 입찰가 입력">
+                <button id="bid-sealed-submit" class="bid-btn-sm">제출</button>
+              </div>
+              <p class="hint">제출 전까지 다른 사람 가격을 볼 수 없습니다. 라운드별 호가 갭 다양화 ($100~$1000). 30초 만료 시 자동 0$.</p>
+              <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+              <button id="bid-sealed-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+            </div>
+            <div id="bid-limited" class="bid-limited hidden">
+              <div id="bid-limited-turn" class="turn-label">선착순 30초 · 한 번만 입찰 가능</div>
+              <div class="limited-row">
+                <input type="number" id="bid-limited-input" min="1" placeholder="입찰가 또는 휠/↑↓ 후 Enter">
+                <button id="bid-limited-submit" class="bid-btn-sm">입찰</button>
+                <!-- v8 패치 1: '패스' → '10배속 보기' -->
+                <button id="bid-limited-pass" class="bid-btn-pass-sm">10배속 보기 (⏩×10)</button>
+              </div>
+              <div class="bid-hotkey-hint">⬆️⬇️ 또는 마우스 휠(위↑) = 호가 조절 · Enter/Space = 입찰</div>
+              <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+              <button id="bid-limited-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+            </div>
+            <div id="bid-btn-dutch-wrap" class="bid-buy hidden">
+              <button id="bid-btn-dutch" class="bid-btn">
+                <span class="bid-btn-main">지금 산다</span>
+                <span class="bid-btn-sub">가격이 0.5초마다 한 단계 하락</span>
+              </button>
+              <!-- v8 패치 1: '입찰 포기' → '10배속 보기' -->
+              <button id="bid-btn-dutch-giveup" class="bid-btn-pass">10배속 보기 (⏩ ×10)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 입찰 로그: 흘러가는 컬럼 제거(정보 과부하 진단). 데이터는 내부 보존 위해 숨김 보관 -->
+  <div id="auc-bid-log" class="log-box-hidden"></div>
+
+  <!-- 1대1 돌입 컷인 (생존자 2명 순간 한 번 번쩍) -->
+  <div id="duel-cutin" class="duel-cutin hidden">
+    <div class="duel-cutin-inner">
+      <div class="duel-cutin-icon">⚔️</div>
+      <div class="duel-cutin-text">최후의 2인</div>
+    </div>
+  </div>
+
+  <div id="sold-hammer-overlay" class="sold-hammer-overlay hidden" aria-live="polite">
+    <div class="sold-hammer-flash"></div>
+    <div class="sold-hammer-card">
+      <div id="sold-hammer-count" class="sold-hammer-count">3 · 2 · 1</div>
+      <div class="sold-hammer-icon">🔨</div>
+      <div id="sold-hammer-title" class="sold-hammer-title">낙찰!</div>
+      <div id="sold-hammer-detail" class="sold-hammer-detail">결과 확인 중</div>
+    </div>
+  </div>
+
+  <div id="fast-forward-badge" class="ff-badge hidden">⏩ ×10 빨리감기</div>
+
+  <div id="debug-panel" class="debug-panel">
+    <span class="debug-tag">?debug=1</span>
+    <div class="slider-box">
+      <div class="slider-name">입찰 속도</div>
+      <input type="range" id="slider-1" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s1-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">×0.5 ~ ×2.0</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">공격성</div>
+      <input type="range" id="slider-2" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s2-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">-10%p ~ +30%p</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">고액 수용</div>
+      <input type="range" id="slider-3" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s3-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">×0.5 ~ ×2.0</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">돌발 한도</div>
+      <input type="range" id="slider-4" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s4-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">0% ~ 100%</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">CPU 자금</div>
+      <input type="range" id="slider-5" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s5-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">평균 $500 ~ $5000</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">3단계 전환</div>
+      <input type="range" id="slider-6" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s6-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">빠름 ~ 느림</span>
+      </div>
+    </div>
+    <div class="slider-box">
+      <div class="slider-name">사회자 멘트 간격</div>
+      <input type="range" id="slider-7" min="0" max="100" value="50" class="range">
+      <div class="slider-meta">
+        <span id="s7-val" class="slider-value">50 / 100</span>
+        <span class="slider-hint">200ms ~ 1400ms (기본 800ms)</span>
+      </div>
+    </div>
+    <div id="debug-info" class="debug-info"></div>
+  </div>
+</section>
+
+<!-- 라운드 결과창 -->
+<section id="screen-round-result" class="screen">
+  <div class="result-wrap">
+    <h2 id="result-title">라운드 결과</h2>
+    <div class="result-card">
+      <div class="row"><span>낙찰자</span><span id="result-winner">—</span></div>
+      <div class="row"><span>낙찰가</span><span id="result-price">$0</span></div>
+      <div class="row"><span>경매 방식</span><span id="result-auction">—</span></div>
+    </div>
+    <!-- v8 패치 4: 감정가 이미 공개됨 -->
+    <p class="result-hint">감정가: <span id="result-expected">$0</span> (이미 공개됨)</p>
+    <button id="btn-next-round" class="btn-big">다음 라운드 (아무 키 가능)</button>
+  </div>
+</section>
+
+<!-- 판매 세션 화면 -->
+<section id="screen-sale" class="screen">
+  <div class="sale-topbar">
+    <span id="sale-progress">판매 1/5</span>
+    <span id="sale-money">자금: $3,000</span>
+  </div>
+  <div class="sale-main">
+    <div class="sale-left">
+      <h2>판매 세션</h2>
+      <div class="painting-stage">
+        <img id="sale-painting-img" class="painting-img" alt="painting">
+        <div class="painting-info">
+          <div id="sale-painting-title" class="painting-title">제목</div>
+          <div id="sale-painting-category" class="painting-category">낙찰: 나</div>
+        </div>
+      </div>
+      <div class="sale-info">
+        <div class="row"><span>감정가</span><span id="sale-expected">$0</span></div>
+        <div class="row"><span>매수가</span><span id="sale-bought">$0</span></div>
+        <div class="row"><span>차액</span><span id="sale-diff">$0</span></div>
+      </div>
+      <button id="btn-sell" class="btn-big">💰 판매 (Enter/Space)</button>
+      <button id="btn-keep" class="btn-big" style="margin-top:0.5rem;background:#2a5c2a;">📦 보관 (작업실로 이동)</button>
+    </div>
+    <div class="sale-right">
+      <h3>📊 모든 참가자 정산</h3>
+      <div id="cpu-ledger" class="cpu-ledger"></div>
+      <div class="paintings-ledger">
+        <h4>🖼 5라운드 그림별 낙찰자</h4>
+        <div id="paintings-ledger-list"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 게임오버 화면 -->
+<section id="screen-gameover" class="screen">
+  <div class="gameover-wrap">
+    <h1 class="title-main">게임 오버</h1>
+    <div id="go-taunt" class="taunt-box">
+      <div class="taunt-line">당신은 파산했습니다.</div>
+      <div class="taunt-line">당신, 보는 눈이 없네요.</div>
+    </div>
+    <div class="gameover-stats">
+      <div class="row"><span>경매 횟수</span><span id="go-cycle">0</span></div>
+      <div class="row"><span>최종 재산</span><span id="go-money">$0</span></div>
+    </div>
+    <button id="btn-restart" class="btn-big">다시 도전 (아무 키 가능)</button>
+    <!-- v8 패치 8: 경매 끝나도 작업실로 돌아갈 수 있는 버튼 -->
+    <button id="btn-back-studio-go" class="btn-big" style="margin-top:0.5rem;background:#444;">작업실로 돌아가기</button>
+  </div>
+</section>
+
+<section id="screen-final-summary" class="screen">
+  <div class="gameover-wrap">
+    <h1 class="title-main">경매 종료</h1>
+    <div class="gameover-stats">
+      <div class="row"><span>현재 재산</span><span id="ce-money">$0</span></div>
+    </div>
+    <button id="btn-back-studio-fs" class="btn-big" style="margin-top:0.5rem;background:#444;">작업실로 돌아가기</button>
+  </div>
+</section>
+
+<!-- v6-engine.html 인라인 끝 ──────────────────────────────────── -->
+
+  </section><!-- #screen-auction-engine 끝 -->
+
+  <!-- (C) 결과 화면 ─────────────────────────────────────────────── -->
+  <div id="demo-result" class="demo-screen demo-overlay hidden">
+    <div class="demo-card result-card">
+      <h1>📊 경매 결과 정리</h1>
+
+      <div class="result-summary">
+        <div class="row"><span>총 지출 (내가 낙찰한 금액 합계)</span><span id="demo-total-spent">$0</span></div>
+        <div class="row"><span>최종 자금 (남은 돈)</span><span id="demo-final-money">$0</span></div>
+      </div>
+
+      <h2>라운드별 낙찰 내역</h2>
+      <table class="result-table">
+        <thead>
+          <tr>
+            <th>라운드</th>
+            <th>경매 방식</th>
+            <th>낙찰자</th>
+            <th>낙찰가</th>
+          </tr>
+        </thead>
+        <tbody id="demo-result-rows"></tbody>
+      </table>
+
+      <button id="demo-restart-btn" class="btn-big">↩ 처음으로 다시 시작</button>
+    </div>
+  </div>
+
+  <!-- (D) 자체 검증 패널 (D 키로 열기/닫기) ──────────────────────── -->
+  <aside id="demo-debug" class="demo-debug">
+    <h3>🛠 자체 검증 패널 (개발용)</h3>
+
+    <label class="toggle-row">
+      <input type="checkbox" id="dbg-infinite-money">
+      <span>💰 자금 무한 채우기<br><small style="color:#7a6040;">켜면 내 지갑이 마르지 않습니다</small></span>
+    </label>
+
+    <button id="dbg-end-now" class="dbg-btn">⏹ 지금 바로 종료<br><small style="font-size:0.75em;color:#9a7040;">현재까지 진행된 결과로 바로 결과 화면을 봅니다</small></button>
+
+    <label class="toggle-row">
+      <input type="checkbox" id="dbg-show-persona-label" checked>
+      <span>🏷 CPU 성격 이름 표시<br><small style="color:#7a6040;">꺼두면 시연 때 CPU 성격이 가려집니다</small></span>
+    </label>
+
+    <button id="dbg-export-log" class="dbg-btn">📋 로그 내보내기 (.txt)<br><small style="font-size:0.75em;color:#9a7040;">비딩·멘트 기록을 텍스트 파일로 받습니다 (멘트 순서 점검용)</small></button>
+    <button id="dbg-clear-log" class="dbg-btn">🗑 기록 비우기<br><small style="font-size:0.75em;color:#9a7040;">누적된 점검 로그를 모두 지웁니다</small></button>
+
+    <p class="dbg-hint">D 키로 열기 / 닫기</p>
+  </aside>
+
+  <!-- 비밀번호 게이트 (BACO 비공개 데모) -->
+  <script>
+    (function () {
+      var PASSWORD = 'baco2026';
+      var form = document.getElementById('pg-form');
+      var input = document.getElementById('pg-input');
+      var err = document.getElementById('pg-error');
+      var gate = document.getElementById('password-gate');
+      if (input) input.focus();
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (input.value === PASSWORD) {
+          document.body.classList.remove('password-locked');
+          gate.remove();
+        } else {
+          err.textContent = '비밀번호가 틀렸어요';
+          input.value = '';
+          input.focus();
+        }
+      });
+    })();
+  </script>
+
+  <!-- (E) 모듈 로드 (manifest 먼저, 엔진 나중 — 순서 중요) ──────── -->
+  <script src="manifest.js"></script>
+  <script src="modules/auction-engine/v11-engine.js?v=26"></script>
+
+  <!-- (F) 데모 페이지 자체 스크립트 ────────────────────────────── -->
+  <script>
+    // ────────────────────────────────────────────────────────────────
+    // 데모 전용 스크립트 — 본 게임 파일은 건드리지 않습니다
+    // 비유: 이 스크립트는 auction-demo.html 안에서만 살아 있고,
+    //       본 게임 launch.html을 열면 이 코드는 전혀 로드되지 않습니다
+    // ────────────────────────────────────────────────────────────────
+
+    // ── 1) 슬라이더 현재 값 ─────────────────────────────────────────
+    let demoStartMoney = 3000;  // 슬라이더가 바뀔 때마다 갱신
+
+    // ── 2) 경매 엔진에 자금을 넘겨주는 연결 고리 (게임 스텁) ─────────
+    // 비유: 본 게임의 지갑(game.js state)와 똑같이 생긴 가짜 지갑을 만들어
+    //       경매 엔진이 돈을 꺼낼 때 슬라이더 값을 돌려주는 것
+    //
+    // auctionCycleCount = 3 인 이유:
+    //   v6 엔진은 첫 방문(0회) = 1라운드, 두 번째(1회) = 2라운드,
+    //   세 번째(2회) = 3라운드, 네 번째 이후(3회+) = 5라운드 로 단계별 진행됨.
+    //   시연용 데모는 항상 5라운드 풀 모드로 동작해야 하므로 "충분히 경험한 상태"인 3으로 셋.
+    window.MN9_Game = {
+      state: function() {
+        return { money: demoStartMoney, auctionCycleCount: 3 };
+      }
+      // autosave, toast, switchScreen 등은 v6 엔진이 typeof로 존재 확인 후 호출하므로 없어도 안전
+    };
+
+    // ── 3) 슬라이더 조작 이벤트 ─────────────────────────────────────
+    const sliderEl = document.getElementById('demo-money');
+    const sliderValEl = document.getElementById('demo-money-val');
+    sliderEl.addEventListener('input', function() {
+      demoStartMoney = parseInt(sliderEl.value, 10);
+      sliderValEl.textContent = demoStartMoney.toLocaleString();
+    });
+
+    // ── 4) 엔진 부팅 상태 관리 ──────────────────────────────────────
+    // 비유: 경매장 전원을 처음 켜는지(첫 부팅), 아니면 재가동하는지 기억하는 스위치
+    let _engineBooted = false;
+
+    function bootOrResetEngine() {
+      const eng = window.MN9_AuctionEngine;
+      if (!eng) {
+        console.error('[데모] 경매 엔진을 찾을 수 없습니다. v11-engine.js 로드 순서를 확인해주세요.');
+        return false;
+      }
+      if (_engineBooted) {
+        // 비유: 두 번째 이후 — 경매장을 완전히 청소하고 다시 시동 거는 3단계
+        eng.resetForV9();   // 1단계: 재부팅 허용 플래그 초기화
+        eng.resetState();   // 2단계: 화면 리셋 + 타이머 정리
+        eng.bootForV9();    // 3단계: 경매 엔진 재시동
+      } else {
+        // 비유: 처음 — 그냥 시동만 걸기
+        eng.bootForV9();
+        _engineBooted = true;
+      }
+      return true;
+    }
+
+    // ── 5) 시작 버튼 클릭 핸들러 ────────────────────────────────────
+    document.getElementById('demo-start-btn').addEventListener('click', function() {
+      startAuction();
+    });
+
+    // ── 5-1) 규칙·인격 참고 화면 토글 ───────────────────────────────
+    // 비유: "규칙 보기" = 설정 팝업(암막 커튼)을 걷고, 뒤에 깔린 규칙·인격
+    //       화면(screen-start)을 무대 위로 올려 보여주는 것.
+    //       "설정으로 돌아가기" = 규칙 화면을 다시 내리고 설정 팝업을 덮는 것.
+    //
+    // 주의: screen-start가 첫 화면일 때는 이미 active지만, 한 판 끝난 뒤
+    //       돌아오면 엔진이 gameover/final-summary로 넘어가 있어 screen-start가
+    //       hidden 상태일 수 있다. 그래서 규칙 보기 시 v6 컨테이너 안의 다른
+    //       화면을 모두 내리고 screen-start만 직접 띄운다. 이 토글은 경매가
+    //       돌고 있지 않은 "설정 단계"에서만 일어나므로 엔진 화면 전환과 충돌 없음.
+    //       (경매 시작 흐름은 bootOrResetEngine→resetState가 화면을 다시 정리함)
+    const v6Box = document.getElementById('screen-auction-engine');
+    // 규칙 참고 화면을 보는 중인지 표시하는 깃발.
+    // 비유: "지금 참고 화면 구경 중" 팻말. 이게 켜져 있으면 아무 키를 눌러도
+    //       엔진의 "시작 화면 아무 키 → 경매 시작"이 발동하지 않게 막는다.
+    let _rulesViewOpen = false;
+    // 캡처 단계에서 먼저 가로채 엔진 keydown(startCycle)이 도달하지 못하게 함.
+    // (엔진 리스너는 한 판이라도 시작한 뒤부터 살아 있으므로, 이 가드가 없으면
+    //  돌아온 규칙 화면에서 키 한 번에 경매가 잘못 시작될 수 있음)
+    document.addEventListener('keydown', function(e) {
+      if (!_rulesViewOpen) return;
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      e.stopPropagation();
+    }, true);
+    function showRulesScreen() {
+      _rulesViewOpen = true;
+      document.body.classList.add('rules-view-open');
+      if (v6Box) {
+        v6Box.querySelectorAll('.screen').forEach(function(s) {
+          s.classList.remove('active');
+          s.classList.add('hidden');
+        });
+        const ss = document.getElementById('screen-start');
+        if (ss) { ss.classList.add('active'); ss.classList.remove('hidden'); }
+      }
+      document.getElementById('demo-start').classList.add('hidden');
+    }
+    function hideRulesScreen() {
+      _rulesViewOpen = false;
+      document.body.classList.remove('rules-view-open');
+      // 규칙 화면을 다시 내리고 설정 팝업을 복구. 다음 경매 시작 시
+      // resetState가 화면 상태를 재정리하므로 여기선 설정 팝업만 되살리면 됨.
+      const ss = document.getElementById('screen-start');
+      if (ss) { ss.classList.remove('active'); ss.classList.add('hidden'); }
+      document.getElementById('demo-start').classList.remove('hidden');
+    }
+    document.getElementById('demo-rules-btn').addEventListener('click', showRulesScreen);
+    document.getElementById('demo-rules-back-btn').addEventListener('click', hideRulesScreen);
+
+    function startAuction() {
+      // 1단계: 선택한 경매 종류 읽기
+      const mode = document.getElementById('demo-mode').value;
+
+      // 1-1단계: 플레이어 이름 읽어서 전역에 저장 (엔진이 사회자 멘트·로그에서 참조)
+      // 비유: 경매 시작 전에 명찰을 받아드는 것
+      const nameInput = document.getElementById('demo-player-name');
+      const trimmed = (nameInput && nameInput.value || '').trim();
+      window.playerName = trimmed || '나';
+
+      // 2단계: 엔진 부팅 (또는 재가동)
+      const ok = bootOrResetEngine();
+      if (!ok) return;
+
+      // 3단계: 화면 전환 — 시작 화면 숨기고 경매 엔진 컨테이너 표시
+      // 비유: 시연 안내판을 치우고 경매장 문을 여는 것
+      document.getElementById('demo-start').classList.add('hidden');
+
+      // 4단계: bootForV9 → main() 이 내부 처리를 마친 뒤 forceAuction 설정
+      // 비유: 경매장 시동이 완전히 걸린 뒤 "오늘은 이 경매 방식만 해!" 라고 지시하는 것
+      //       (setTimeout 0 = 현재 실행 대기열 끝에 넣기 → main()이 screen-start 그리기 끝난 뒤 실행)
+      setTimeout(function() {
+        const eng = window.MN9_AuctionEngine;
+        if (!eng || !eng.state) return;
+
+        if (mode === 'MIX') {
+          // 빈 배열 = 본 게임 기본 (v6 엔진이 가중치 기반으로 5종 알아서 섞음)
+          eng.state.forceAuction = [];
+        } else {
+          // 선택한 1종을 5라운드 모두 강제
+          eng.state.forceAuction = [mode];
+        }
+
+        // 디렉터 사이클 #5 hotfix v2 (deslop): bootOrResetEngine에서 이미 resetState를 호출했지만,
+        // main()의 비동기 loadManifest·bindInputs 재실행과 setTimeout(0) 사이 race condition 안전망으로
+        // 한 번 더 호출. 16필드를 직접 박아두는 건 resetState와 동일 동작이라 drift 위험 — 함수 재호출이 정답.
+        // 비유: 경매장 들어가기 직전에 청소 도구함(resetState) 한 번 더 쓱 돌려놓기.
+        if (typeof eng.resetState === 'function') eng.resetState();
+
+        // 5단계: v6 자체 시작 화면의 "경매 시작" 버튼을 코드로 누름
+        // 비유: 경매장 안에 있는 진짜 시작 버튼을 우리가 대신 눌러주는 것
+        const btnStart = document.getElementById('btn-start');
+        if (btnStart) {
+          btnStart.click();
+        } else {
+          console.error('[데모] btn-start 버튼을 찾을 수 없습니다.');
+        }
+      }, 0);
+    }
+
+    // ── 6) 결과 스냅샷 + 종료 감지 폴링 ────────────────────────────
+    // 비유: 250ms마다 경매장 안을 들여다보면서 경매가 끝났는지 확인하고,
+    //       라운드 결과 데이터가 사라지기 전에 복사본(스냅샷)을 만들어 둠
+    let _lastSnapshot = null;
+    let _resultShown = false;
+
+    const watchHandle = setInterval(function() {
+      const eng = window.MN9_AuctionEngine;
+      if (!eng || !eng.state) return;
+      const st = eng.state;
+
+      // 진행 중인 라운드 결과가 있으면 스냅샷 보관 (endCycle이 [] 초기화 하기 전에)
+      if (st.cycleResults && st.cycleResults.length > 0) {
+        _lastSnapshot = {
+          results: st.cycleResults.map(function(r) { return Object.assign({}, r); }),
+          money: st.money,
+        };
+      }
+
+      // 경매 종료 화면 진입 감지 — v6는 endCycle 후 gameover 또는 final-summary로 이동
+      const goEl = document.getElementById('screen-gameover');
+      const fsEl = document.getElementById('screen-final-summary');
+      const goActive = goEl && goEl.classList.contains('active');
+      const fsActive = fsEl && fsEl.classList.contains('active');
+
+      if ((goActive || fsActive) && _lastSnapshot && !_resultShown) {
+        _resultShown = true;  // 한 번만 트리거
+        showDemoResult(_lastSnapshot);
+        _lastSnapshot = null;
+      }
+    }, 250);
+
+    // ── 7) 결과 화면 렌더링 ─────────────────────────────────────────
+    function showDemoResult(snap) {
+      // v6 경매 컨테이너(게임오버·파이널 포함)를 overlay로 덮고 결과 화면 표시
+      document.getElementById('demo-result').classList.remove('hidden');
+
+      // 총 지출 = 내가(user) 낙찰한 라운드 금액의 합
+      const myPurchases = snap.results.filter(function(r) {
+        return r.purchased && r.winner === 'user';
+      });
+      const totalSpent = myPurchases.reduce(function(sum, r) { return sum + r.finalPrice; }, 0);
+
+      document.getElementById('demo-total-spent').textContent = '$' + totalSpent.toLocaleString();
+      document.getElementById('demo-final-money').textContent = '$' + (snap.money || 0).toLocaleString();
+
+      // 라운드 표 채우기
+      const tbody = document.getElementById('demo-result-rows');
+      tbody.innerHTML = '';
+      snap.results.forEach(function(r) {
+        const tr = document.createElement('tr');
+        const eng = window.MN9_AuctionEngine;
+        const participantInline = eng && typeof eng.participantInlineHtml === 'function'
+          ? eng.participantInlineHtml
+          : null;
+        let winnerText;
+        if (!r.purchased) {
+          winnerText = '낙찰자 없음';
+        } else if (participantInline) {
+          winnerText = participantInline(r.winner, 'result-table-participant');
+        } else {
+          winnerText = r.winnerName || '입찰자 ' + r.winner;
+        }
+        const priceText = r.purchased ? ('$' + r.finalPrice.toLocaleString()) : '—';
+        const auctionName = r.auctionName || r.key || '—';
+        tr.innerHTML =
+          '<td>' + (r.round || '—') + '</td>' +
+          '<td>' + auctionName + '</td>' +
+          '<td>' + winnerText + '</td>' +
+          '<td>' + priceText + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ── 8) 다시 시작 버튼 ───────────────────────────────────────────
+    document.getElementById('demo-restart-btn').addEventListener('click', function() {
+      // 결과 화면 숨기고 시작 화면 복귀
+      document.getElementById('demo-result').classList.add('hidden');
+      document.getElementById('demo-start').classList.remove('hidden');
+      // 결과 표시 플래그 초기화 (다음 게임을 위해)
+      _resultShown = false;
+      _lastSnapshot = null;
+      // 엔진 reset은 다음 시작 버튼 클릭 시 bootOrResetEngine이 자동 처리
+    });
+
+    // ── 9) D 키 핸들러 — 자체 검증 패널 열기/닫기 ──────────────────
+    // 비유: D 키를 누르면 오른쪽 문이 열리고, 다시 누르면 닫힘
+    document.addEventListener('keydown', function(e) {
+      // 글자 입력창에 포커스 중일 때는 무시 (v6 엔진 패턴과 동일)
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      // D 키 감지 (영문 d/D, 한글 IME 상태에서 들어오는 'ㅇ'도 대응)
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ㅇ') {
+        document.getElementById('demo-debug').classList.toggle('open');
+      }
+    });
+
+    // ── 10) 디버그 토글 1: 자금 무한 채우기 ─────────────────────────
+    // 비유: 200ms마다 내 지갑을 확인해서 반 이상 썼으면 가득 채우는 자동 충전기
+    let _infiniteMoneyHandle = null;
+    const INFINITE_MONEY_TARGET = 9999999;
+
+    document.getElementById('dbg-infinite-money').addEventListener('change', function(e) {
+      if (e.target.checked) {
+        console.log('[데모] 자금 무한 모드 켬 (목표 $9,999,999 유지).');
+        _infiniteMoneyHandle = setInterval(function() {
+          const eng = window.MN9_AuctionEngine;
+          if (eng && eng.state && typeof eng.state.money === 'number') {
+            if (eng.state.money < INFINITE_MONEY_TARGET / 2) {
+              eng.state.money = INFINITE_MONEY_TARGET;
+            }
+          }
+        }, 200);
+      } else {
+        if (_infiniteMoneyHandle) {
+          clearInterval(_infiniteMoneyHandle);
+          _infiniteMoneyHandle = null;
+        }
+      }
+    });
+
+    // ── 11) 디버그 버튼: 지금 바로 종료 ─────────────────────────────
+    // 비유: 지금까지 진행된 라운드 결과만 가지고 바로 결과 화면을 보여주는 비상 버튼
+    document.getElementById('dbg-end-now').addEventListener('click', function() {
+      const eng = window.MN9_AuctionEngine;
+      if (!eng || !eng.state) return;
+
+      console.log('[데모] 결과 화면으로 강제 전환 (지금 바로 종료 버튼).');
+
+      // 현재까지 진행된 결과 강제 스냅샷
+      const snap = {
+        results: (eng.state.cycleResults || []).map(function(r) { return Object.assign({}, r); }),
+        money: eng.state.money || 0,
+      };
+
+      // 디버그 패널 닫기
+      document.getElementById('demo-debug').classList.remove('open');
+
+      // 결과 표시 (중복 방지)
+      if (!_resultShown) {
+        _resultShown = true;
+        showDemoResult(snap);
+      }
+    });
+
+    // ── 12) 디버그 토글 3: CPU 성격 이름 표시/숨김 ──────────────────
+    // 비유: 체크 해제하면 CPU 카드에 적힌 성격 이름표가 가려지고,
+    //       켜면 다시 나타남 — body 클래스 하나로 CSS가 처리
+    document.getElementById('dbg-show-persona-label').addEventListener('change', function(e) {
+      document.body.classList.toggle('hide-persona-label', !e.target.checked);
+    });
+
+    // ── 13) 디버그: 점검용 로그 내보내기 (.txt) / 비우기 ──────────────
+    // 비유: 경매장에서 오간 모든 말·입찰을 받아적은 속기록을 종이로 뽑아주는 버튼
+    document.getElementById('dbg-export-log').addEventListener('click', function() {
+      const eng = window.MN9_AuctionEngine;
+      if (!eng || typeof eng.exportInspectionLog !== 'function') {
+        alert('아직 엔진이 준비되지 않았어요. 게임을 먼저 시작하세요.');
+        return;
+      }
+      const text = eng.exportInspectionLog();
+      if (!text || !text.trim()) {
+        alert('점검 기록이 비어있어요. 먼저 경매를 플레이하세요.');
+        return;
+      }
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'auction-log-v11.05.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const cnt = (typeof eng.inspectionCount === 'function') ? eng.inspectionCount() : '?';
+      console.log('[데모] 점검 로그 내보냄 (' + cnt + '줄).');
+    });
+    document.getElementById('dbg-clear-log').addEventListener('click', function() {
+      const eng = window.MN9_AuctionEngine;
+      if (eng && typeof eng.clearInspectionLog === 'function') {
+        eng.clearInspectionLog();
+        alert('점검 기록을 모두 비웠어요. 이제부터 새로 쌓입니다.');
+      }
+    });
+
+  </script>
+</body>
+</html>
