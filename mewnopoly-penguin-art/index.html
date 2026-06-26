@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>뮤노폴리 · 직장인 펭귄 — 그림체 갤러리</title>
+<style>
+  *{margin:0; padding:0; box-sizing:border-box;}
+  html,body{height:100%;}
+  body{background:#15171c; color:#e7e9ee;
+    font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    display:flex; flex-direction:column; height:100vh;}
+  header{flex:0 0 auto; padding:9px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:1px solid #2a2d35;}
+  header h1{font-size:15px; font-weight:700;}
+  .tabs{display:flex; gap:6px; flex-wrap:wrap;}
+  .tab{font-size:12.5px; font-weight:600; padding:5px 11px; border-radius:999px;
+    background:#1d2026; color:#aeb3bf; border:1px solid #2a2d35; cursor:pointer;}
+  .tab.active{background:#5b6cff; color:#fff; border-color:#5b6cff;}
+  .tab.todo{border-style:dashed; color:#7e8696;}
+  header .note{margin-left:auto; font-size:11px; color:#8b909c;}
+
+  #area{flex:1 1 auto; min-height:0; overflow-y:auto; padding:16px 18px 70px;}
+  .panel{display:none;} .panel.on{display:block;}
+  .sec-h{font-size:14px; font-weight:700; color:#cfd3dc; margin:6px 2px 10px; display:flex; align-items:center; gap:8px;}
+  .sec-h .pill{font-size:10.5px; font-weight:500; color:#8b909c; background:#1d2026; border:1px solid #2a2d35; padding:2px 8px; border-radius:999px;}
+  .sec-h.ours{margin-top:24px; color:#7ee2b8;}
+  .reason{font-size:12.5px; color:#aeb3bf; background:#10261a; border:1px solid #265c40; border-radius:8px; padding:8px 11px; margin:0 2px 12px;}
+
+  .grid{display:grid; gap:11px; grid-template-columns:repeat(auto-fill,minmax(220px,1fr));}
+  .card{position:relative; background:#1d2026; border:1px solid #2a2d35; border-radius:10px;
+    overflow:hidden; cursor:zoom-in; transition:border-color .15s, transform .15s;}
+  .card:hover{border-color:#5b6cff; transform:translateY(-2px);}
+  .card img{display:block; width:100%; aspect-ratio:1/1; object-fit:cover; background:#0e0f12;}
+  .card.ref img{aspect-ratio:16/10;}
+  .cap{padding:7px 10px; border-top:1px solid #2a2d35;}
+  .cap b{font-size:12.5px; display:block;}
+  .cap em{font-size:11px; color:#8b909c; font-style:normal;}
+  .cap a{font-size:11px; color:#5b6cff; text-decoration:none;}
+  .empty{color:#7e8696; font-size:13px; padding:14px; background:#1d2026; border:1px dashed #2a2d35; border-radius:10px;}
+  .subg{font-size:12.5px; font-weight:700; color:#cdd5e6; margin:12px 2px 2px; padding-left:8px; border-left:3px solid #5b6cff;}
+
+  #overlay{position:fixed; inset:0; background:rgba(8,9,12,.94); display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px; z-index:50; cursor:zoom-out; padding:24px;}
+  #overlay.on{display:flex;}
+  #overlay img{max-width:86vw; max-height:82vh; object-fit:contain; border-radius:8px; background:#0e0f12;}
+  #overlay .cap2{font-size:14px; color:#cfd2da; text-align:center;}
+  .hint{font-size:11px; color:#6b7280;}
+  .navbtn{position:fixed; top:50%; transform:translateY(-50%); width:60px; height:60px; border-radius:50%;
+    background:rgba(255,255,255,.10); color:#fff; border:1px solid rgba(255,255,255,.25);
+    font-size:32px; cursor:pointer; z-index:60; display:flex; align-items:center; justify-content:center; transition:background .15s;}
+  .navbtn:hover{background:rgba(91,108,255,.85);}
+  .navbtn.left{left:26px;} .navbtn.right{right:26px;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>🐧 직장인 펭귄 · 그림체 갤러리</h1>
+    <div class="tabs" id="tabs"></div>
+    <span class="note">카드 클릭=확대 · ← → 넘기기</span>
+  </header>
+
+  <div id="area"></div>
+
+  <div id="overlay">
+    <button class="navbtn left" id="ovPrev">‹</button>
+    <img id="ovImg" alt="">
+    <button class="navbtn right" id="ovNext">›</button>
+    <div class="cap2" id="ovCap"></div>
+    <div class="hint">← → 방향키로 이동 · 빈 곳/이미지 클릭하면 닫힘</div>
+  </div>
+
+<script>
+  const P = '_generated/penguin-v2/';
+  const R = P + '_refs/';
+  const H = P + '_hyung-picks/';
+
+  // 각 화풍 = { refs:[실제 게임], ours:[우리 펭귄 시안], reason?, todo? }
+  const STYLES = [
+    { key:'celeste', name:'🏔️ 셀레스트',
+      refs:[
+        {f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/504230/ss_4b0f0222341b64a37114033aca9994551f27c161.1920x1080.jpg?t=1714089525', t:'Celeste', d:'깔끔한 파스텔 픽셀 · 설산', link:'https://store.steampowered.com/app/504230/'},
+      ],
+      ours:[
+        {f:P+'penguin-celeste-v1-sunset.png', t:'펭귄 · 셀레스트 변주1 (노을·고운픽셀)', d:'따뜻한 노을 + 고운 파스텔 픽셀'},
+        {f:P+'penguin-celeste-v2-blizzard.png', t:'펭귄 · 셀레스트 변주2 (눈보라·굵은픽셀)', d:'차가운 블루 눈보라 + 굵은 레트로 픽셀'},
+        {f:P+'penguin-celeste-v3-aurora.png', t:'펭귄 · 셀레스트 변주3 (오로라 별밤)', d:'밤하늘 별 + 오로라 감성'},
+        {f:P+'penguin-celeste-v4-summit.png', t:'펭귄 · 셀레스트 변주4 (맑은 낮·정상)', d:'맑은 낮 햇살 + 정상 도착'},
+        {f:P+'penguin-office-celeste.png', t:'펭귄 · 셀레스트풍 (초안·글자만)', d:'파스텔 도트 + 설산 배경'},
+      ]},
+
+    { key:'goose', name:'🦢 거위게임',
+      refs:[
+        {f:R+'goose-1.jpg', t:'Untitled Goose Game', d:'매트 로우폴리 · 외곽선 없음 · 이소메트릭', link:'https://store.steampowered.com/app/837470/'},
+        {f:R+'goose-2.jpg', t:'Untitled Goose Game', d:'실제 게임 컷'},
+        {f:R+'goose-3.jpg', t:'Untitled Goose Game', d:'실제 게임 컷'},
+        {f:R+'goose-header.jpg', t:'Untitled Goose Game', d:'헤더 일러스트'},
+      ],
+      ours:[
+        {f:H+'hyung-goose-1.png', t:'펭귄 · 거위풍 (형 픽)', d:'형이 ChatGPT로 생성'},
+        {f:H+'hyung-goose-2.png', t:'펭귄 · 거위풍 (형 픽)', d:'형이 ChatGPT로 생성'},
+        {f:H+'hyung-goose-3.png', t:'펭귄 · 거위풍 (형 픽)', d:'형이 ChatGPT로 생성'},
+      ]},
+
+    { key:'reigns', name:'🃏 Reigns',
+      refs:[
+        {f:R+'reigns-1.jpg', t:'Reigns', d:'각진 종이공예 · 면 분할 · 카드 프레임', link:'https://store.steampowered.com/app/474750/'},
+        {f:R+'reigns-2.jpg', t:'Reigns', d:'실제 게임 카드'},
+        {f:R+'reigns-header.jpg', t:'Reigns', d:'헤더'},
+      ],
+      ours:[
+        {f:P+'penguin-reigns-ref.png', t:'펭귄 · Reigns풍 (레퍼런스 첨부)', d:'각진 면분할 + 카드 프레임'},
+      ]},
+
+    { key:'nidhogg', name:'⚔️ 니드호그',
+      refs:[
+        {f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/94400/header.jpg', t:'Nidhogg', d:'네온 색면 + 픽셀 · 레트로 아케이드', link:'https://store.steampowered.com/app/94400/'},
+      ],
+      ours:[
+        {f:H+'hyung-nidhogg-1.png', t:'펭귄 · 니드호그 (형 픽 1 · 등반 6컷)', d:'형이 ChatGPT로 생성 · 등반 시퀀스 + 정상 환호'},
+        {f:H+'hyung-nidhogg-2.png', t:'펭귄 · 니드호그 (형 픽 2 · 카드 초상)', d:'형이 ChatGPT로 생성 · 오렌지 프레임 · 별밤'},
+        {f:H+'hyung-nidhogg-3.png', t:'펭귄 · 니드호그 (형 픽 3 · 네온 슬로프)', d:'형이 ChatGPT로 생성 · 핑크·블루 네온 얼음길'},
+      ]},
+
+    { key:'ps1', name:'🟣 PS1·입체감',
+      reason:'형이 PS1·입체감 룩에서 Grandpa High on Retro · Dread Delusion 두 게임을 골랐어요. 각 게임 스팀 스크린샷 모음 (이 룩으로 가기로 하면 펭귄 시안 생성).',
+      refs:[
+        {g:'🟢 Grandpa High on Retro', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2967320/fbba1557c05ec02d3f54dd5b4658b77139b42ece/ss_fbba1557c05ec02d3f54dd5b4658b77139b42ece.1920x1080.jpg?t=1778562045', t:'Grandpa High on Retro ★', d:'거칠고 알록달록한 PS1 로우폴리 · 지글 텍스처', link:'https://store.steampowered.com/app/2967320/'},
+        {g:'🟢 Grandpa High on Retro', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2967320/92fe08dc4501ae70c7a868426d24ccf401e65c83/ss_92fe08dc4501ae70c7a868426d24ccf401e65c83.1920x1080.jpg?t=1778562045', t:'Grandpa High on Retro', d:'PS1 로우폴리 컷'},
+        {g:'🟢 Grandpa High on Retro', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2967320/c69c81b251bac36e0087c05262b2d022cf3e6a22/ss_c69c81b251bac36e0087c05262b2d022cf3e6a22.1920x1080.jpg?t=1778562045', t:'Grandpa High on Retro', d:'PS1 로우폴리 컷'},
+        {g:'🟢 Grandpa High on Retro', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2967320/d7147c2bb8bc117246c81dd904d88d6f09afd206/ss_d7147c2bb8bc117246c81dd904d88d6f09afd206.1920x1080.jpg?t=1778562045', t:'Grandpa High on Retro', d:'PS1 로우폴리 컷'},
+        {g:'🟢 Grandpa High on Retro', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2967320/f7e280ef609e2a841683c7b4fecc71078d6f3b08/ss_f7e280ef609e2a841683c7b4fecc71078d6f3b08.1920x1080.jpg?t=1778562045', t:'Grandpa High on Retro', d:'PS1 로우폴리 컷'},
+        {g:'🟢 Grandpa High on Retro', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2967320/7a53295d04b6f54d0e07e1b1bff160bf00d091ef/ss_7a53295d04b6f54d0e07e1b1bff160bf00d091ef.1920x1080.jpg?t=1778562045', t:'Grandpa High on Retro', d:'PS1 로우폴리 컷'},
+        {g:'🔴 Dread Delusion', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1574240/ss_c7d8f2af5b47998c05cde8f51078fd74140d81a2.1920x1080.jpg?t=1773844673', t:'Dread Delusion ★', d:'안개 낀 칙칙한 파스텔 저폴리 · 우중충 복고 3D', link:'https://store.steampowered.com/app/1574240/'},
+        {g:'🔴 Dread Delusion', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1574240/ss_ed76f806e84e9d25a1637688215657c2a2f7eafc.1920x1080.jpg?t=1773844673', t:'Dread Delusion', d:'저폴리 판타지 컷'},
+        {g:'🔴 Dread Delusion', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1574240/ss_20a8ba2e8183eb00cf63eb66c10930a0c4189ab7.1920x1080.jpg?t=1773844673', t:'Dread Delusion', d:'저폴리 판타지 컷'},
+        {g:'🔴 Dread Delusion', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1574240/ss_995c32498cc1ab0b17044dc1eb11329c18ade8a3.1920x1080.jpg?t=1773844673', t:'Dread Delusion', d:'저폴리 판타지 컷'},
+        {g:'🔴 Dread Delusion', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1574240/ss_96ffd650188723312491a4831e788113fbe44929.1920x1080.jpg?t=1773844673', t:'Dread Delusion', d:'저폴리 판타지 컷'},
+        {g:'🔴 Dread Delusion', f:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1574240/ss_cc5458862a59500ea5e42148d581f139834ef64a.1920x1080.jpg?t=1773844673', t:'Dread Delusion', d:'저폴리 판타지 컷'},
+      ],
+      ours:[
+        {g:'🟢 Grandpa High on Retro', f:P+'penguin-grandpa-ref-v2.png', t:'펭귄 · Grandpa풍 v2 (거친 얼굴)', d:'저해상·뭉개진 PS1 얼굴 강화'},
+        {g:'🟢 Grandpa High on Retro', f:H+'hyung-grandpa-1.png', t:'펭귄 · Grandpa풍 (형 픽 1)', d:'형이 ChatGPT로 생성 · 로우폴리 + 노을'},
+        {g:'🟢 Grandpa High on Retro', f:H+'hyung-grandpa-2.png', t:'펭귄 · Grandpa풍 (형 픽 2)', d:'형이 ChatGPT로 생성'},
+        {g:'🟢 Grandpa High on Retro', f:H+'hyung-grandpa-3.png', t:'펭귄 · Grandpa풍 (형 픽 3)', d:'형이 ChatGPT로 생성'},
+        {g:'🔴 Dread Delusion', f:P+'penguin-dread-ref.png', t:'펭귄 · Dread풍 v1', d:'거친 PS1 텍스처 · 붉은 하늘'},
+        {g:'🔴 Dread Delusion', f:P+'penguin-dread-ref-v2.png', t:'펭귄 · Dread풍 v2 (거친 얼굴)', d:'뭉개진 저해상 PS1 얼굴 강화'},
+      ] },
+  ];
+
+  const tabsEl = document.getElementById('tabs');
+  const area = document.getElementById('area');
+  const overlay = document.getElementById('overlay');
+  const ovImg = document.getElementById('ovImg');
+  const ovCap = document.getElementById('ovCap');
+  let curList = [], curIdx = 0;
+
+  function card(it){
+    const isRef = it._ref;
+    const c = document.createElement('div');
+    c.className = 'card' + (isRef ? ' ref' : '');
+    const img = document.createElement('img');
+    img.src = it.f; img.alt = it.t || ''; img.loading = 'lazy';
+    c.appendChild(img);
+    const cap = document.createElement('div'); cap.className = 'cap';
+    const b = document.createElement('b'); b.textContent = it.t; cap.appendChild(b);
+    if (it.d){ const em = document.createElement('em'); em.textContent = it.d; cap.appendChild(document.createElement('br')); cap.appendChild(em); }
+    if (it.link){ const a = document.createElement('a'); a.href = it.link; a.target='_blank'; a.rel='noopener'; a.textContent = ' 스팀 ↗'; a.addEventListener('click', e=>e.stopPropagation()); cap.appendChild(a); }
+    c.appendChild(cap);
+    return c;
+  }
+
+  function gridOf(items, list){
+    const g = document.createElement('div'); g.className='grid';
+    items.forEach(it=>{ const c=card(it); c.addEventListener('click',()=>openAt(list, list.indexOf(it))); g.appendChild(c); });
+    return g;
+  }
+  // g(게임) 속성이 있으면 게임별로 줄바꿈(서브 라벨 + 별도 그리드), 없으면 한 그리드
+  function renderItems(parent, items, list){
+    if(!items.some(it=>it.g)){ parent.appendChild(gridOf(items, list)); return; }
+    const order=[]; const map=new Map();
+    items.forEach(it=>{ const k=it.g||'기타'; if(!map.has(k)){ map.set(k,[]); order.push(k);} map.get(k).push(it); });
+    order.forEach(k=>{
+      const sub=document.createElement('div'); sub.className='subg'; sub.textContent=k;
+      parent.appendChild(sub);
+      parent.appendChild(gridOf(map.get(k), list));
+    });
+  }
+
+  function buildPanel(s){
+    const p = document.createElement('div'); p.className = 'panel'; p.dataset.key = s.key;
+    const list = [];
+    s.refs.forEach(r=>{ r._ref=true; list.push(r); });
+    s.ours.forEach(o=>{ o._ref=false; list.push(o); });
+
+    if (s.reason){ const r = document.createElement('div'); r.className='reason'; r.textContent = '💡 ' + s.reason; p.appendChild(r); }
+
+    const hr = document.createElement('div'); hr.className='sec-h';
+    hr.innerHTML = '🎮 실제 게임 레퍼런스 <span class="pill">'+s.refs.length+'</span>';
+    p.appendChild(hr);
+    if (s.refs.length){ renderItems(p, s.refs, list); }
+    else { const e=document.createElement('div'); e.className='empty'; e.textContent = s.todo ? '탐색 결과 채우는 중…' : '레퍼런스 없음'; p.appendChild(e); }
+
+    const ho = document.createElement('div'); ho.className='sec-h ours';
+    ho.innerHTML = '🐧 우리 펭귄 시안 <span class="pill">'+s.ours.length+'</span>';
+    p.appendChild(ho);
+    if (s.ours.length){ renderItems(p, s.ours, list); }
+    else { const e=document.createElement('div'); e.className='empty'; e.textContent = '아직 없음 — 이 룩으로 가기로 하면 펭귄 시안 생성'; p.appendChild(e); }
+
+    return p;
+  }
+
+  function openAt(list, i){
+    curList = list; curIdx = (i + list.length) % list.length;
+    const it = curList[curIdx];
+    ovImg.src = it.f;
+    ovCap.textContent = it.t + (it.d ? ' — ' + it.d : '') + '  (' + (curIdx+1) + '/' + curList.length + ')';
+    overlay.classList.add('on');
+  }
+  function nav(d){ if(!overlay.classList.contains('on')||!curList.length) return; openAt(curList, curIdx+d); }
+
+  overlay.addEventListener('click', e=>{ if(e.target===overlay||e.target===ovImg) overlay.classList.remove('on'); });
+  document.getElementById('ovPrev').addEventListener('click', e=>{ e.stopPropagation(); nav(-1); });
+  document.getElementById('ovNext').addEventListener('click', e=>{ e.stopPropagation(); nav(1); });
+  document.addEventListener('keydown', e=>{
+    if(!overlay.classList.contains('on')) return;
+    if(e.key==='Escape') overlay.classList.remove('on');
+    else if(e.key==='ArrowLeft'){ e.preventDefault(); nav(-1); }
+    else if(e.key==='ArrowRight'){ e.preventDefault(); nav(1); }
+  });
+
+  const panels = new Map();
+  STYLES.forEach((s,i)=>{
+    const t = document.createElement('button');
+    t.className = 'tab' + (i===0?' active':'') + (s.todo?' todo':'');
+    t.textContent = s.name;
+    t.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      t.classList.add('active');
+      panels.forEach((p,k)=>p.classList.toggle('on', k===s.key));
+    });
+    tabsEl.appendChild(t);
+    const p = buildPanel(s);
+    if(i===0) p.classList.add('on');
+    area.appendChild(p);
+    panels.set(s.key, p);
+  });
+</script>
+</body>
+</html>
