@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>뮤노폴리 그림체 시안 — 11종 × A/B</title>
+  <style>
+    :root { color-scheme: dark; --bg:#101015; --panel:#181922; --line:#343746; --text:#f4f1e8; --muted:#aeadbd; --accent:#f0b23d; --blue:#7dd3fc; --green:#86efac; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif; padding:28px 20px 60px; }
+    header { max-width:1280px; margin:0 auto 6px; }
+    header h1 { font-size:24px; margin:0 0 6px; }
+    header h1 span { color:var(--accent); }
+    header p { color:var(--muted); margin:0 0 4px; font-size:14px; line-height:1.6; }
+    header b.a { color:var(--accent); } header b.b { color:var(--blue); }
+    .tabs { max-width:1280px; margin:18px auto 0; display:flex; gap:8px; }
+    .tab-btn { font:inherit; font-size:15px; font-weight:700; color:var(--muted); background:var(--panel); border:1px solid var(--line); border-radius:10px 10px 0 0; padding:12px 22px; cursor:pointer; }
+    .tab-btn.active { color:#0f1115; background:var(--accent); border-color:var(--accent); }
+    .tab-panel { display:none; } .tab-panel.active { display:block; }
+    .panel-note { max-width:1280px; margin:0 auto; border:1px solid var(--line); border-radius:0 10px 10px 10px; background:rgba(24,25,34,.6); padding:12px 16px; color:var(--muted); font-size:13px; line-height:1.65; }
+    .game { max-width:1280px; margin:22px auto 0; }
+    .game-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:8px; margin-bottom:14px; }
+    .game-head h2 { font-size:18px; margin:0; }
+    .game-head .diff { font-size:12px; font-weight:700; color:#0f1115; background:var(--accent); border-radius:999px; padding:3px 10px; }
+    .game-head .diff.hard { background:#f87171; }
+    .game-head .note { font-size:13px; color:var(--muted); }
+    .pair { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media (max-width:860px){ .pair{ grid-template-columns:1fr; } }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+    .card .shot { display:block; background:#000; cursor:zoom-in; position:relative; }
+    .card .shot img { width:100%; display:block; image-rendering:pixelated; background:#000; }
+    .card .shot .tag { position:absolute; top:10px; left:10px; font-size:12px; font-weight:800; border-radius:999px; padding:4px 11px; background:rgba(16,16,21,.85); }
+    .card.a .shot .tag { color:var(--accent); border:1px solid var(--accent); }
+    .card.b .shot .tag { color:var(--blue); border:1px solid var(--blue); }
+    .card .cap { padding:10px 13px; font-size:13px; color:var(--muted); line-height:1.55; }
+    /* Lightbox */
+    .lb { display:none; position:fixed; inset:0; z-index:100; background:rgba(6,6,10,.94); }
+    .lb.open { display:flex; align-items:center; justify-content:center; }
+    .lb img { max-width:92vw; max-height:82vh; image-rendering:pixelated; border:1px solid var(--line); border-radius:6px; box-shadow:0 20px 80px rgba(0,0,0,.6); }
+    .lb-cap { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:rgba(16,16,21,.9); border:1px solid var(--line); border-radius:999px; padding:10px 20px; font-size:14px; color:var(--text); white-space:nowrap; }
+    .lb-cap b { color:var(--accent); } .lb-cap .cnt { color:var(--muted); margin-left:10px; font-size:12px; }
+    .lb-nav { position:fixed; top:50%; transform:translateY(-50%); width:56px; height:56px; border-radius:50%; border:1px solid var(--line); background:rgba(24,25,34,.85); color:var(--text); font-size:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; user-select:none; transition:background .15s,border-color .15s; }
+    .lb-nav:hover { background:var(--accent); color:#0f1115; border-color:var(--accent); }
+    .lb-prev { left:24px; } .lb-next { right:24px; }
+    .lb-close { position:fixed; top:20px; right:24px; width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:rgba(24,25,34,.85); color:var(--text); font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .lb-close:hover { background:#f87171; color:#0f1115; border-color:#f87171; }
+    .lb-hint { position:fixed; top:24px; left:24px; font-size:12px; color:var(--muted); }
+    footer { max-width:1280px; margin:34px auto 0; color:var(--muted); font-size:13px; line-height:1.7; border-top:1px solid var(--line); padding-top:16px; }
+    footer strong { color:var(--green); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>뮤노폴리 그림체 시안 <span>11종 × A/B</span></h1>
+    <p>2026-07-02 · 각 그림체를 실제 게임 캡처 첨부해 코덱스로 생성 · 이미지 클릭 = 확대, 확대 화면에서 <b>← →</b> 방향키나 좌우 화살표로 넘겨보기</p>
+    <p><b class="a">A안</b> = 현 목업 구조(층 번호·발판·주사위판·코인·상점)만 유지 + 그림체·산양은 완전 새로 · <b class="b">B안</b> = 게임 규칙만 주고 그 그림체로 자유 구성</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="modern">① 현대 스팀편 (6종)</button>
+    <button class="tab-btn" data-tab="famicom">② 패미컴 시절편 (5종 · 하드웨어 4대 룰 적용)</button>
+  </div>
+
+  <section class="tab-panel active" id="tab-modern">
+    <div class="panel-note">요즘 스팀 픽셀 게임 그림체. 형이 다운로드에 올린 캡처를 레퍼런스로 첨부해 생성.</div>
+    <div id="grid-modern"></div>
+  </section>
+  <section class="tab-panel" id="tab-famicom">
+    <div class="panel-note">진짜 패미컴 시절 게임 그림체. 패미컴 하드웨어 4대 룰(색 50 / 동시 25 / 캐릭터 4색 / 8×8 타일)을 프롬프트에 엄격히 명시해 생성.</div>
+    <div id="grid-famicom"></div>
+  </section>
+
+  <footer>
+    <p><strong>다음 단계</strong> — 마음에 드는 그림체(와 A/B 방향) 고르면 → 그걸로 세부 아트 그리기 착수 or my-game/mewnopoly-art-styles 갤러리로 공개. 아쉬운 그림체는 그 게임만 다시 생성 가능.</p>
+  </footer>
+
+  <!-- Lightbox -->
+  <div class="lb" id="lb">
+    <div class="lb-hint">← → 방향키 · ESC 닫기</div>
+    <div class="lb-close" id="lbClose">✕</div>
+    <div class="lb-nav lb-prev" id="lbPrev">‹</div>
+    <img id="lbImg" src="" alt="">
+    <div class="lb-nav lb-next" id="lbNext">›</div>
+    <div class="lb-cap" id="lbCap"></div>
+  </div>
+
+  <script>
+    // 게임 메타 (순서 = 넘겨보기 순서)
+    const modern = [
+      { key:"landlord",  name:"Luck be a Landlord", diff:"난이도 1", note:"미니멀 평면 아이콘 · 도박 무드" },
+      { key:"minit",     name:"Minit",              diff:"난이도 1", note:"흑백 2색(1-bit)" },
+      { key:"gato",      name:"Gato Roboto",        diff:"난이도 2", note:"게임보이 2색 모노크롬" },
+      { key:"luft",      name:"LUFTRAUSERS",        diff:"난이도 2", note:"세피아 단색조" },
+      { key:"peglin",    name:"Peglin",             diff:"난이도 3", note:"뭉툭 캐주얼 컬러" },
+      { key:"jumpking",  name:"Jump King",          diff:"난이도 3~4", note:"회화적 배경 · 무대미술 감각" },
+    ];
+    const famicom = [
+      { key:"iceclimber", name:"아이스 클라이머",  diff:"난이도 1", note:"검은 하늘 + 층층 얼음벽돌 · 뮤노폴리 원형" },
+      { key:"wrecking",   name:"레킹 크루",        diff:"난이도 1", note:"격자 공사장 타일" },
+      { key:"mario3",     name:"슈퍼 마리오 3",    diff:"난이도 3", note:"장난감 상자 만화풍 · 월드맵 UI" },
+      { key:"ducktales",  name:"덕테일즈",         diff:"난이도 3", note:"디즈니 만화 윤곽선" },
+      { key:"batman",     name:"배트맨",           diff:"난이도 4", hard:true, note:"남색·보라 실루엣 무드" },
+    ];
+
+    // 넘겨보기용 전역 이미지 배열
+    const allShots = [];
+    function fileFor(key, variant){ return variant==="A" ? `A-${key}-structure.png` : `B-${key}-free.png`; }
+
+    function buildGrid(list, mountId){
+      const mount = document.getElementById(mountId);
+      list.forEach(g => {
+        const sec = document.createElement("section");
+        sec.className = "game";
+        sec.innerHTML = `<div class="game-head"><h2>${g.name}</h2><span class="diff${g.hard?' hard':''}">${g.diff}</span><span class="note">${g.note}</span></div>`;
+        const pair = document.createElement("div");
+        pair.className = "pair";
+        [["A","구조 유지","a"],["B","자유 구성","b"]].forEach(([variant,label,cls]) => {
+          const file = fileFor(g.key, variant);
+          const idx = allShots.length;
+          allShots.push({ file, caption:`${g.name} — ${variant}안 (${label})` });
+          const card = document.createElement("div");
+          card.className = "card " + cls;
+          card.innerHTML = `<div class="shot" data-idx="${idx}"><span class="tag">${variant}안 · ${label}</span><img src="${file}" alt=""></div><div class="cap">${label}</div>`;
+          pair.appendChild(card);
+        });
+        sec.appendChild(pair);
+        mount.appendChild(sec);
+      });
+    }
+    buildGrid(modern, "grid-modern");
+    buildGrid(famicom, "grid-famicom");
+
+    // 탭
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    // 라이트박스
+    const lb = document.getElementById("lb");
+    const lbImg = document.getElementById("lbImg");
+    const lbCap = document.getElementById("lbCap");
+    let cur = 0;
+    function show(i){
+      cur = (i + allShots.length) % allShots.length;
+      const s = allShots[cur];
+      lbImg.src = s.file;
+      lbCap.innerHTML = `<b>${s.caption}</b><span class="cnt">${cur+1} / ${allShots.length}</span>`;
+    }
+    function openLb(i){ show(i); lb.classList.add("open"); }
+    function closeLb(){ lb.classList.remove("open"); }
+    document.querySelectorAll(".shot").forEach(el => {
+      el.addEventListener("click", () => openLb(parseInt(el.dataset.idx)));
+    });
+    document.getElementById("lbPrev").addEventListener("click", e => { e.stopPropagation(); show(cur-1); });
+    document.getElementById("lbNext").addEventListener("click", e => { e.stopPropagation(); show(cur+1); });
+    document.getElementById("lbClose").addEventListener("click", closeLb);
+    lb.addEventListener("click", e => { if (e.target === lb) closeLb(); });
+    document.addEventListener("keydown", e => {
+      if (!lb.classList.contains("open")) return;
+      if (e.key === "ArrowLeft") show(cur-1);
+      else if (e.key === "ArrowRight") show(cur+1);
+      else if (e.key === "Escape") closeLb();
+    });
+  </script>
+</body>
+</html>
