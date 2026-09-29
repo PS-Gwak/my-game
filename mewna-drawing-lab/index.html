@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>그리는 방법 6가지 비교 · 뮤나리자</title>
+<link rel="icon" href="data:," />
+<style>
+:root {
+  --bg: #15110a;
+  --panel: #1a1408;
+  --panel-dark: #100c06;
+  --gold: #f5a700;
+  --gold-soft: #f0c674;
+  --text: #e8d6a8;
+  --text-soft: #aa936a;
+  --text-faint: #5a4e38;
+  --border: #443a25;
+  --border-hover: #f5a700;
+  --track: #2a1f0e;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont,
+               "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(21,17,10,0.93), rgba(8,7,4,0.99)),
+    radial-gradient(circle at 50% 0%, rgba(245,167,0,0.10), transparent 40%),
+    var(--bg);
+}
+
+.page-header {
+  text-align: center;
+  padding: 52px 24px 36px;
+  border-bottom: 1px solid var(--track);
+  position: relative;
+}
+
+.page-header::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 80px;
+  height: 2px;
+  background: var(--gold);
+  transform: translateX(-50%);
+}
+
+.page-header .eyebrow {
+  display: inline-block;
+  color: var(--gold-soft);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.page-header h1 {
+  color: var(--gold);
+  font-size: clamp(26px, 5vw, 46px);
+  line-height: 1.1;
+  margin-bottom: 14px;
+}
+
+.page-header .subtitle {
+  color: var(--text-soft);
+  font-size: clamp(13px, 1.8vw, 15px);
+  line-height: 1.6;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.variant-label {
+  width: min(1060px, calc(100vw - 40px));
+  margin: 0 auto;
+  padding: 48px 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.variant-label .badge {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), #b87700);
+  color: #0a0a0a;
+  font-size: 15px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+}
+
+.variant-label .label-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--gold-soft);
+  letter-spacing: 0.06em;
+}
+
+.variant-label .label-desc {
+  font-size: 13px;
+  color: var(--text-soft);
+  margin-left: 4px;
+  line-height: 1.5;
+}
+
+.variant-label .label-desc b {
+  color: var(--gold-soft);
+}
+
+/* 소개 상자 3칸: 게임 소개 → 모작 설명 → 이 페이지를 만든 이유 순서로 읽힌다 */
+.intro {
+  width: min(1060px, calc(100vw - 40px));
+  margin: 0 auto;
+  padding-top: 44px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.intro-item {
+  background: var(--panel);
+  border: 1px solid var(--track);
+  border-radius: 10px;
+  padding: 20px 20px 22px;
+}
+
+.intro-item .intro-step {
+  display: inline-block;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.intro-item h2 {
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.3;
+  margin-bottom: 10px;
+}
+
+.intro-item p {
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.intro-item p b {
+  color: var(--gold-soft);
+}
+
+.variant-sep {
+  width: min(1060px, calc(100vw - 40px));
+  height: 1px;
+  background: var(--track);
+  margin: 12px auto 48px;
+}
+
+.layout-b {
+  width: min(1060px, calc(100vw - 40px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding-bottom: 72px;
+}
+
+.card-b {
+  background: linear-gradient(160deg, rgba(26,20,8,0.98), rgba(14,11,5,0.98));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.13s ease, border-color 0.13s ease, box-shadow 0.13s ease;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.30);
+  position: relative;
+}
+
+.card-b:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.50), 0 0 0 1px rgba(245,167,0,0.15);
+}
+
+.card-b::before {
+  content: "";
+  display: block;
+  height: 3px;
+  background: var(--thumb-color, var(--gold));
+  flex-shrink: 0;
+}
+
+.card-b .thumb-b {
+  height: 120px;
+  background: var(--panel-dark);
+  border-bottom: 1px solid var(--track);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.card-b .thumb-b::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 100%, var(--thumb-color, var(--gold)), transparent 65%);
+  opacity: 0.10;
+}
+
+.card-b .thumb-b .big-num {
+  font-size: 40px;
+  font-weight: 900;
+  color: var(--thumb-color, var(--gold));
+  line-height: 1;
+  opacity: 0.55;
+  z-index: 1;
+  position: relative;
+}
+
+.card-b .thumb-b .big-icon {
+  font-size: 26px;
+  z-index: 1;
+  position: relative;
+  opacity: 0.80;
+}
+
+.card-b .body-b {
+  padding: 18px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+}
+
+.card-b .body-b .mech {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--thumb-color, var(--gold));
+  opacity: 0.80;
+}
+
+.card-b .body-b h2 {
+  color: var(--text);
+  font-size: clamp(14px, 1.5vw, 17px);
+  line-height: 1.22;
+}
+
+.card-b .body-b p {
+  color: var(--text-soft);
+  font-size: clamp(11px, 1.2vw, 13px);
+  line-height: 1.55;
+  flex: 1;
+}
+
+.card-b .foot-b {
+  border-top: 1px solid var(--track);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.card-b .foot-b .g2-icon {
+  font-size: 14px;
+  opacity: 0.65;
+}
+
+.card-b .foot-b .g2-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--gold-soft);
+  letter-spacing: 0.03em;
+}
+
+.card-b.c1 { --thumb-color: #f5a700; }
+.card-b.c2 { --thumb-color: #e06820; }
+.card-b.c3 { --thumb-color: #7ec850; }
+.card-b.c4 { --thumb-color: #50b8e0; }
+.card-b.c5 { --thumb-color: #e050a0; }
+.card-b.c6 { --thumb-color: #a070f0; }
+
+.page-footer {
+  border-top: 1px solid var(--track);
+  padding: 20px 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .layout-b {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .intro {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .layout-b,
+  .intro,
+  .variant-label,
+  .variant-sep {
+    width: calc(100vw - 24px);
+  }
+
+  .layout-b {
+    grid-template-columns: 1fr;
+  }
+
+  .card-b .thumb-b {
+    height: 80px;
+  }
+
+  /* 좁은 화면: "직접 해보기"가 쪼개지지 않게 안내 문장을 아랫줄로 내린다 */
+  .variant-label {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+  }
+
+  .variant-label .label-text {
+    white-space: nowrap;
+  }
+
+  .variant-label .label-desc {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .page-footer {
+    text-align: center;
+    padding: 16px;
+  }
+}
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <p class="eyebrow">Mewna Lisa · 김인표 · 그리기 손맛 실험</p>
+  <h1>그리는 방법 6가지 비교</h1>
+  <p class="subtitle">고양이가 된 명화를 따라 그리는 게임 '뮤나리자'에서 가장 기본이 되는 동작, '그림 그리기'를 여섯 가지 손맛으로 만들어 비교하는 페이지입니다.</p>
+</header>
+
+<section class="intro" aria-label="뮤나리자와 이 페이지 소개">
+  <div class="intro-item">
+    <span class="intro-step">01</span>
+    <h2>뮤나리자는 어떤 게임인가요?</h2>
+    <p>모나리자를 비롯한 유명한 명화들이 <b>고양이 버전</b>으로 등장하는 게임이에요. 플레이어는 이 그림들을 똑같이 따라 그리는 <b>'모작 화가'</b>가 됩니다. 그린 그림을 팔아 돈을 벌고, 그 돈으로 더 좋은 도구를 사서 더 어렵고 비싼 명화에 도전해요.</p>
+  </div>
+  <div class="intro-item">
+    <span class="intro-step">02</span>
+    <h2>'모작'이 뭔가요?</h2>
+    <p>모작(模作)은 원작을 보고 <b>그대로 따라 그리는 것</b>이에요. 미술을 배울 때 명화를 따라 그리며 연습하는 것과 같아요. 뮤나리자에서는 이 모작이 돈을 버는 <b>기본 일</b>이에요. 한 장을 완성하면 팔고, 다시 다음 그림을 그리는 과정을 게임 내내 수십, 수백 번 반복합니다.</p>
+  </div>
+  <div class="intro-item">
+    <span class="intro-step">03</span>
+    <h2>이 페이지는 왜 만들었나요?</h2>
+    <p>수백 번 반복하는 행동이 지루하면 게임 전체가 지루해져요. 그래서 '따라 그리기'를 어떤 손동작으로 표현해야 반복해도 재미있을지 찾으려고, <b>같은 고양이 모나리자를 여섯 가지 방식</b>으로 그리는 시안을 만들었어요. 이 중 '진짜 그림을 그리고 있다'는 감각이 가장 살아 있는 방식을 골라 게임의 기본 동작으로 정할 예정입니다.</p>
+  </div>
+</section>
+
+<div class="variant-label">
+  <div class="badge" aria-hidden="true">▶</div>
+  <span class="label-text">직접 해보기</span>
+  <span class="label-desc">카드를 누르면 바로 플레이할 수 있어요. <b>06번은 마우스 휠로 조작해서 PC에서 열어 주세요.</b></span>
+</div>
+<div class="variant-sep"></div>
+
+<main class="layout-b" aria-label="그리기 방식 6종 데모 목록">
+  <a class="card-b c1" href="proto-d/index.html">
+    <div class="thumb-b">
+      <span class="big-icon">✏️</span>
+      <span class="big-num">01</span>
+    </div>
+    <div class="body-b">
+      <span class="mech">한붓그리기</span>
+      <h2>외곽선 한붓<br>— 큰 그림에 직접</h2>
+      <p>빛나는 점을 순서대로 이어 외곽선을 그립니다. 보조판 없이 큰 그림 위에 바로 그리는 방식입니다.</p>
+    </div>
+    <div class="foot-b">
+      <span class="g2-icon">👆</span>
+      <span class="g2-label">점 순서대로 탭</span>
+    </div>
+  </a>
+
+  <a class="card-b c2" href="proto-d-1/index.html">
+    <div class="thumb-b">
+      <span class="big-icon">📋</span>
+      <span class="big-num">02</span>
+    </div>
+    <div class="body-b">
+      <span class="mech">보조판 + 채색</span>
+      <h2>외곽선 한붓<br>— 보조판 + 색칠</h2>
+      <p>옆 보조판에서 외곽선을 그리고 색을 채운 뒤, 큰 그림에 완성 결과가 반영됩니다.</p>
+    </div>
+    <div class="foot-b">
+      <span class="g2-icon">✏️</span>
+      <span class="g2-label">보조판 한붓 + 채색</span>
+    </div>
+  </a>
+
+  <a class="card-b c3" href="gauge-sketch-demo/index.html">
+    <div class="thumb-b">
+      <span class="big-icon">⚡</span>
+      <span class="big-num">03</span>
+    </div>
+    <div class="body-b">
+      <span class="mech">연타 스케치</span>
+      <h2>연타 스케치<br>— 두드려 채우기</h2>
+      <p>화면을 두드려 게이지를 채우면 연필 스케치가 조금씩 짙어지는 방식입니다.</p>
+    </div>
+    <div class="foot-b">
+      <span class="g2-icon">🔨</span>
+      <span class="g2-label">연속 탭 → 게이지</span>
+    </div>
+  </a>
+
+  <a class="card-b c4" href="click-palette/index.html">
+    <div class="thumb-b">
+      <span class="big-icon">🎨</span>
+      <span class="big-num">04</span>
+    </div>
+    <div class="body-b">
+      <span class="mech">팔레트 연타</span>
+      <h2>팔레트 연타<br>— 색 찍어 완성</h2>
+      <p>색 팔레트를 반복해서 눌러 그림을 채웁니다. 색을 고르는 행동이 곧 그리기입니다.</p>
+    </div>
+    <div class="foot-b">
+      <span class="g2-icon">🖱️</span>
+      <span class="g2-label">팔레트 반복 클릭</span>
+    </div>
+  </a>
+
+  <a class="card-b c5" href="crank-press/index.html">
+    <div class="thumb-b">
+      <span class="big-icon">⚙️</span>
+      <span class="big-num">05</span>
+    </div>
+    <div class="body-b">
+      <span class="mech">크랭크 프레스</span>
+      <h2>등사기 크랭크<br>— 손잡이 돌리기</h2>
+      <p>손잡이를 원으로 돌리면 인쇄바가 내려오며 그림이 한 줄씩 찍혀 나옵니다.</p>
+    </div>
+    <div class="foot-b">
+      <span class="g2-icon">🌀</span>
+      <span class="g2-label">마우스 원운동</span>
+    </div>
+  </a>
+
+  <a class="card-b c6" href="silkscreen/index.html">
+    <div class="thumb-b">
+      <span class="big-icon">🖼️</span>
+      <span class="big-num">06</span>
+    </div>
+    <div class="body-b">
+      <span class="mech">실크스크린</span>
+      <h2>실크스크린<br>— 찍어내기</h2>
+      <p>휠을 위아래로 굴려 잉크를 끌어내리면 그림이 실크스크린처럼 드러납니다.</p>
+    </div>
+    <div class="foot-b">
+      <span class="g2-icon">🖱️</span>
+      <span class="g2-label">휠 위아래 왕복</span>
+    </div>
+  </a>
+</main>
+
+<footer class="page-footer">
+  <span>Mewna Lisa · 그리기 방법 6종 비교 · 김인표</span>
+</footer>
+
+</body>
+</html>
