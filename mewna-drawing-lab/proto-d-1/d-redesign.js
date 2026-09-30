@@ -146,6 +146,10 @@
   let paintCompleteQueued = false;
 
   let wristMode = false;
+  let imagesReady = false;     // 그림 3장을 다 불러왔는지
+  let startRequested = false;  // 시작 카드에서 '시작하기'를 눌렀는지
+  let gameStarted = false;     // 첫 시작을 한 번만 하도록
+  let coachRestartFlag = false; // 틀린 점에 닿아 '처음부터 다시' 안내 중인지
   let hovering = false;
   let hoverSurface = null;
   let activeSurface = null;
@@ -253,7 +257,8 @@
       return;
     }
     document.getElementById("loading").style.display = "none";
-    document.getElementById("startScreen").classList.remove("hidden");
+    imagesReady = true;
+    if (startRequested) beginGame();
     requestAnimationFrame(loop);
   }
 
@@ -458,6 +463,7 @@
   }
 
   function resetDrawState() {
+    coachRestartFlag = false;
     completedDrawLoops = 0;
     resetCurrentDrawLoop({ clearTrace: true, resetBreaks: true });
     updateTabletProgressLights();
@@ -492,9 +498,12 @@
   function restartSketch(message = "처음부터 다시") {
     clearWrongFlash();
     resetCurrentDrawLoop({ clearTrace: true, resetBreaks: true });
+    // 처음으로 되돌린 뒤에는 '처음부터 다시' 안내를 풀고 첫 점부터 이으라는 안내로 돌아간다
+    coachRestartFlag = false;
     if (message) toast(message);
     updateMeters();
     updateTabletProgressLights();
+    updateCoach();
     markDirty();
   }
 
@@ -503,6 +512,8 @@
     wrongFlashNodeIdx = nodeIdx;
     wrongFlashUntil = Date.now() + WRONG_FLASH_MS;
     toast("틀린 점이에요. 처음부터 다시");
+    coachRestartFlag = true;
+    updateCoach();
     markDirty();
     wrongResetTimer = setTimeout(() => {
       wrongResetTimer = null;
@@ -532,8 +543,9 @@
   }
 
   function beginGame() {
+    if (gameStarted) return;
+    gameStarted = true;
     wristMode = document.getElementById("wristToggle").checked;
-    document.getElementById("startScreen").classList.add("hidden");
     startDraw();
   }
 
@@ -570,14 +582,7 @@
     wristMode = document.getElementById("wristToggle").checked;
     hovering = false;
     hoverSurface = null;
-    const debugPanel = document.getElementById("debugPanel");
-    if (debugPanel) {
-      debugPanel.classList.remove("show");
-      debugPanel.setAttribute("aria-hidden", "true");
-    }
     document.getElementById("result").classList.remove("show");
-    document.getElementById("savedTag").classList.remove("show");
-    document.getElementById("startScreen").classList.add("hidden");
     startDraw();
     toast("처음부터 다시 그립니다");
   }
@@ -613,25 +618,9 @@
     markDirty();
   }
 
-  function updateHintBanner(mode) {
-    const isPaint = mode === "paint";
-    const banner = document.getElementById("hintBanner");
-    const icon = document.getElementById("hintBannerIcon");
-    const stageLabel = document.getElementById("hintBannerStage");
-    const message = document.getElementById("hintBannerMessage");
-    const footerHint = document.getElementById("hint");
-    const text = isPaint
-      ? "큰 그림을 직접 골고루 문질러 컬러를 드러내세요. 같은 곳은 두세 번 문질러야 다 벗겨져요."
-      : "타블렛에서 빛나는 점을 순서대로 이어 그림을 완성하세요";
-
-    if (banner) {
-      banner.classList.toggle("draw-mode", !isPaint);
-      banner.classList.toggle("paint-mode", isPaint);
-    }
-    if (icon) icon.textContent = isPaint ? "🖌️" : "✏️";
-    if (stageLabel) stageLabel.textContent = isPaint ? "② 채색 단계" : "① 데생 단계";
-    if (message) message.textContent = text;
-    if (footerHint) footerHint.innerHTML = `<b>${isPaint ? "채색" : "데생"}:</b> ${text}`;
+  // 예전 위쪽 안내 띠 자리 — 이제는 그림 옆 조작 배지가 안내를 맡는다
+  function updateHintBanner() {
+    updateCoach();
   }
 
   function setLayoutMode(mode) {
@@ -640,8 +629,8 @@
     gameLayout.classList.toggle("paint-mode", mode === "paint");
     const tabletPanel = document.getElementById("tabletPanel");
     const tabletLabel = document.getElementById("tabletLabel");
-    if (tabletPanel) tabletPanel.setAttribute("aria-label", mode === "paint" ? "채색 참고 미니 타블렛" : "데생용 미니 타블렛");
-    if (tabletLabel) tabletLabel.textContent = mode === "paint" ? "COLOR REF" : "MINI TABLET";
+    if (tabletPanel) tabletPanel.setAttribute("aria-label", mode === "paint" ? "채색용 보조판" : "데생용 보조판");
+    if (tabletLabel) tabletLabel.textContent = mode === "paint" ? "보조판 · 여기를 문질러 색칠" : "보조판 · 여기서 점 잇기";
   }
 
   function toSurfaceLocal(e, surface) {
@@ -711,6 +700,7 @@
     nextNodeIdx = nodeIndexForPathStep(nextPathStepIdx);
     strokeActive = true;
     strokeInProgress = true;
+    coachRestartFlag = false;
 
     updateMeters();
     const totalTargets = drawTargetCount();
@@ -720,6 +710,7 @@
       drawCompleteQueued = true;
       triggerDrawComplete();
     }
+    updateCoach();
     markDirty();
   }
 
@@ -823,6 +814,7 @@
     if (paintLeft <= 0 && stage === STAGE.PAINT && !paintCompleteQueued) {
       finishPaint("depleted");
     }
+    updateCoach();
     markDirty();
   }
 
@@ -851,6 +843,7 @@
   }
 
   function onDown(e) {
+    if (MewnaFrame.isIntroOpen()) return;
     if (stage !== STAGE.DRAW && stage !== STAGE.PAINT) return;
     const surface = surfaceFromTarget(e.currentTarget);
     if (surface !== surfaceForStage()) return;
@@ -860,9 +853,11 @@
     drawing = true;
     lastPt = toSurfaceLocal(e, surface);
     applyInput(lastPt, lastPt);
+    coachActivity();
   }
 
   function onMove(e) {
+    if (MewnaFrame.isIntroOpen()) return;
     if (stage !== STAGE.DRAW && stage !== STAGE.PAINT) return;
     const requiredSurface = surfaceForStage();
     const isTouch = !!e.touches;
@@ -875,6 +870,7 @@
     if (!lastPt) lastPt = p;
     applyInput(lastPt, p);
     lastPt = p;
+    coachActivity();
   }
 
   function onUp() {
@@ -954,6 +950,7 @@
 
     toast("데생 완성! 윤곽선이 완성됐습니다");
     document.getElementById("chipDraw").classList.add("done");
+    updateCoach();
     markDirty();
     scheduleAutoPaint();
   }
@@ -980,6 +977,7 @@
     paintCompleteQueued = true;
     stage = STAGE.RESULT;
     setChips("done");
+    updateCoach();
     triggerPaintComplete(showResult);
   }
 
@@ -1238,49 +1236,7 @@
     document.getElementById("bdFeedback").textContent =
       `${fb} (드러낸 면적 ${Math.round(revealRatio * 100)}%, 데생 ${Math.round(rawDrawRatio * 100)}%·끊김 ${breakCount}회, 긁기 효율 ${Math.round(scratchEff * 100)}%, 물감 ${paintFinishReason === "depleted" ? "소진" : Math.round((paintLeft / Math.max(1, paintMax)) * 100) + "%"})`;
 
-    buildStars();
-    loadSavedReview();
     document.getElementById("result").classList.add("show");
-  }
-
-  const REVIEW_KEY = "mewna_proto_d_redesign_review";
-  const reviewState = { feel: 0, diff: 0, retry: 0 };
-
-  function buildStars() {
-    document.querySelectorAll(".stars").forEach((group) => {
-      const key = group.dataset.key;
-      group.innerHTML = "";
-      for (let i = 1; i <= 5; i++) {
-        const s = document.createElement("span");
-        s.className = "star";
-        s.textContent = "★";
-        s.addEventListener("click", () => {
-          reviewState[key] = i;
-          paintStars(group, i);
-        });
-        group.appendChild(s);
-      }
-      paintStars(group, reviewState[key]);
-    });
-  }
-
-  function paintStars(group, n) {
-    [...group.children].forEach((s, idx) => s.classList.toggle("lit", idx < n));
-  }
-
-  function loadSavedReview() {
-    try {
-      const raw = localStorage.getItem(REVIEW_KEY);
-      if (!raw) return;
-      const d = JSON.parse(raw);
-      reviewState.feel = d.feel || 0;
-      reviewState.diff = d.diff || 0;
-      reviewState.retry = d.retry || 0;
-      document.getElementById("reviewComment").value = d.comment || "";
-      buildStars();
-    } catch (err) {
-      console.warn("저장된 평가를 불러오지 못했습니다:", err);
-    }
   }
 
   function toast(msg) {
@@ -1322,13 +1278,6 @@
     if (valEl) valEl.textContent = value;
   }
 
-  function toggleDebugPanel() {
-    const panel = document.getElementById("debugPanel");
-    const show = !panel.classList.contains("show");
-    panel.classList.toggle("show", show);
-    panel.setAttribute("aria-hidden", show ? "false" : "true");
-  }
-
   const dbgControls = [
     wireSlider("dbgWasteCost", "dvWasteCost", "HIT_RADIUS", 0, () => {
       syncWrongHitRadius();
@@ -1361,7 +1310,6 @@
   const hitRadiusLabel = hitRadiusPanel?.querySelector(".dbg-lbl span");
   if (hitRadiusLabel) hitRadiusLabel.textContent = "데생 점 통과 반경";
 
-  document.getElementById("startBtn").addEventListener("click", beginGame);
   document.getElementById("skipDrawBtn").addEventListener("click", enterPaint);
   document.getElementById("finishBtn").addEventListener("click", () => {
     if (stage !== STAGE.PAINT) return;
@@ -1369,32 +1317,6 @@
   });
   document.getElementById("redrawBtn").addEventListener("click", restartGame);
   document.getElementById("resultRedrawBtn").addEventListener("click", restartGame);
-  document.getElementById("saveReview").addEventListener("click", () => {
-    const payload = {
-      ...reviewState,
-      comment: document.getElementById("reviewComment").value,
-      score: document.getElementById("scoreVal").textContent,
-      ts: new Date().toISOString(),
-    };
-    try {
-      localStorage.setItem(REVIEW_KEY, JSON.stringify(payload));
-      const tag = document.getElementById("savedTag");
-      tag.classList.add("show");
-      setTimeout(() => tag.classList.remove("show"), 2500);
-    } catch (err) {
-      console.warn("평가 저장 실패:", err);
-    }
-  });
-
-  window.addEventListener("keydown", (e) => {
-    const isD = e.code === "KeyD" || e.key === "d" || e.key === "D";
-    if (!isD) return;
-    const t = document.activeElement;
-    if (t && (t.tagName === "TEXTAREA" || t.tagName === "INPUT" || t.isContentEditable)) return;
-    e.preventDefault();
-    toggleDebugPanel();
-  });
-
   document.getElementById("dbgReset").addEventListener("click", () => {
     Object.assign(CONFIG, CONFIG_DEFAULTS);
     document.getElementById("dbgWasteCost").value = CONFIG.HIT_RADIUS;
@@ -1425,5 +1347,63 @@
   window.addEventListener("touchend", onUp);
   window.addEventListener("touchcancel", onUp);
 
+  // ── 처음 보는 사람용 안내: 그림 옆 조작 배지 (공통 틀 common/frame.js 사용) ──
+  // 게임 규칙은 건드리지 않고, 지금 단계(데생·채색·완성)와 진행 상황을 읽어서 할 동작만 알려 준다.
+  const COACH = {
+    drawStart: { icon: "connect", title: "보조판의 점부터 이으세요", sub: "오른쪽 보조판에서 빛나는 점부터, 누른 채 다음 점으로 끌어요" },
+    draw: { icon: "connect", title: "다음 점으로 이어 가세요", sub: "빛나는 점 순서대로. 틀린 점에 닿으면 처음부터 다시 해요" },
+    drawClose: { icon: "connect", title: "첫 점으로 돌아와 닫으세요", sub: "이 한 번만 이으면 데생이 끝나요" },
+    drawRestart: { icon: "connect", title: "처음부터 다시 이어요", sub: "틀린 점에 닿았어요. 빛나는 점부터 순서대로" },
+    drawDone: { icon: "flag", title: "데생 완성!", sub: "곧 색칠 단계로 넘어가요" },
+    paint: { icon: "rub", title: "보조판을 문질러 색칠하세요", sub: "문지른 자리만큼 큰 그림에 컬러가 드러나요. 물감은 정해져 있어요" },
+    paintLow: { icon: "rub", title: "물감이 얼마 안 남았어요", sub: "덜 드러난 곳 위주로 문지르세요. 다 쓰면 그대로 채점돼요" },
+  };
+  let coachChangedAt = 0;
+
+  function updateCoach() {
+    let key = "";
+    let cfg = null;
+    if (stage === STAGE.DRAW) {
+      if (drawCompleteQueued) key = "drawDone";
+      else if (coachRestartFlag) key = "drawRestart";
+      else if (nextPathStepIdx === 0) key = "drawStart";
+      else if (nextPathStepIdx === drawTargetCount() - 1) key = "drawClose";
+      else key = "draw";
+    } else if (stage === STAGE.PAINT) {
+      key = paintMax && paintLeft / paintMax < 0.35 ? "paintLow" : "paint";
+    } else if (stage === STAGE.RESULT) {
+      key = "done-" + paintFinishReason;
+      cfg = {
+        done: true,
+        title: paintFinishReason === "complete" ? "명화 완성!" : paintFinishReason === "depleted" ? "물감을 다 썼어요" : "채점했어요",
+        sub: "점수를 확인하고 다음 시안도 해 보세요",
+      };
+    } else {
+      // 아직 그림을 불러오는 중이어도 빈 상자 대신 첫 안내를 미리 보여 준다
+      key = "drawStart";
+    }
+    const changed = MewnaFrame.setCoach(key, cfg || COACH[key]);
+    if (changed) coachChangedAt = performance.now();
+    return changed;
+  }
+
+  // 알려 준 대로 그리고·문지르는 중이면 배지를 흐리게. 방금 할 일이 바뀌었으면 잠깐 또렷하게 둔다.
+  function coachActivity() {
+    if (performance.now() - coachChangedAt < 800) return;
+    MewnaFrame.activity(true);
+  }
+
+  MewnaFrame.init({
+    coachAnchor: document.getElementById("artAnchor"),
+    coachLimit: () => [document.getElementById("debugPanel")],
+    next: { href: "../gauge-sketch-demo/index.html", label: "다음 시안 →" },
+    onRedraw: restartGame,
+    onStart: () => {
+      startRequested = true;
+      if (imagesReady) beginGame();
+    },
+  });
+
+  updateCoach(); // 시작 카드를 닫자마자 배지가 비어 보이지 않게 첫 안내를 채워 둔다
   loadImages();
 })();

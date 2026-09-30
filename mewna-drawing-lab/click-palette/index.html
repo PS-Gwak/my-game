@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>B안 시안 2 - 팔레트 연타 완성</title>
+<title>04 팔레트 연타 · 뮤나리자 그리기 실험</title>
 <link rel="icon" href="data:,">
+<link rel="stylesheet" href="../common/frame.css">
 <style>
   :root {
     --bg: #15110a;
@@ -26,80 +27,51 @@
     color: var(--text);
     font-family: "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
     display: grid;
-    grid-template-rows: 40px minmax(0, 1fr) 74px;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     -webkit-user-select: none;
     user-select: none;
   }
 
-  header {
-    background: var(--panel-dark);
-    border-bottom: 1px solid var(--border);
+  /* 윗줄 가운데의 단계 표시(1 데생 / 2 컬러) */
+  .stage-pills {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 0 16px;
+    gap: 6px;
   }
-  .brand {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    min-width: 0;
-  }
-  .brand strong {
-    color: var(--gold);
-    font-size: 17px;
-    font-weight: 900;
-    white-space: nowrap;
-  }
-  .brand span {
-    color: var(--text-soft);
-    font-size: 12px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .top-meter {
-    display: grid;
-    grid-template-columns: 88px minmax(170px, 260px) 42px;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--gold-light);
-    font-weight: 800;
-  }
-  .bar-shell {
-    height: 10px;
-    border-radius: 999px;
-    background: #241a0c;
+  .stage-pill {
     border: 1px solid var(--border);
-    overflow: hidden;
+    border-radius: 7px;
+    padding: 3px 10px;
+    text-align: center;
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 800;
+    background: var(--track);
+    white-space: nowrap;
   }
-  .bar-fill {
-    width: 0%;
-    height: 100%;
-    background: linear-gradient(90deg, #b87700, var(--gold));
-    transition: width 0.16s ease;
-  }
-  .pct {
-    color: var(--gold);
-    text-align: right;
-    font-variant-numeric: tabular-nums;
+  .stage-pill.active {
+    color: #100b02;
+    border-color: var(--gold);
+    background: linear-gradient(135deg, var(--gold), #b87700);
   }
 
   main {
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 308px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
     overflow: hidden;
   }
+  /* 손맛 조절 창을 열면 오른쪽에 자리를 내준다 */
+  body.mf-tuning-open main {
+    grid-template-columns: minmax(0, 1fr) 308px;
+  }
+  /* 그림 + 팔레트를 한 묶음으로 가운데 두고, 팔레트 오른쪽에 조작 배지 자리를 남긴다 */
   .stage {
     --palette-width: 224px;
     --palette-height: 189px;
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(14px, 1fr) auto minmax(var(--palette-width), 1fr);
+    grid-template-columns: minmax(14px, 1fr) auto auto minmax(14px, 1fr);
     align-items: center;
     position: relative;
     background:
@@ -107,14 +79,14 @@
       linear-gradient(180deg, rgba(255,255,255,0.025) 1px, transparent 1px),
       var(--panel);
     background-size: 34px 34px;
-    padding: 14px 0 14px 14px;
+    padding: 14px;
   }
   .painting-frame {
     grid-column: 2;
-    width: min(56vh, calc(100vw - 430px), 520px);
+    /* 화면 높이에 맞춰 줄어들어 윗줄·아랫줄을 가리지 않게 한다 (그림 비율 520:760 유지) */
+    width: min(56vh, calc(100vw - 430px), 520px, calc((100vh - 150px) * 0.684));
     aspect-ratio: 520 / 760;
-    max-height: calc(100vh - 132px);
-    min-width: 280px;
+    min-width: 200px;
     background: #f7f2e5;
     border: 8px solid #4b3518;
     border-radius: 8px;
@@ -143,68 +115,28 @@
   }
   .complete-ribbon.show { display: block; }
 
-  .side {
-    min-height: 0;
-    min-width: 0;
-    display: grid;
-    grid-template-rows: auto auto auto;
-    align-content: start;
-    background: var(--panel-dark);
-    overflow: hidden;
+  /* 손맛 조절 창(오른쪽 308px)이 열려 있으면 그만큼 뺀 폭으로 그림 크기를 정한다 */
+  body.mf-tuning-open .painting-frame {
+    width: min(56vh, calc(100vw - 430px - 308px), 520px, calc((100vh - 150px) * 0.684));
   }
-  .status-panel {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border);
-    display: grid;
-    gap: 5px;
-  }
-  .phase-line {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .phase-name {
-    color: var(--gold-light);
-    font-size: 13px;
-    font-weight: 900;
-  }
-  .click-count {
-    color: var(--text-soft);
-    font-size: 11px;
-    font-variant-numeric: tabular-nums;
-  }
-  .stage-pills {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 7px;
-  }
-  .stage-pill {
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 3px 0;
-    text-align: center;
-    color: var(--text-soft);
-    font-size: 11px;
-    font-weight: 800;
-    background: var(--track);
-  }
-  .stage-pill.active {
-    color: #100b02;
-    border-color: var(--gold);
-    background: linear-gradient(135deg, var(--gold), #b87700);
-  }
-  .threshold {
-    font-size: 10.5px;
-    color: var(--text-soft);
-    line-height: 1.28;
-  }
-  .threshold b { color: var(--good); }
 
-  .palette-zone {
+  /* 팔레트 받침: 조작 배지가 이 옆(자리가 모자라면 아래)에 붙는다 */
+  .palette-dock {
     grid-column: 3;
-    justify-self: center;
-    align-self: center;
+    position: relative;
+    margin-left: 44px;
+    margin-right: 234px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  /* 배지가 받침 안으로 들어올 때는 팔레트를 가리지 않게 아래에 자리를 만든다 */
+  .palette-dock:has(> .mf-coach.inside) {
+    min-width: 260px;
+    margin-right: 0;
+    padding-bottom: 132px;
+  }
+  .palette-zone {
     position: relative;
     z-index: 4;
     width: var(--palette-width);
@@ -216,9 +148,6 @@
     background: transparent;
     border: 0;
     overflow: visible;
-  }
-  .palette-guide {
-    display: none;
   }
   .palette-button {
     width: var(--palette-width);
@@ -232,6 +161,7 @@
     transition: transform 0.08s ease;
   }
   .palette-button:active { transform: scale(0.94) rotate(-2deg); }
+  .palette-button { -webkit-tap-highlight-color: transparent; }
   .palette-wood {
     position: absolute;
     inset: 9% 7% 11% 8%;
@@ -257,24 +187,32 @@
     transform: rotate(-28deg);
     box-shadow: 0 8px 13px rgba(0,0,0,0.45);
   }
+
+  /* ── 손맛 조절(개발용) 창 ── */
+  .side {
+    min-height: 0;
+    min-width: 0;
+    background: var(--panel-dark);
+    border-left: 1px solid var(--border);
+    overflow: auto;
+  }
   .debug-panel {
-    border-bottom: 1px solid var(--border);
-    padding: 7px 24px 6px 10px;
+    padding: 12px 14px 8px;
     display: grid;
     align-content: start;
-    gap: 5px;
-    overflow: visible;
+    gap: 9px;
   }
-  .debug-panel h2 {
-    margin: 0;
-    color: var(--gold-light);
-    font-size: 11.5px;
-    line-height: 1.1;
-    font-weight: 900;
+  .debug-status {
+    color: var(--text-soft);
+    font-size: 11px;
+    line-height: 1.5;
+    border-bottom: 1px solid var(--track);
+    padding-bottom: 8px;
   }
+  .debug-status b { color: var(--good); }
   .debug-row {
     display: grid;
-    gap: 1px;
+    gap: 2px;
   }
   .debug-label {
     display: flex;
@@ -282,8 +220,8 @@
     justify-content: space-between;
     gap: 8px;
     color: var(--text);
-    font-size: 10px;
-    line-height: 1.15;
+    font-size: 11.5px;
+    line-height: 1.2;
   }
   .debug-label b {
     color: var(--gold);
@@ -306,8 +244,8 @@
   }
   .toggle-row span {
     color: var(--text);
-    font-size: 10px;
-    line-height: 1.15;
+    font-size: 11.5px;
+    line-height: 1.2;
   }
   .debug-toggle,
   .debug-action {
@@ -326,15 +264,14 @@
     min-height: 24px;
     padding: 3px 10px;
   }
-  .debug-toggle.on,
-  .debug-action.primary {
+  .debug-toggle.on {
     color: #140e04;
     background: linear-gradient(135deg, var(--gold), #b87700);
   }
   .debug-actions {
-    padding: 7px 24px 8px 9px;
+    padding: 8px 14px 14px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 6px;
     border-top: 1px solid var(--track);
   }
@@ -343,186 +280,168 @@
     padding: 5px 4px;
   }
 
-  footer {
-    min-height: 0;
-    background: var(--panel-dark);
-    border-top: 1px solid var(--border);
-    display: grid;
-    grid-template-columns: auto minmax(190px, 1fr) 110px;
-    gap: 16px;
-    align-items: center;
-    padding: 6px 14px;
-  }
-  .review-title {
-    color: var(--gold-light);
-    font-size: 12px;
-    font-weight: 900;
-    white-space: nowrap;
-  }
-  .stars {
-    display: flex;
-    gap: 3px;
-  }
-  .star {
-    border: 0;
-    background: transparent;
-    color: var(--border);
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-    padding: 0;
-  }
-  .star.lit { color: var(--gold); }
-  #reviewMemo {
-    width: 100%;
-    height: 42px;
-    resize: none;
-    border-radius: 7px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    color: var(--text);
-    font: inherit;
-    font-size: 12px;
-    padding: 7px 9px;
-    outline: none;
-  }
-  #reviewMemo:focus { border-color: var(--gold); }
-  .save-state {
-    color: var(--text-soft);
-    font-size: 11px;
-    text-align: right;
-  }
-
   @media (max-width: 840px) {
-    body { grid-template-rows: 40px minmax(0, 1fr) 96px; }
-    main { grid-template-columns: minmax(0, 1fr) 280px; }
+    body.mf-tuning-open main { grid-template-columns: minmax(0, 1fr) 280px; }
     .stage {
       --palette-width: 196px;
       --palette-height: 168px;
-      grid-template-columns: minmax(10px, 1fr) auto minmax(var(--palette-width), 1fr);
-      padding: 10px 0 10px 10px;
+      padding: 10px;
     }
-    .painting-frame { width: min(52vh, calc(100vw - 370px), 430px); min-width: 220px; }
-    .top-meter { grid-template-columns: 64px minmax(90px, 1fr) 38px; }
-    .brand span { display: none; }
-    footer { grid-template-columns: 1fr; gap: 5px; align-items: stretch; }
-    .save-state { text-align: left; }
-    .status-panel { padding: 9px 10px; gap: 6px; }
-    .debug-panel { padding: 7px 22px 6px 9px; gap: 5px; }
-    .debug-actions { padding: 7px 22px 7px 9px; gap: 6px; }
-    .debug-action { font-size: 10.5px; }
+    .painting-frame { width: min(52vh, calc(100vw - 480px), 430px, calc((100vh - 150px) * 0.684)); }
+    body.mf-tuning-open .painting-frame { width: min(52vh, calc(100vw - 480px - 280px), 430px, calc((100vh - 150px) * 0.684)); }
   }
 
+  /* 좁은 화면: 그림 위, 팔레트 아래로 쌓는다 */
   @media (max-width: 660px) {
-    main { grid-template-columns: minmax(0, 1fr) 250px; }
+    /* 휴대폰에서 손맛 조절 창까지 열면 한 화면에 다 안 들어가므로, 그림이 잘리지 않게 본문을 위아래로 스크롤한다 */
+    body.mf-tuning-open main { grid-template-columns: 1fr; grid-template-rows: max-content max-content; overflow-y: auto; }
+    body.mf-tuning-open .side { overflow: visible; border-left: 0; border-top: 1px solid var(--border); }
+    body.mf-tuning-open .stage { grid-template-rows: auto auto; }
     .stage {
       --palette-width: 168px;
       --palette-height: 147px;
-      grid-template-columns: minmax(10px, 1fr) auto minmax(var(--palette-width), 1fr);
-      padding: 10px 0 10px 10px;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) auto;
+      justify-items: center;
+      row-gap: 10px;
+      padding: 10px;
     }
-    .painting-frame { width: min(49vh, calc(100vw - 322px), 360px); min-width: 150px; }
-    .status-panel { padding: 8px; gap: 5px; }
-    .threshold { font-size: 10px; }
-    .debug-panel { padding: 7px 20px 6px 8px; gap: 5px; }
-    .debug-label,
-    .toggle-row span { font-size: 10px; }
-    .debug-actions { padding: 7px 20px 8px 8px; gap: 5px; }
-    .debug-action { min-height: 32px; padding: 5px 3px; }
+    .painting-frame {
+      grid-column: 1;
+      width: min(62vw, calc((100vh - 400px) * 0.684), 360px);
+      min-width: 0;
+    }
+    body.mf-tuning-open .painting-frame { width: min(62vw, calc((100vh - 400px) * 0.684), 360px); }
+    .palette-dock {
+      grid-column: 1;
+      margin: 0;
+    }
+    /* 윗줄이 좁으니 단계 칩은 숨기고 제목은 한 줄로 줄인다 */
+    .mf-extra { display: none; }
+    .mf-title h1 {
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 </style>
 </head>
 <body>
-<header>
-  <div class="brand">
-    <strong>시안 2 · 클릭 완성</strong>
-    <span>팔레트 연타로 데생에서 컬러까지 완성</span>
+<header class="mf-header">
+  <a class="mf-back" href="../index.html">← 목록으로</a>
+  <div class="mf-title">
+    <h1><span class="mf-num">04</span>팔레트 연타 — 색 찍어 완성</h1>
+    <p class="mf-sub"><span class="where-word">오른쪽</span> 팔레트를 연타해 데생부터 컬러까지 채워요.</p>
   </div>
-  <div class="top-meter" role="group" aria-label="진행도">
-    <span>진행도</span>
-    <div class="bar-shell"><div class="bar-fill" id="progressBar"></div></div>
-    <span class="pct" id="progressText">0%</span>
+  <div class="mf-extra">
+    <div class="stage-pills" aria-label="단계">
+      <div class="stage-pill active" id="pillOne">1 데생</div>
+      <div class="stage-pill" id="pillTwo">2 컬러</div>
+    </div>
+  </div>
+  <div class="mf-progress" role="group" aria-label="지금 단계 진행도">
+    <span class="mf-progress-label"><span id="phaseName">데생</span> <span id="progressText">0%</span></span>
+    <div class="mf-bar"><i id="progressBar"></i></div>
   </div>
 </header>
 
 <main>
-  <section class="stage" aria-label="그림 미리보기">
-    <div class="painting-frame">
+  <section class="stage" aria-label="그림과 팔레트">
+    <div class="painting-frame" id="paintingFrame">
       <canvas id="paintingCanvas" width="520" height="760"></canvas>
       <div class="complete-ribbon" id="completeRibbon">완성</div>
     </div>
 
-    <section class="palette-zone" aria-label="팔레트 클릭">
-      <button class="palette-button" id="paletteButton" type="button" aria-label="팔레트 클릭">
-        <span class="palette-wood"></span>
-        <span class="palette-brush"></span>
-      </button>
-    </section>
+    <div class="palette-dock" id="paletteDock">
+      <section class="palette-zone" aria-label="팔레트 클릭">
+        <button class="palette-button" id="paletteButton" type="button" aria-label="팔레트 누르기">
+          <span class="palette-wood"></span>
+          <span class="palette-brush"></span>
+        </button>
+      </section>
+    </div>
   </section>
 
-  <aside class="side">
-    <section class="status-panel">
-      <div class="phase-line">
-        <span class="phase-name" id="phaseName">데생</span>
-        <span class="click-count" id="clickCount">0 / 120</span>
-      </div>
-      <div class="stage-pills">
-        <div class="stage-pill active" id="pillOne">1 데생</div>
-        <div class="stage-pill" id="pillTwo">2 컬러</div>
-      </div>
-      <div class="threshold">데생 → 컬러 순서로 <b>끝까지 채우면 완성</b> · 클릭당 채움 <b id="powerText">1</b></div>
-    </section>
-
-    <section class="debug-panel" aria-label="손맛 튜닝 디버그">
-      <h2>손맛 튜닝 (디버그)</h2>
+  <aside class="side" id="tunerPanel" data-mf-tuning aria-label="손맛 조절">
+    <section class="debug-panel">
+      <h2 class="mf-tuner-title">⚙ 손맛 조절 (개발용)</h2>
+      <p class="mf-tuner-desc">수치를 바꿔 가며 <b>가장 손맛 좋은 조합</b>을 찾아보는 창이에요. 바꾼 값은 <b>새로고침하면 원래대로</b> 돌아가요.<br>단축키 <kbd class="mf-kbd">D</kbd> (한글 입력 중이면 <kbd class="mf-kbd">ㅇ</kbd>)로 열고 닫아요.</p>
+      <div class="debug-status">데생 → 컬러 순서로 <b>끝까지 채우면 완성</b><br>지금 단계 채움 <b id="clickCount">0 / 60</b> · 클릭당 채움 <b id="powerText">1</b></div>
       <div class="debug-row">
         <label class="debug-label" for="drawTargetRange">데생 목표 클릭수 <b id="drawTargetValue">60</b></label>
         <input id="drawTargetRange" type="range" min="20" max="180" step="5" value="60">
+        <p class="mf-hint">데생 단계를 다 채우는 데 필요한 양이에요. 클릭당 채움이 1이면 누르는 횟수와 같아요.</p>
       </div>
       <div class="debug-row">
         <label class="debug-label" for="colorTargetRange">컬러 목표 클릭수 <b id="colorTargetValue">60</b></label>
         <input id="colorTargetRange" type="range" min="20" max="180" step="5" value="60">
+        <p class="mf-hint">컬러 단계를 다 채우는 데 필요한 양이에요.</p>
       </div>
       <div class="debug-row">
         <label class="debug-label" for="clickFillRange">클릭당 채움 <b id="clickFillValue">1</b></label>
         <input id="clickFillRange" type="range" min="1" max="10" step="1" value="1">
+        <p class="mf-hint">한 번 누를 때 채워지는 양. 2면 목표의 절반만 눌러도 돼요.</p>
       </div>
-      <div class="toggle-row">
-        <span>자동 붓</span>
-        <button class="debug-toggle" id="autoToggle" type="button" aria-pressed="false">꺼짐</button>
+      <div class="debug-row">
+        <div class="toggle-row">
+          <span>자동 붓</span>
+          <button class="debug-toggle" id="autoToggle" type="button" aria-pressed="false">꺼짐</button>
+        </div>
+        <p class="mf-hint">켜면 팔레트를 대신 눌러 줘요. 손 안 대고 흐름을 볼 때 써요.</p>
       </div>
       <div class="debug-row">
         <label class="debug-label" for="autoSpeedRange">자동 붓 속도 <b id="autoSpeedValue">2회/초</b></label>
         <input id="autoSpeedRange" type="range" min="1" max="10" step="1" value="2">
+        <p class="mf-hint">자동 붓이 1초에 팔레트를 누르는 횟수예요.</p>
       </div>
       <div class="debug-row">
         <label class="debug-label" for="strokeDensityRange">칠 산재/밀도 <b id="strokeDensityValue">5</b></label>
         <input id="strokeDensityRange" type="range" min="1" max="10" step="1" value="5">
+        <p class="mf-hint">한 번 누를 때 찍히는 붓 자국 수. 높이면 더 촘촘하게 칠해져요.</p>
       </div>
     </section>
 
-    <section class="debug-actions" aria-label="디버그 실행 버튼">
+    <section class="debug-actions" aria-label="손맛 조절 버튼">
       <button class="debug-action" id="defaultsButton" type="button">설정 기본값</button>
-      <button class="debug-action primary" id="redrawButton" type="button">다시 그리기</button>
     </section>
   </aside>
 </main>
 
-<footer>
-  <div>
-    <div class="review-title">손맛 평가</div>
-    <div class="stars" id="stars">
-      <button class="star" type="button" data-value="1">★</button>
-      <button class="star" type="button" data-value="2">★</button>
-      <button class="star" type="button" data-value="3">★</button>
-      <button class="star" type="button" data-value="4">★</button>
-      <button class="star" type="button" data-value="5">★</button>
-    </div>
+<footer class="mf-footer">
+  <span class="mf-foot-note" id="deviceNote">💻 PC(마우스)에 맞춰 만든 시안이에요. 터치 화면에서도 할 수 있어요.</span>
+  <div class="mf-foot-actions">
+    <button class="mf-btn ghost" id="mfTuneToggle" type="button" aria-controls="tunerPanel" title="손맛 조절(개발용) — 단축키 D">⚙ 손맛 조절 <kbd class="mf-kbd">D</kbd></button>
+    <button class="mf-btn" id="redrawButton" type="button">다시 그리기</button>
   </div>
-  <textarea id="reviewMemo" placeholder="팔레트 연타 손맛, 데생→컬러 2단계, 칠 산재 느낌"></textarea>
-  <div class="save-state" id="saveState">브라우저 저장</div>
 </footer>
 
+<div class="mf-intro" id="mfIntro" role="dialog" aria-modal="true" aria-labelledby="mfIntroTitle">
+  <div class="mf-intro-card">
+    <div class="mf-intro-num">04</div>
+    <h2 id="mfIntroTitle">팔레트 연타 — 색 찍어 완성</h2>
+    <p class="mf-intro-lead">그림을 직접 긋는 대신, 옆의 팔레트를 톡톡 눌러 그림을 채워 가는 방식이에요.</p>
+    <ol class="mf-intro-steps">
+      <li>
+        <span class="mf-step-ico" data-mf-icon="palette"></span>
+        <div><b><span class="where-word">오른쪽</span> 팔레트를 연타하세요</b><span class="mf-step-sub">그림이 아니라 팔레트를 눌러야 해요. 누를 때마다 연필 데생이 조금씩 드러나요.</span></div>
+      </li>
+      <li>
+        <span class="mf-step-ico" data-mf-icon="palette"></span>
+        <div><b>데생이 끝나면 색칠 단계로 넘어가요</b><span class="mf-step-sub">계속 연타하면 붓 자국으로 색이 입혀져요.</span></div>
+      </li>
+      <li>
+        <span class="mf-step-ico" data-mf-icon="flag"></span>
+        <div><b>색까지 다 채우면 완성!</b><span class="mf-step-sub">위쪽 막대로 지금 단계가 얼마나 찼는지 볼 수 있어요.</span></div>
+      </li>
+    </ol>
+    <p class="mf-intro-tip">⚙ 아래 <b>손맛 조절</b>(단축키 <kbd class="mf-kbd">D</kbd>)로 목표 클릭수·클릭당 채움·자동 붓 같은 수치를 직접 바꿔 볼 수 있어요.</p>
+    <p class="mf-intro-note">💻 PC(마우스)에 맞춰 만든 시안이에요. 터치 화면에서도 할 수 있어요.</p>
+    <button class="mf-intro-btn" id="mfStart" type="button">시작하기</button>
+  </div>
+</div>
+
+<script src="../common/frame.js"></script>
 <script>
 (() => {
   "use strict";
@@ -595,7 +514,6 @@
   let colorUnits = 0;
   let clickPower = 1;
   let autoTimer = null;
-  let rating = 0;
   let curStage = 0; // 0 = 데생, 1 = 컬러
   let fade2 = 0;
   let fade2Active = false;
@@ -989,6 +907,7 @@
     }
     $("completeRibbon").classList.toggle("show", isComplete());
     updateDebugLabels();
+    updateCoach();
   }
 
   function handlePaletteClick(event, silent = false) {
@@ -1064,55 +983,26 @@
     markDirty();
   }
 
-  function setRating(value) {
-    rating = value;
-    document.querySelectorAll(".star").forEach((star) => {
-      star.classList.toggle("lit", Number(star.dataset.value) <= rating);
-    });
-    saveReview();
-  }
-
-  function saveReview() {
-    const data = {
-      rating,
-      memo: $("reviewMemo").value,
-      savedAt: new Date().toISOString(),
-    };
-    try {
-      localStorage.setItem("mewna-b-concept-click-palette-review", JSON.stringify(data));
-      $("saveState").textContent = "저장됨";
-    } catch (_) {
-      $("saveState").textContent = "저장 실패";
-    }
-  }
-
-  function loadReview() {
-    try {
-      const raw = localStorage.getItem("mewna-b-concept-click-palette-review");
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      rating = Number(data.rating || 0);
-      $("reviewMemo").value = data.memo || "";
-      document.querySelectorAll(".star").forEach((star) => {
-        star.classList.toggle("lit", Number(star.dataset.value) <= rating);
-      });
-    } catch (_) {}
-  }
-
   async function init() {
     try {
       images.push(...await Promise.all(ASSETS.map(loadImage)));
-      $("paletteButton").addEventListener("click", handlePaletteClick);
+      $("paletteButton").addEventListener("click", (event) => {
+        if (MewnaFrame.isIntroOpen()) return;
+        coachJustChanged = false;
+        handlePaletteClick(event);
+        // 할 일이 막 바뀐 순간(예: 데생 완성)에는 흐리게 하지 않고 그대로 보여 준다
+        if (!coachJustChanged) MewnaFrame.activity(true);
+      });
+      // 그림을 누르면 아무 일도 안 일어나므로, 팔레트를 누르라는 배지를 또렷하게 다시 보여 준다
+      $("paintingFrame").addEventListener("click", () => MewnaFrame.wake());
       ["drawTargetRange", "colorTargetRange", "clickFillRange", "autoSpeedRange", "strokeDensityRange"]
         .forEach((id) => $(id).addEventListener("input", applyTuningFromInputs));
       $("autoToggle").addEventListener("click", toggleAuto);
       $("defaultsButton").addEventListener("click", resetTuningDefaults);
-      $("redrawButton").addEventListener("click", resetDemo);
-      $("reviewMemo").addEventListener("input", saveReview);
-      document.querySelectorAll(".star").forEach((star) => {
-        star.addEventListener("click", () => setRating(Number(star.dataset.value)));
+      $("redrawButton").addEventListener("click", () => {
+        resetDemo();
+        MewnaFrame.wake();
       });
-      loadReview();
       syncDebugInputs();
       updateHud();
       markDirty();
@@ -1126,6 +1016,36 @@
       ctx.fillText(err.message, CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2);
     }
   }
+
+  // 좁은 화면(휴대폰)에서는 팔레트가 그림 아래로 내려가므로 안내 낱말도 '아래'로 맞춘다
+  const WHERE = window.matchMedia("(max-width: 660px)").matches ? "아래" : "오른쪽";
+  document.querySelectorAll(".where-word").forEach((el) => { el.textContent = WHERE; });
+
+  // ── 처음 보는 사람용 안내: 팔레트 옆 조작 배지 (공통 틀 common/frame.js 사용) ──
+  // 게임 규칙은 건드리지 않고, 지금 단계(데생·전환 중·컬러·완성)를 읽어서 할 동작만 알려 준다.
+  const COACH = {
+    draw: { icon: "palette", title: `${WHERE} 팔레트를 연타하세요`, sub: "누를 때마다 연필 데생이 조금씩 드러나요" },
+    toColor: { icon: "flag", title: "데생 완성!", sub: "곧 색칠 단계로 넘어가요" },
+    color: { icon: "palette", title: "계속 연타하면 색이 입혀져요", sub: "팔레트를 누를 때마다 붓 자국으로 색이 칠해져요" },
+    done: { title: "완성!", sub: "데생부터 컬러까지 다 채웠어요", done: true },
+  };
+  let coachJustChanged = false;
+
+  function updateCoach() {
+    let state = curStage === 0 ? "draw" : "color";
+    if (isComplete()) state = "done";
+    else if (curStage === 0 && fade2Active) state = "toColor";
+    if (MewnaFrame.setCoach(state, COACH[state])) coachJustChanged = true;
+  }
+
+  MewnaFrame.init({
+    coachAnchor: $("paletteDock"),
+    coachLimit: () => [$("tunerPanel")],
+    coachFallback: "inside", // 팔레트 받침 아래에 배지 자리를 비워 두었으므로 그 안에 둔다
+    next: { href: "../crank-press/index.html", label: "다음 시안 →" },
+    onRedraw: () => $("redrawButton").click(),
+  });
+  updateCoach();
 
   init();
 })();

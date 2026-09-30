@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>D안 · 테두리 + 채색 · 뮤나리자 그리기</title>
+<title>02 외곽선 한붓 · 뮤나리자 그리기 실험</title>
 <link rel="icon" href="data:," />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../common/frame.css" />
 <style>
   :root {
     --bg: #15110a;
@@ -36,93 +37,53 @@
     -webkit-user-select: none;
     user-select: none;
   }
+  .mf-header, .mf-footer { flex-shrink: 0; }
 
-  /* ---------- 헤더 / HUD (게임 상태 표시줄) ---------- */
-  header {
-    flex-shrink: 0;
-    background: var(--panel-dark);
-    border-bottom: 1px solid var(--border);
-    padding: 8px 16px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .brand { font-weight: 900; font-size: 15px; color: var(--gold); white-space: nowrap; }
-  .brand small { color: var(--text-soft); font-weight: 500; font-size: 12px; margin-left: 4px; }
-  .stage-chips { display: flex; gap: 6px; flex-shrink: 0; }
+  /* ---------- 윗줄의 단계 칩 (① 데생 ② 채색 ③ 완성) ---------- */
   .chip {
     font-size: 12px; font-weight: 700;
     padding: 3px 10px; border-radius: 20px;
     background: var(--track); color: var(--text-soft);
     border: 1px solid var(--border);
+    white-space: nowrap;
   }
   .chip.on { background: linear-gradient(180deg,#f5a700,#b87700); color:#0a0a0a; border-color:#f5a700; }
   .chip.done { color: var(--gold-light); border-color: var(--gold); }
 
-  .hud-meters { display: flex; gap: 18px; margin-left: auto; align-items: center; }
-  .meter { min-width: 150px; }
-  .meter .lbl { font-size: 11px; color: var(--text-soft); display:flex; justify-content:space-between; margin-bottom:3px; }
-  .meter .lbl b { color: var(--text); font-weight: 700; }
-  .bar { height: 8px; background: var(--track); border-radius: 20px; overflow: hidden; }
-  .bar > span {
-    display: block; height: 100%;
-    background: linear-gradient(90deg,#f5a700,#ffcc40);
-    width: 0%;
-    transition: width 0.12s linear;
-  }
-  .bar.low > span { background: linear-gradient(90deg,#c4452b,#f5a700); }
-
-  /* ---------- 상단 안내 배너 (시안 A) ---------- */
-  .hint-banner {
-    flex-shrink: 0;
-    width: 100%;
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border-bottom: 2px solid;
-    background: var(--panel);
-  }
-  .hint-banner.draw-mode {
-    background: rgba(50, 105, 158, 0.22);
-    border-color: #5599cc;
-  }
-  .hint-banner.paint-mode {
-    background: rgba(70, 132, 64, 0.22);
-    border-color: #4a9e44;
-  }
-  .hint-banner-icon {
-    font-size: 18px;
-    flex-shrink: 0;
-    line-height: 1;
-  }
-  .hint-banner-text {
-    min-width: 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--text);
-  }
-  .hint-banner.draw-mode .hint-banner-text { color: #b9d9f2; }
-  .hint-banner.paint-mode .hint-banner-text { color: #b8e3b2; }
-  .hint-banner-stage {
-    display: block;
-    margin-bottom: 2px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.75;
-  }
+  /* 윗줄 진행 막대 옆의 '남은 물감' 막대 (채색 단계에서만 보임) */
+  .mf-progress.paint-meter { margin-left: 0; min-width: 150px; }
+  .mf-progress-label b { color: var(--text); font-weight: 700; }
+  .mf-bar.low > i { background: linear-gradient(90deg,#c4452b,#f5a700); }
 
   /* ---------- 메인 / 캔버스 ---------- */
   main {
     flex: 1;
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
     min-height: 0;
+    display: grid;
+    /* 그림 틀이 화면 높이를 넘지 않고, 남은 공간에 맞춰 줄어들게 한다 */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 14px;
+    padding: 12px;
+  }
+  /* 손맛 조절 창을 열면 오른쪽에 자리를 내준다 */
+  body.mf-tuning-open main {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  }
+  .stage {
+    min-height: 0;
+    min-width: 0;
+    height: 100%;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    place-items: center;
+  }
+  /* 조작 배지가 붙는 자리. 그림 옆에 배지 자리(약 250px)를 남기도록 폭을 잡는다 */
+  .art-anchor {
+    position: relative;
+    height: 100%;
+    width: min(100%, 860px, max(calc(100% - 500px), 320px));
   }
   .frame {
     background: var(--mat);
@@ -131,9 +92,7 @@
     border-radius: 6px;
     padding: 0;
     height: 100%;
-    max-height: 100%;
-    width: min(100%, 860px);
-    max-width: calc(100vw - 24px); /* 작은 화면 가로 잘림 방지 */
+    width: 100%;
     display: flex;
     align-items: stretch;
     justify-content: center;
@@ -158,11 +117,11 @@
     max-height: 100%;
     border-radius: 2px;
     touch-action: none;
-    cursor: crosshair;
+    cursor: default;
     background: var(--paper);
   }
   .tablet-wrap {
-    flex: 0 0 clamp(150px, 25vw, 260px);
+    flex: 0 0 clamp(140px, 18vw, 260px);
     background: #1e1609;
     border-left: 3px solid var(--mat-dark);
     display: flex;
@@ -173,11 +132,11 @@
     padding: 14px 10px;
   }
   .tablet-label {
-    font-size: 10px;
-    color: var(--text-soft);
+    font-size: 11px;
+    color: var(--gold-light);
     font-weight: 900;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: center;
   }
   .tablet-shell {
     width: min(100%, 260px);
@@ -247,28 +206,19 @@
     pointer-events: none;
     transition: opacity 0.35s ease, transform 0.35s ease;
     z-index: 30;
+    white-space: nowrap;
   }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  .game-ui-actions {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    z-index: 35;
-    display: flex;
-    gap: 8px;
-  }
-  .game-ui-actions .btn {
-    box-shadow: 0 5px 18px rgba(0,0,0,0.38);
-  }
-
-  /* ---------- 로딩 화면 ---------- */
+  /* ---------- 로딩 화면: 시작 카드보다 위에 보여서 불러오기 오류가 가려지지 않게 한다 ---------- */
   #loading {
-    position: absolute; inset: 0;
+    position: fixed; inset: 0;
     background: var(--bg);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: 14px; z-index: 50;
+    text-align: center;
+    padding: 20px;
   }
   #loading .spin {
     width: 38px; height: 38px;
@@ -279,35 +229,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   #loading p { color: var(--text-soft); font-size: 15px; }
-
-  /* ---------- 푸터 / 액션 버튼 ---------- */
-  footer {
-    flex-shrink: 0;
-    background: var(--panel-dark);
-    border-top: 1px solid var(--border);
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .hint { flex: 1; min-width: 0; font-size: 13px; line-height: 1.45; color: var(--text-soft); }
-  .hint b { color: var(--gold-light); }
-  .actions { margin-left: auto; display: flex; gap: 10px; flex-shrink: 0; }
-
-  .btn {
-    font-family: inherit;
-    font-size: 14px; font-weight: 700;
-    padding: 9px 20px;
-    border-radius: 10px;
-    border: none;
-    cursor: pointer;
-    transition: filter 0.1s ease, opacity 0.1s ease;
-  }
-  .btn-primary { background: linear-gradient(180deg,#f5a700,#b87700); color:#0a0a0a; }
-  .btn-primary:hover { filter: brightness(1.12); }
-  .btn-secondary { background: #2a1f0e; color: var(--text); border: 1px solid var(--border); border-radius: 8px; }
-  .btn-secondary:hover { filter: brightness(1.2); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
 
   /* ---------- 결과 오버레이 ---------- */
   #result {
@@ -324,15 +245,15 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 14px;
-    width: 100%; max-width: 880px;
+    width: 100%; max-width: 560px;
     max-height: 100%;
     padding: 18px 24px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px 26px;
+    grid-template-columns: 1fr;
+    gap: 14px;
     overflow: auto; /* 최후수단: 결과카드 내부만 스크롤 허용 */
   }
-  .result-head { grid-column: 1 / -1; display:flex; align-items:center; gap:14px; }
+  .result-head { display:flex; align-items:center; gap:14px; }
   .result-head h2 { margin: 0; font-size: 22px; color: var(--gold); }
   .grade-pill {
     font-size: 26px; font-weight: 900;
@@ -342,79 +263,15 @@
   }
   .score-big { font-size: 14px; color: var(--text-soft); margin-left:auto; white-space:nowrap; }
   .score-big b { color: var(--text); font-size: 28px; font-weight: 900; }
-
   .breakdown { font-size: 13px; }
-  .breakdown h3, .review h3 { font-size: 13px; color: var(--gold-light); margin: 0 0 8px; letter-spacing: 0.02em; }
+  .breakdown h3 { font-size: 13px; color: var(--gold-light); margin: 0 0 8px; letter-spacing: 0.02em; }
   .bd-row { display:flex; justify-content:space-between; padding: 5px 0; border-bottom: 1px solid var(--track); }
   .bd-row span:last-child { color: var(--text); font-weight: 700; }
   .bd-feedback { margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--text-soft); }
+  /* 결과 아래: 다시 그리기 · 다음 시안 */
+  .result-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 
-  /* 평가 블록 */
-  .review { font-size: 13px; }
-  .review .q { margin-bottom: 7px; display:flex; align-items:center; justify-content:space-between; }
-  .review .q > p { margin: 0; color: var(--text); font-size: 12px; }
-  .stars { display:flex; gap: 3px; }
-  .star { cursor: pointer; font-size: 18px; color: var(--track); transition: color 0.08s; }
-  .star.lit { color: var(--gold); }
-  .review textarea {
-    width: 100%; height: 40px; resize: none;
-    background: var(--panel-dark); color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px;
-    padding: 6px 8px; font-family: inherit; font-size: 12px;
-    margin: 4px 0 8px;
-  }
-  .review-actions { display:flex; align-items:center; gap: 10px; }
-  .saved-tag { font-size: 12px; color: #6fbf5e; opacity: 0; transition: opacity 0.2s; }
-  .saved-tag.show { opacity: 1; }
-  .result-foot { grid-column: 1/-1; display:flex; justify-content:center; margin-top: 2px; }
-
-  @media (max-height: 720px) {
-    .brand small { display: none; }
-    header { padding: 6px 12px; }
-    .hint-banner { padding: 8px 12px; }
-    .hint-banner-text { font-size: 12px; }
-    footer { padding: 8px 12px; }
-    .meter { min-width: 120px; }
-  }
-  @media (max-width: 720px) {
-    main { padding: 8px; }
-    .frame { max-width: calc(100vw - 16px); }
-    .main-art { padding: 8px; }
-    .tablet-wrap {
-      flex-basis: 138px;
-      padding: 10px 7px;
-    }
-    .tablet-label { display: none; }
-    .tablet-shell { width: 118px; }
-    .hud-meters { gap: 10px; }
-    .meter { min-width: 105px; }
-  }
-
-  /* ---------- 시작 화면 (타이틀) ---------- */
-  #startScreen {
-    position: absolute; inset: 0;
-    background: radial-gradient(circle at 50% 35%, #221a0c 0%, var(--bg) 70%);
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 22px; z-index: 60;
-    padding: 24px;
-    text-align: center;
-  }
-  #startScreen.hidden { display: none; }
-  #startScreen .title {
-    font-weight: 900; font-size: 30px; color: var(--gold);
-    letter-spacing: 0.01em;
-  }
-  #startScreen .subtitle { color: var(--text-soft); font-size: 15px; margin-top: -8px; }
-  .start-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 18px 22px;
-    max-width: 460px;
-    display: flex; flex-direction: column; gap: 12px;
-  }
-  /* 손목 보호 모드 토글 */
+  /* ---------- 시작 카드 안 '손목 보호 모드' 스위치 ---------- */
   .wrist-row { display: flex; align-items: center; gap: 12px; }
   .switch { position: relative; display: inline-block; width: 50px; height: 28px; flex-shrink: 0; }
   .switch input { opacity: 0; width: 0; height: 0; }
@@ -431,164 +288,164 @@
   }
   .switch input:checked + .slider { background: linear-gradient(180deg,#f5a700,#b87700); border-color: var(--gold); }
   .switch input:checked + .slider::before { transform: translateX(22px); background: #0a0a0a; }
+  .switch input:focus-visible + .slider { outline: 2px solid var(--gold); outline-offset: 2px; }
   .wrist-label { text-align: left; }
-  .wrist-label b { color: var(--gold-light); font-size: 14px; }
+  .wrist-label b { color: var(--gold-light); font-size: 13px; }
   .wrist-label small { display: block; color: var(--text-soft); font-size: 12px; line-height: 1.4; margin-top: 3px; }
-  #startBtn { font-size: 16px; padding: 12px 36px; }
 
-  /* ---------- 디버그 패널 (D키 토글) ---------- */
+  /* ---------- 손맛 조절(개발용) 창: 오른쪽 칸 ---------- */
   #debugPanel {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    z-index: 80;
-    background: rgba(17,13,6,0.93);
-    border-top: 1px solid var(--gold);
-    box-shadow: 0 -6px 22px rgba(0,0,0,0.35);
+    min-height: 0;
+    border: 1px solid var(--border);
+    background: rgba(26, 20, 8, 0.82);
+    border-radius: 8px;
+    padding: 11px;
     display: flex;
     flex-direction: column;
-    padding: 10px 16px 12px;
-    gap: 8px;
-    max-height: min(42vh, 320px);
+    gap: 10px;
     overflow: auto;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(calc(100% + 14px));
-    transition: opacity 0.16s ease, transform 0.16s ease;
-  }
-  #debugPanel.show {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
-  #debugPanel .dbg-head {
-    font-weight: 900; font-size: 13px; color: var(--gold);
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  #debugPanel .dbg-head small {
-    color: var(--text-soft);
-    font-weight: 500;
-    font-size: 10px;
-    margin-left: auto;
   }
   .dbg-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 6px 20px;
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
-  .dbg-item { min-width: 0; }
+  .dbg-item { margin: 0; min-width: 0; }
   .dbg-item .dbg-lbl {
     display: flex; justify-content: space-between; align-items: baseline;
     gap: 10px;
-    font-size: 11px; color: var(--text); margin-bottom: 2px;
+    font-size: 11.5px; color: var(--text); margin-bottom: 4px;
   }
-  .dbg-item .dbg-lbl span:first-child { color: var(--text-soft); }
-  .dbg-item .dbg-lbl b { color: var(--gold-light); font-weight: 700; font-size: 11px; flex-shrink: 0; }
+  .dbg-item .dbg-lbl b { color: var(--gold-light); font-weight: 700; white-space: nowrap; }
   .dbg-item input[type=range] {
-    width: 100%; height: 16px; cursor: pointer;
+    width: 100%; cursor: pointer;
     accent-color: var(--gold);
+  }
+  #dbgReset {
+    border: 1px solid var(--gold);
     background: transparent;
+    color: var(--gold);
+    border-radius: 7px;
+    padding: 8px 6px;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
   }
-  .dbg-reset-row {
-    display: flex;
-    justify-content: flex-end;
-  }
-  #dbgReset { font-size: 12px; padding: 7px 14px; }
-  @media (max-width: 720px) {
-    #debugPanel { padding: 8px 12px 10px; }
-    .dbg-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 5px 12px; }
-    #debugPanel .dbg-head { font-size: 12px; }
-    .dbg-item .dbg-lbl { font-size: 10px; }
-    .game-ui-actions {
-      top: 10px;
-      right: 10px;
-    }
-    .game-ui-actions .btn {
-      font-size: 12px;
-      padding: 8px 12px;
-    }
+
+  @media (max-width: 760px) {
+    main { padding: 8px; grid-template-rows: minmax(0, 1fr) auto; }
+    body.mf-tuning-open main { grid-template-columns: 1fr; }
+    #debugPanel { max-height: 35vh; }
+    .main-art { padding: 8px; }
+    .tablet-wrap { flex-basis: 128px; padding: 10px 7px; }
+    .tablet-label { font-size: 10px; }
+    .mf-extra { display: none; }
+    .mf-progress.paint-meter { min-width: 90px; }
+    /* 아랫줄 버튼이 많아서, 좁은 화면에선 기기 안내를 버튼 위 한 줄로 올린다 */
+    .mf-footer { flex-wrap: wrap; row-gap: 6px; }
+    .mf-foot-note { flex-basis: 100%; }
+    .mf-foot-actions { flex-wrap: wrap; justify-content: flex-end; width: 100%; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="brand">🐱🖼️ 뮤나리자 <small>D안 · 테두리+채색</small></div>
-  <div class="stage-chips">
+<header class="mf-header">
+  <a class="mf-back" href="../index.html">← 목록으로</a>
+  <div class="mf-title">
+    <h1><span class="mf-num">02</span>외곽선 한붓 — 보조판 + 색칠</h1>
+    <p class="mf-sub">오른쪽 작은 보조판에서 점을 이어 윤곽을 그리고, 보조판을 문질러 큰 그림에 색을 입혀요.</p>
+  </div>
+  <div class="mf-extra" aria-label="진행 단계">
     <span class="chip on" id="chipDraw">① 데생</span>
     <span class="chip" id="chipPaint">② 채색</span>
     <span class="chip" id="chipDone">③ 완성</span>
   </div>
-  <div class="hud-meters">
-    <div class="meter" id="meterMain">
-      <div class="lbl"><span id="meterMainName">따라그리기</span><b id="meterMainVal">0%</b></div>
-      <div class="bar"><span id="meterMainBar"></span></div>
-    </div>
-    <div class="meter" id="meterPaint" style="display:none">
-      <div class="lbl"><span>물감</span><b id="paintVal">0%</b></div>
-      <div class="bar" id="paintBarWrap"><span id="paintBar" style="width:100%"></span></div>
-    </div>
+  <div class="mf-progress" aria-label="진행도">
+    <span class="mf-progress-label"><span id="meterMainName">데생</span> <b id="meterMainVal">0%</b></span>
+    <div class="mf-bar"><i id="meterMainBar"></i></div>
+  </div>
+  <div class="mf-progress paint-meter" id="meterPaint" style="display:none" aria-label="남은 물감">
+    <span class="mf-progress-label">물감 <b id="paintVal">100%</b></span>
+    <div class="mf-bar" id="paintBarWrap"><i id="paintBar" style="width:100%"></i></div>
   </div>
 </header>
 
-<div class="hint-banner draw-mode" id="hintBanner" aria-live="polite">
-  <div class="hint-banner-icon" id="hintBannerIcon" aria-hidden="true">✏️</div>
-  <div class="hint-banner-text">
-    <span class="hint-banner-stage" id="hintBannerStage">① 데생 단계</span>
-    <span id="hintBannerMessage">타블렛에서 빛나는 점을 순서대로 이어 그림을 완성하세요</span>
-  </div>
-</div>
-
 <main>
-  <div class="frame draw-mode" id="gameLayout">
-    <div class="main-art">
-      <canvas id="game" width="520" height="760"></canvas>
+  <section class="stage" aria-label="그림 작업대">
+    <div class="art-anchor" id="artAnchor">
+      <div class="frame draw-mode" id="gameLayout">
+        <div class="main-art">
+          <canvas id="game" width="520" height="760"></canvas>
+        </div>
+        <aside class="tablet-wrap" id="tabletPanel" aria-label="데생용 보조판">
+          <div class="tablet-label" id="tabletLabel">보조판 · 여기서 점 잇기</div>
+          <div class="tablet-shell">
+            <canvas id="tablet" width="260" height="380"></canvas>
+          </div>
+          <div class="tablet-dots" aria-label="데생 진행">
+            <span class="tablet-dot active" id="tabletDotDone" title="데생 완료"></span>
+          </div>
+        </aside>
+      </div>
     </div>
-    <aside class="tablet-wrap" id="tabletPanel" aria-label="데생용 미니 타블렛">
-      <div class="tablet-label" id="tabletLabel">MINI TABLET</div>
-      <div class="tablet-shell">
-        <canvas id="tablet" width="260" height="380"></canvas>
-      </div>
-      <div class="tablet-dots" aria-label="데생 진행">
-        <span class="tablet-dot active" id="tabletDotDone" title="데생 완료"></span>
-      </div>
-    </aside>
-  </div>
+  </section>
 
-  <div class="game-ui-actions" aria-label="게임 조작">
-    <button class="btn btn-secondary" id="redrawBtn">🖌️ 다시 그리기</button>
-  </div>
+  <!-- 손맛 조절(개발용) 창: 아랫줄 ⚙ 버튼이나 단축키 D로 열고 닫는다 -->
+  <aside id="debugPanel" data-mf-tuning aria-label="손맛 조절">
+    <h2 class="mf-tuner-title">⚙ 손맛 조절 (개발용)</h2>
+    <p class="mf-tuner-desc">수치를 바꿔 가며 <b>가장 손맛 좋은 조합</b>을 찾아보는 창이에요. 바꾼 값은 <b>새로고침하면 원래대로</b> 돌아가요.<br />단축키 <kbd class="mf-kbd">D</kbd> (한글 입력 중이면 <kbd class="mf-kbd">ㅇ</kbd>)로 열고 닫아요.</p>
+    <div class="dbg-grid">
+      <div class="dbg-item">
+        <div class="dbg-lbl"><span>데생 점 통과 반경</span><b id="dvWasteCost">45</b></div>
+        <input type="range" id="dbgWasteCost" min="18" max="70" step="1" value="45" />
+        <p class="mf-hint">다음 점 근처 이 거리 안에 들어오면 통과예요. 클수록 쉽게 잡혀요. (보조판 크기에 맞춰 줄여서 적용돼요)</p>
+      </div>
+      <div class="dbg-item">
+        <div class="dbg-lbl"><span>데생 연결선 굵기</span><b id="dvBrushDraw">7</b></div>
+        <input type="range" id="dbgBrushDraw" min="3" max="14" step="1" value="7" />
+        <p class="mf-hint">보조판에서 점을 이을 때 남는 연필선 두께.</p>
+      </div>
+      <div class="dbg-item">
+        <div class="dbg-lbl"><span>채색 긁개 크기</span><b id="dvBrushPaint">22</b></div>
+        <input type="range" id="dbgBrushPaint" min="8" max="48" step="1" value="22" />
+        <p class="mf-hint">한 번 문지를 때 큰 그림에서 색이 드러나는 붓의 크기(반지름).</p>
+      </div>
+      <div class="dbg-item">
+        <div class="dbg-lbl"><span>데생 완료 기준</span><b id="dvDrawPass">100</b></div>
+        <input type="range" id="dbgDrawPass" min="50" max="100" step="1" value="100" />
+        <p class="mf-hint">데생 완료로 보는 기준(%). 지금 구조에선 마지막 점까지 모두 이어야 끝나서, 값을 낮춰도 결과가 같아요.</p>
+      </div>
+      <div class="dbg-item">
+        <div class="dbg-lbl"><span>채색 드러남 힘</span><b id="dvTraceGain">28</b></div>
+        <input type="range" id="dbgTraceGain" min="10" max="70" step="1" value="28" />
+        <p class="mf-hint">한 번 지날 때 위 종이가 벗겨지는 정도. 높을수록 적게 문질러도 드러나요. 채색 중에 바꾸면 채색이 처음부터 다시 시작돼요.</p>
+      </div>
+      <div class="dbg-item">
+        <div class="dbg-lbl"><span>채색 물감 총량</span><b id="dvPaintReserve">70</b></div>
+        <input type="range" id="dbgPaintReserve" min="20" max="160" step="5" value="70" />
+        <p class="mf-hint">쓸 수 있는 물감 총량. 100이면 그림 안쪽을 빈틈없이 한 번 다 드러낼 만큼이에요. 다 쓰면 그 상태로 채점돼요.</p>
+      </div>
+      <div class="dbg-item">
+        <div class="dbg-lbl"><span>채색 전환 지연</span><b id="dvAutoDelay">900</b></div>
+        <input type="range" id="dbgAutoDelay" min="0" max="3000" step="100" value="900" />
+        <p class="mf-hint">데생을 끝낸 뒤 채색 단계로 넘어가기까지 기다리는 시간(1000 = 1초).</p>
+      </div>
+      <div class="dbg-item">
+        <div class="dbg-lbl"><span>채색 완료 기준</span><b id="dvScoreFill">92</b></div>
+        <input type="range" id="dbgScoreFill" min="50" max="100" step="1" value="92" />
+        <p class="mf-hint">컬러 그림이 몇 % 드러나면 완성으로 볼지 정해요.</p>
+      </div>
+    </div>
+    <button id="dbgReset" type="button">설정 기본값</button>
+  </aside>
 
   <div id="toast"></div>
 
   <div id="loading">
     <div class="spin" id="loadSpin"></div>
     <p id="loadMsg">그림 불러오는 중…</p>
-  </div>
-
-  <!-- 시작 화면 (타이틀) -->
-  <div id="startScreen" class="hidden">
-    <div class="title">🐱🖼️ 뮤나리자 · D안 — 테두리+채색</div>
-    <div class="subtitle">오른쪽 미니 타블렛에서 한붓으로 데생하고, 채색 타블렛을 문질러 큰 그림의 컬러를 드러내세요.</div>
-    <div class="start-card">
-      <div class="wrist-row">
-        <label class="switch">
-          <input type="checkbox" id="wristToggle" />
-          <span class="slider"></span>
-        </label>
-        <div class="wrist-label">
-          <b>손목 보호 모드</b>
-          <small>켜면 마우스 버튼을 누르지 않고 커서를 올리기만 해도 선이 그려지고 채색돼요. (손목 편하게)</small>
-        </div>
-      </div>
-    </div>
-    <button class="btn btn-primary" id="startBtn">시작하기</button>
   </div>
 
   <!-- 결과 오버레이 -->
@@ -608,74 +465,60 @@
         <p class="bd-feedback" id="bdFeedback"></p>
       </div>
 
-      <div class="review">
-        <h3>이번 안(D) 평가</h3>
-        <div class="q"><p>손맛은 어땠나요?</p><div class="stars" data-key="feel"></div></div>
-        <div class="q"><p>난이도는 적당했나요?</p><div class="stars" data-key="diff"></div></div>
-        <div class="q"><p>또 하고 싶나요?</p><div class="stars" data-key="retry"></div></div>
-        <textarea id="reviewComment" placeholder="자유 코멘트 (선택)"></textarea>
-        <div class="review-actions">
-          <button class="btn btn-secondary" id="saveReview">평가 저장</button>
-          <span class="saved-tag" id="savedTag">✓ 저장됨 (내 브라우저에만)</span>
-        </div>
-      </div>
-
       <div class="result-foot">
-        <button class="btn btn-primary" id="resultRedrawBtn">🖌️ 다시 그리기</button>
+        <button class="mf-btn ghost" id="resultRedrawBtn" type="button">다시 그리기</button>
+        <a class="mf-btn" href="../gauge-sketch-demo/index.html">다음 시안 →</a>
       </div>
     </div>
   </div>
 </main>
 
-<div id="debugPanel" aria-label="디버그 패널" aria-hidden="true">
-  <div class="dbg-head">🛠️ 디버그 패널 <small>D키로 열기/닫기</small></div>
-  <div class="dbg-grid">
-    <div class="dbg-item">
-      <div class="dbg-lbl"><span>데생 점 통과 반경</span><b id="dvWasteCost">45</b></div>
-      <input type="range" id="dbgWasteCost" min="18" max="70" step="1" value="45" />
-    </div>
-    <div class="dbg-item">
-      <div class="dbg-lbl"><span>데생 연결선 굵기</span><b id="dvBrushDraw">7</b></div>
-      <input type="range" id="dbgBrushDraw" min="3" max="14" step="1" value="7" />
-    </div>
-    <div class="dbg-item">
-      <div class="dbg-lbl"><span>채색 긁개 크기</span><b id="dvBrushPaint">22</b></div>
-      <input type="range" id="dbgBrushPaint" min="8" max="48" step="1" value="22" />
-    </div>
-    <div class="dbg-item">
-      <div class="dbg-lbl"><span>데생 완료 기준</span><b id="dvDrawPass">100</b></div>
-      <input type="range" id="dbgDrawPass" min="50" max="100" step="1" value="100" />
-    </div>
-    <div class="dbg-item">
-      <div class="dbg-lbl"><span>채색 드러남 힘</span><b id="dvTraceGain">28</b></div>
-      <input type="range" id="dbgTraceGain" min="10" max="70" step="1" value="28" />
-    </div>
-    <div class="dbg-item">
-      <div class="dbg-lbl"><span>채색 물감 총량</span><b id="dvPaintReserve">70</b></div>
-      <input type="range" id="dbgPaintReserve" min="20" max="160" step="5" value="70" />
-    </div>
-    <div class="dbg-item">
-      <div class="dbg-lbl"><span>채색 전환 지연</span><b id="dvAutoDelay">900</b></div>
-      <input type="range" id="dbgAutoDelay" min="0" max="3000" step="100" value="900" />
-    </div>
-    <div class="dbg-item">
-      <div class="dbg-lbl"><span>채색 완료 기준</span><b id="dvScoreFill">92</b></div>
-      <input type="range" id="dbgScoreFill" min="50" max="100" step="1" value="92" />
-    </div>
-  </div>
-  <div class="dbg-reset-row">
-    <button class="btn btn-secondary" id="dbgReset">기본값 복원</button>
-  </div>
-</div>
-
-<footer>
-  <div class="hint" id="hint"><b>데생:</b> 타블렛에서 빛나는 점을 순서대로 이어 그림을 완성하세요</div>
-  <div class="actions">
-    <button class="btn btn-secondary" id="skipDrawBtn" style="display:none">데생 건너뛰고 채색 →</button>
-    <button class="btn btn-primary" id="finishBtn" style="display:none">채점하기 →</button>
+<footer class="mf-footer">
+  <span class="mf-foot-note" id="deviceNote">💻 PC(마우스)에 맞춰 만든 시안이에요. 터치 화면에서도 할 수 있어요.</span>
+  <div class="mf-foot-actions">
+    <button class="mf-btn ghost" id="mfTuneToggle" type="button" aria-controls="debugPanel" title="손맛 조절(개발용) — 단축키 D">⚙ 손맛 조절 <kbd class="mf-kbd">D</kbd></button>
+    <button class="mf-btn ghost" id="skipDrawBtn" type="button" style="display:none">데생 건너뛰고 채색 →</button>
+    <button class="mf-btn" id="finishBtn" type="button" style="display:none">채점하기 →</button>
+    <button class="mf-btn" id="redrawBtn" type="button">다시 그리기</button>
   </div>
 </footer>
 
+<div class="mf-intro" id="mfIntro" role="dialog" aria-modal="true" aria-labelledby="mfIntroTitle">
+  <div class="mf-intro-card">
+    <div class="mf-intro-num">02</div>
+    <h2 id="mfIntroTitle">외곽선 한붓 — 보조판 + 색칠</h2>
+    <p class="mf-intro-lead">오른쪽 작은 보조판에서 점을 이어 윤곽선을 그리고, 같은 보조판을 문질러 큰 그림에 색을 입히는 방식이에요.</p>
+    <ol class="mf-intro-steps">
+      <li>
+        <span class="mf-step-ico" data-mf-icon="connect"></span>
+        <div><b>오른쪽 보조판에서 빛나는 점을 순서대로 이으세요</b><span class="mf-step-sub">마우스를 누른 채 다음 빛나는 점으로 끌어요. 순서가 틀린 점에 닿으면 처음부터 다시 해요. 마지막엔 처음 점으로 돌아와 닫아요.</span></div>
+      </li>
+      <li>
+        <span class="mf-step-ico" data-mf-icon="rub"></span>
+        <div><b>데생이 끝나면 보조판을 문질러 색칠하세요</b><span class="mf-step-sub">보조판을 문지른 자리만큼 큰 그림에 컬러가 드러나요. 물감이 정해져 있으니 골고루!</span></div>
+      </li>
+      <li>
+        <span class="mf-step-ico" data-mf-icon="flag"></span>
+        <div><b>컬러가 92% 드러나면 완성!</b><span class="mf-step-sub">물감을 다 쓰거나 '채점하기'를 누르면 그 상태로 점수가 나와요.</span></div>
+      </li>
+    </ol>
+    <div class="mf-intro-option wrist-row">
+      <label class="switch">
+        <input type="checkbox" id="wristToggle" aria-label="손목 보호 모드" />
+        <span class="slider"></span>
+      </label>
+      <div class="wrist-label">
+        <b>손목 보호 모드</b>
+        <small>켜면 마우스 버튼을 누르지 않고 커서를 올리기만 해도 선이 그려지고 색칠돼요.</small>
+      </div>
+    </div>
+    <p class="mf-intro-tip">⚙ 아래 <b>손맛 조절</b>(단축키 <kbd class="mf-kbd">D</kbd>)로 점 통과 반경·물감 양 같은 수치를 직접 바꿔 볼 수 있어요.</p>
+    <p class="mf-intro-note" id="introDeviceNote">💻 PC(마우스)에 맞춰 만든 시안이에요. 터치 화면에서도 할 수 있어요.</p>
+    <button class="mf-intro-btn" id="mfStart" type="button">시작하기</button>
+  </div>
+</div>
+
+<script src="../common/frame.js"></script>
 <script src="d-redesign.js"></script>
 </body>
 </html>

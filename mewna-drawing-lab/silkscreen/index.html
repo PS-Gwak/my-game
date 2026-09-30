@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>실크스크린 · 새 반복행위 시안</title>
+<title>06 실크스크린 · 뮤나리자 그리기 실험</title>
 <link rel="icon" href="data:," />
+<link rel="stylesheet" href="../common/frame.css" />
 <style>
   :root {
     --bg: #15110a;
@@ -31,86 +32,27 @@
     -webkit-user-select: none;
     user-select: none;
   }
-  header, footer {
-    background: var(--panel-dark);
-    border-color: var(--border);
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-width: 0;
-  }
-  header {
-    border-bottom: 1px solid var(--border);
-    padding: 9px 16px;
-  }
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 9px 16px;
-    color: var(--text-soft);
-    font-size: 13px;
-    line-height: 1.4;
-  }
-  a {
-    color: var(--gold-soft);
-    text-decoration: none;
-    font-weight: 800;
-    white-space: nowrap;
-  }
-  .title { min-width: 0; }
-  h1 {
-    margin: 0;
-    color: var(--gold);
-    font-size: 18px;
-    line-height: 1.2;
-    letter-spacing: 0;
-  }
-  .subtitle {
-    margin: 2px 0 0;
-    color: var(--text-soft);
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .readout {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    min-width: 220px;
-  }
-  .readout span {
-    color: var(--text-soft);
-    font-size: 12px;
-    white-space: nowrap;
-  }
-  .bar {
-    flex: 1;
-    height: 8px;
-    background: var(--track);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  .bar > i {
-    display: block;
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #be7c00, #f5a700);
-    transition: width 0.12s linear;
-  }
   main {
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
+    /* 그림 틀이 화면 높이를 넘지 않고, 남은 공간에 맞춰 줄어들게 한다 */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     gap: 14px;
     padding: 14px;
     background:
       linear-gradient(180deg, rgba(21, 17, 10, 0.92), rgba(9, 8, 5, 0.98)),
       radial-gradient(circle at 42% 4%, rgba(245, 167, 0, 0.12), transparent 30%);
   }
+  /* 손맛 조절 창을 열면 오른쪽에 자리를 내준다 */
+  body.mf-tuning-open main {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
+  }
   .stage {
     min-height: 0;
+    height: 100%;
     display: grid;
+    grid-template-rows: minmax(0, 1fr);
     place-items: center;
   }
   .frame {
@@ -166,36 +108,6 @@
     gap: 10px;
     overflow: auto;
   }
-  .howBox {
-    background: rgba(245, 167, 0, 0.1);
-    border: 1px solid rgba(245, 167, 0, 0.35);
-    border-radius: 7px;
-    padding: 9px 10px;
-  }
-  .howBox b {
-    display: block;
-    margin-bottom: 4px;
-    color: var(--gold);
-    font-size: 13px;
-    line-height: 1.35;
-  }
-  .howBox span {
-    display: block;
-    margin: 0;
-    color: var(--text-soft);
-    font-size: 11.5px;
-    line-height: 1.45;
-  }
-  .tuner {
-    border-top: 1px solid var(--track);
-    padding-top: 10px;
-  }
-  .tuner h2 {
-    margin: 0 0 9px;
-    color: var(--gold-soft);
-    font-size: 13px;
-    letter-spacing: 0;
-  }
   .tuner .row {
     margin-bottom: 12px;
   }
@@ -236,10 +148,6 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .tunerActions .actionBtn.primary {
-    background: var(--gold);
-    color: #1a1206;
-  }
   .complete {
     margin-top: auto;
     border-top: 1px solid var(--track);
@@ -248,6 +156,7 @@
     font-weight: 900;
     min-height: 42px;
   }
+  /* 그림 불러오기 안내·오류는 시작 카드보다 위에 보이게 한다 */
   #loading {
     position: fixed;
     inset: 0;
@@ -255,79 +164,109 @@
     place-items: center;
     background: var(--bg);
     color: var(--text-soft);
-    z-index: 5;
+    z-index: 50;
     text-align: center;
     line-height: 1.6;
     padding: 20px;
   }
   @media (max-width: 760px) {
-    header { padding: 8px 10px; }
-    .subtitle { display: none; }
-    .readout { min-width: 130px; }
-    main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 10px; padding: 10px; }
+    main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 10px; padding: 10px; }
+    body.mf-tuning-open main { grid-template-columns: 1fr; }
     aside { max-height: 35vh; padding: 10px; }
-    .howBox b { font-size: 12px; }
-    .howBox span, .tuner label { font-size: 11px; }
+    .tuner label { font-size: 11px; }
     .complete { min-height: 0; }
-    footer { font-size: 11px; padding: 7px 10px; }
     .done-toast { top: 10px; font-size: 12px; padding: 6px 14px; }
   }
 </style>
 </head>
 <body>
-  <header>
-    <a href="../index.html">← 메뉴로</a>
-    <div class="title">
-      <h1>실크스크린</h1>
-      <p class="subtitle">휠을 위로 굴려 밀대를 올리고, 아래로 굴릴 때만 잉크가 찍힙니다.</p>
+  <header class="mf-header">
+    <a class="mf-back" href="../index.html">← 목록으로</a>
+    <div class="mf-title">
+      <h1><span class="mf-num">06</span>실크스크린 — 찍어내기</h1>
+      <p class="mf-sub">마우스 휠을 아래로 굴려(스크롤 다운) 밀대로 그림을 찍어내요.</p>
     </div>
-    <div class="readout" aria-label="드러난 비율">
-      <span id="progressText">0%</span>
-      <div class="bar"><i id="progressBar"></i></div>
+    <div class="mf-progress" aria-label="드러난 비율">
+      <span class="mf-progress-label" id="progressText">0%</span>
+      <div class="mf-bar"><i id="progressBar"></i></div>
     </div>
   </header>
 
   <main>
     <section class="stage" aria-label="실크스크린 작업대">
-      <div class="frame">
+      <div class="frame" id="artFrame">
         <canvas id="game" width="620" height="760"></canvas>
         <div class="done-toast" id="doneToast">그림 완성!</div>
       </div>
     </section>
-    <aside>
-      <div class="howBox">
-        <b>위로 끝까지 올렸다 아래로 쭉 미세요</b>
-        <span>맨 위까지 올리면 잉크가 묻고, 아래로 끝까지 밀 때 지나간 가로 띠만 찍힙니다.</span>
-      </div>
-      <div class="tuner" aria-label="실크스크린 손맛 튜닝">
-        <h2>손맛 튜닝</h2>
+    <aside id="tunerPanel" data-mf-tuning>
+      <div class="tuner" aria-label="실크스크린 손맛 조절">
+        <h2 class="mf-tuner-title">⚙ 손맛 조절 (개발용)</h2>
+        <p class="mf-tuner-desc">수치를 바꿔 가며 <b>가장 손맛 좋은 조합</b>을 찾아보는 창이에요. 바꾼 값은 <b>새로고침하면 원래대로</b> 돌아가요.<br />단축키 <kbd class="mf-kbd">D</kbd> (한글 입력 중이면 <kbd class="mf-kbd">ㅇ</kbd>)로 열고 닫아요.</p>
         <div class="row">
           <label for="inkPowerRange"><span>잉크 진하기</span><b id="inkPowerValue">0.32</b></label>
           <input id="inkPowerRange" type="range" min="0.12" max="0.58" step="0.01" value="0.32" />
+          <p class="mf-hint">한 번 밀 때 찍히는 잉크 양. 높이면 적은 횟수로 완성돼요.</p>
         </div>
         <div class="row">
           <label for="revealPassRange"><span>완성 기준</span><b id="revealPassValue">100%</b></label>
           <input id="revealPassRange" type="range" min="70" max="100" step="1" value="100" />
+          <p class="mf-hint">몇 %가 찍히면 '완성'으로 칠지 정해요.</p>
         </div>
         <div class="row">
           <label for="wheelSpeedRange"><span>밀대 속도</span><b id="wheelSpeedValue">0.22x</b></label>
           <input id="wheelSpeedRange" type="range" min="0.10" max="0.45" step="0.01" value="0.22" />
+          <p class="mf-hint">휠을 한 번 굴릴 때 밀대가 움직이는 거리. 높이면 적게 굴려도 멀리 가요.</p>
         </div>
         <div class="row">
           <label for="edgeBlurRange"><span>경계 부드럽기</span><b id="edgeBlurValue">1.6px</b></label>
           <input id="edgeBlurRange" type="range" min="0" max="4" step="0.1" value="1.6" />
+          <p class="mf-hint">찍힌 띠의 가장자리가 번지는 정도. 0이면 경계가 또렷해요.</p>
         </div>
         <div class="tunerActions">
           <button class="actionBtn" id="resetTunerBtn" type="button">설정 기본값</button>
-          <button class="actionBtn primary" id="redrawBtn" type="button">다시 그리기</button>
         </div>
       </div>
       <div class="complete" id="completeText"></div>
     </aside>
   </main>
 
-  <div id="loading">기준 그림을 읽는 중입니다.</div>
+  <footer class="mf-footer">
+    <span class="mf-foot-note">💻 마우스 휠로 하는 방식이라 PC에서만 할 수 있어요.</span>
+    <div class="mf-foot-actions">
+      <button class="mf-btn ghost" id="mfTuneToggle" type="button" aria-controls="tunerPanel" title="손맛 조절(개발용) — 단축키 D">⚙ 손맛 조절 <kbd class="mf-kbd">D</kbd></button>
+      <button class="mf-btn" id="redrawBtn" type="button">다시 그리기</button>
+    </div>
+  </footer>
 
+  <div class="mf-intro" id="mfIntro" role="dialog" aria-modal="true" aria-labelledby="mfIntroTitle">
+    <div class="mf-intro-card">
+      <div class="mf-intro-num">06</div>
+      <h2 id="mfIntroTitle">실크스크린 — 찍어내기</h2>
+      <p class="mf-intro-lead">밀대로 잉크를 밀어 내려서 그림을 찍어내는 방식이에요.</p>
+      <ol class="mf-intro-steps">
+        <li>
+          <span class="mf-step-ico" data-mf-icon="wheel-down"></span>
+          <div><b>마우스 휠을 아래로 굴리세요 (스크롤 다운)</b><span class="mf-step-sub">밀대가 내려가며 지나간 자리에 그림이 찍혀요.</span></div>
+        </li>
+        <li>
+          <span class="mf-step-ico" data-mf-icon="wheel-up"></span>
+          <div><b>맨 아래까지 가면 휠을 위로 끝까지 올리세요</b><span class="mf-step-sub">맨 위에서 잉크가 다시 묻어요. 오르내릴수록 그림이 진해져요.</span></div>
+        </li>
+        <li>
+          <span class="mf-step-ico" data-mf-icon="flag"></span>
+          <div><b>100%가 되면 완성!</b><span class="mf-step-sub">오른쪽 위 막대로 얼마나 찍혔는지 볼 수 있어요.</span></div>
+        </li>
+      </ol>
+      <p class="mf-intro-tip">⚙ 아래 <b>손맛 조절</b>(단축키 <kbd class="mf-kbd">D</kbd>)로 밀대 속도·잉크 진하기 같은 수치를 직접 바꿔 볼 수 있어요.</p>
+      <p class="mf-intro-note">💻 마우스 휠로 하는 방식이라 PC에서만 할 수 있어요.</p>
+      <button class="mf-intro-btn" id="mfStart" type="button">시작하기</button>
+    </div>
+  </div>
+
+  <div id="loading" data-mf-keep>기준 그림을 읽는 중입니다.</div>
+
+<script src="../common/frame.js"></script>
 <script>
 (() => {
   "use strict";
@@ -680,6 +619,8 @@
 
   function onWheel(event) {
     event.preventDefault();
+    // 시작 카드를 읽는 동안에는 휠이 그림을 건드리지 않게 막는다
+    if (MewnaFrame.isIntroOpen()) return;
     if (!layout) return;
     const raw = event.deltaY;
     if (Math.abs(raw) < 2) return;
@@ -696,10 +637,42 @@
     // 맨 아래까지 내려가면 잉크 소진 → 다시 맨 위로 올려야 한다
     if (squeegeeY >= layout.y + layout.h - 1) armed = false;
     render();
+    updateCoach(true, move);
   }
+
+  // ── 처음 보는 사람용 안내: 작업대 옆 조작 배지 (공통 틀 common/frame.js 사용) ──
+  // 게임 규칙은 건드리지 않고, 지금 상태(잉크 묻음·소진·완성)를 읽어서 할 동작만 알려 준다.
+  const COACH = {
+    down: { icon: "wheel-down", title: "휠을 아래로 굴리세요", sub: "(스크롤 다운) 밀대가 내려가며 그림이 찍혀요" },
+    up: { icon: "wheel-up", title: "휠을 위로 끝까지 올리세요", sub: "잉크가 떨어졌어요. 맨 위에서 잉크가 다시 묻어요" },
+    again: { icon: "wheel-down", title: "다시 아래로 굴리세요", sub: "(스크롤 다운) 한 번 더 찍을수록 그림이 진해져요" },
+    done: { title: "완성!", sub: "잉크가 충분히 먹었어요", done: true },
+  };
+
+  function updateCoach(fromWheel, move) {
+    if (!fromWheel) MewnaFrame.wake();
+    let state = "down";
+    if (finished) state = "done";
+    else if (!armed) state = "up";
+    else if (lastPercent > 0 && layout && squeegeeY <= layout.y + 1) state = "again";
+    const changed = MewnaFrame.setCoach(state, COACH[state]);
+    if (changed || !fromWheel) return;
+    // 알려 준 방향: 잉크가 떨어졌으면 위로, 아니면 아래로
+    MewnaFrame.activity(state === "up" ? move < 0 : move > 0);
+  }
+
+  MewnaFrame.init({
+    coachAnchor: document.getElementById("artFrame"),
+    coachLimit: () => [document.getElementById("tunerPanel")],
+    next: { href: "../index.html", label: "← 목록으로" },
+    onRedraw: () => tuner.redrawBtn.click(),
+  });
+  updateCoach(false);
 
   window.addEventListener("wheel", onWheel, { passive: false });
   bindTuner();
+  // bindTuner가 '다시 그리기'에 초기화를 먼저 연결하므로, 배지 갱신은 그 뒤에 붙인다
+  tuner.redrawBtn.addEventListener("click", () => updateCoach(false));
   load();
 })();
 </script>

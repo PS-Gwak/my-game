@@ -1,0 +1,545 @@
+/*
+  뮤나리자 그리기 실험 — 6개 시안 공통 틀 (겉모양)
+  모든 시안이 같은 자리에 같은 모양으로 안내를 보여 주도록 하나의 파일로 묶었다.
+  - 윗줄(mf-header): ← 목록으로 · 번호+이름 · 한 줄 설명 · 진행 막대
+  - 시작 카드(mf-intro): 들어오면 한 번 보여 주는 '이렇게 해보세요'
+  - 조작 배지(mf-coach): 그림 옆에서 지금 할 동작을 움직이는 아이콘으로 알려 줌
+  - 아랫줄(mf-footer): 왼쪽 기기 안내, 오른쪽 ⚙ 손맛 조절 · 다시 그리기
+  - 손맛 조절 안내(mf-tuner-desc, mf-hint): 개발용 조절판 설명과 항목 풀이
+  이름 앞의 mf- 는 'mewna frame'의 줄임이다. 각 시안의 기존 스타일과 섞이지 않게 붙였다.
+*/
+
+:root {
+  --mf-bg: #15110a;
+  --mf-panel: #1a1408;
+  --mf-panel-dark: #100c06;
+  --mf-gold: #f5a700;
+  --mf-gold-soft: #f0c674;
+  --mf-text: #e8d6a8;
+  --mf-text-soft: #aa936a;
+  --mf-border: #443a25;
+  --mf-track: #2a1f0e;
+  --mf-font: system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+
+/* 한글이 단어 중간에서 끊기지 않게 한다 (긴 영문·숫자는 필요하면 끊음) */
+.mf-title h1,
+.mf-sub,
+.mf-foot-note,
+.mf-coach,
+.mf-intro-card,
+.mf-tuner-desc,
+.mf-hint {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* ── 윗줄 ── */
+.mf-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 9px 16px;
+  background: var(--mf-panel-dark);
+  border-bottom: 1px solid var(--mf-border);
+  font-family: var(--mf-font);
+  box-sizing: border-box;
+}
+.mf-back {
+  color: var(--mf-gold-soft);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.mf-title {
+  min-width: 0;
+}
+.mf-title h1 {
+  margin: 0;
+  color: var(--mf-gold);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+.mf-num {
+  color: var(--mf-gold-soft);
+  margin-right: 6px;
+}
+.mf-sub {
+  margin: 2px 0 0;
+  color: var(--mf-text-soft);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 시안마다 필요한 작은 표시(예: 단계 칩)를 제목 오른쪽에 둘 자리 */
+.mf-extra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.mf-progress {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 220px;
+  flex-shrink: 0;
+}
+.mf-progress-label {
+  color: var(--mf-text-soft);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.mf-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--mf-track);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.mf-bar > i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #be7c00, #f5a700);
+  transition: width 0.12s linear;
+}
+
+/* ── 아랫줄 ── */
+.mf-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 9px 16px;
+  background: var(--mf-panel-dark);
+  border-top: 1px solid var(--mf-border);
+  font-family: var(--mf-font);
+  box-sizing: border-box;
+}
+.mf-foot-note {
+  min-width: 0;
+  color: var(--mf-text-soft);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.mf-foot-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.mf-btn {
+  border: 1px solid var(--mf-gold);
+  background: var(--mf-gold);
+  color: #1a1206;
+  border-radius: 7px;
+  padding: 7px 14px;
+  font-family: var(--mf-font);
+  font-size: 12.5px;
+  font-weight: 900;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mf-btn.ghost {
+  border-color: var(--mf-border);
+  background: transparent;
+  color: var(--mf-text-soft);
+  font-weight: 700;
+}
+.mf-btn.ghost[aria-expanded="true"] {
+  border-color: var(--mf-gold);
+  color: var(--mf-gold);
+}
+.mf-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* 키보드 단축키 표시 (예: [D]) */
+kbd.mf-kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 5px;
+  border: 1px solid currentColor;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 900;
+  line-height: 1.3;
+  text-align: center;
+  opacity: 0.85;
+}
+
+/* ── 손맛 조절(개발용) 창: 기본은 숨김, ⚙ 버튼이나 D 키로 연다 ── */
+body:not(.mf-tuning-open) [data-mf-tuning] {
+  display: none !important;
+}
+.mf-tuner-desc {
+  margin: 0 0 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--mf-track);
+  border-radius: 7px;
+  background: rgba(245, 167, 0, 0.06);
+  color: var(--mf-text-soft);
+  font-family: var(--mf-font);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.mf-tuner-desc b {
+  color: var(--mf-gold-soft);
+}
+.mf-tuner-title {
+  margin: 0 0 9px;
+  color: var(--mf-gold-soft);
+  font-family: var(--mf-font);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.mf-hint {
+  margin: 4px 0 0;
+  color: var(--mf-text-soft);
+  font-family: var(--mf-font);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* ── 조작 배지 ── */
+.mf-coach {
+  position: absolute;
+  left: calc(100% + 22px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 200px;
+  padding: 16px 14px 15px;
+  border: 1px solid rgba(245, 167, 0, 0.5);
+  background: rgba(26, 20, 8, 0.94);
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.42);
+  transition: opacity 0.35s ease;
+  z-index: 3;
+  font-family: var(--mf-font);
+  box-sizing: border-box;
+}
+/* 그림 왼쪽에 둘 때 */
+.mf-coach.left {
+  left: auto;
+  right: calc(100% + 22px);
+}
+.mf-coach.quiet {
+  opacity: 0.38;
+}
+/* 배지는 누르는 버튼이 아니라 안내판이라, 시작 직후 초점을 받아도 테두리 강조선은 그리지 않는다 (안의 버튼은 그대로) */
+.mf-coach:focus {
+  outline: none;
+}
+.mf-coach-ico {
+  display: block;
+  width: 56px;
+  height: 70px;
+  margin: 0 auto;
+}
+.mf-coach-ico svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.mf-coach b {
+  display: block;
+  margin-top: 8px;
+  color: var(--mf-gold);
+  font-size: 15px;
+  line-height: 1.35;
+}
+.mf-coach span.mf-coach-sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--mf-text-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.mf-coach-actions {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.mf-coach.done .mf-coach-actions {
+  display: flex;
+}
+.mf-coach.done .mf-coach-ico {
+  display: none;
+}
+.mf-coach-actions .mf-btn {
+  justify-content: center;
+}
+/* 그림 옆에 자리가 모자라면 그림 아래쪽 안에 가로로 띄운다 */
+.mf-coach.inside {
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 28px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 10px 16px;
+}
+.mf-coach.inside .mf-coach-ico {
+  width: 34px;
+  height: 44px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.mf-coach.inside b {
+  margin-top: 0;
+}
+.mf-coach.inside .mf-coach-actions {
+  flex-direction: row;
+  margin-top: 0;
+  margin-left: 6px;
+}
+
+/* 그림 옆 자리가 모자라면 아랫줄 맨 위 칸에 가로로 놓는다 (그림을 덮지 않음) */
+.mf-footer.mf-has-coach {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.mf-coach.docked {
+  position: static;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  transform: none;
+  order: -1;
+  flex-basis: 100%;
+  width: 100%;
+  max-width: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 8px 12px;
+  box-shadow: none;
+}
+.mf-coach.docked .mf-coach-ico {
+  width: 30px;
+  height: 38px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.mf-coach.docked .mf-coach-text {
+  flex: 1;
+  min-width: 0;
+}
+.mf-coach.docked b {
+  margin-top: 0;
+  font-size: 14px;
+}
+.mf-coach.docked span.mf-coach-sub {
+  margin-top: 2px;
+}
+.mf-coach.docked .mf-coach-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* ── 아이콘 움직임 ── */
+.mf-anim-down {
+  animation: mfNudgeDown 1.1s ease-in-out infinite;
+}
+.mf-anim-up {
+  animation: mfNudgeUp 1.1s ease-in-out infinite;
+}
+.mf-anim-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mfPulse 1.2s ease-out infinite;
+}
+.mf-anim-tap {
+  animation: mfTap 1.2s ease-in-out infinite;
+}
+.mf-anim-spin {
+  transform-box: view-box;
+  transform-origin: 32px 36px;
+  animation: mfSpin 2.4s linear infinite;
+}
+.mf-anim-dash {
+  stroke-dasharray: 6 7;
+  animation: mfDash 1s linear infinite;
+}
+@keyframes mfNudgeDown {
+  0%, 100% { transform: translateY(-4px); opacity: 0.45; }
+  50% { transform: translateY(5px); opacity: 1; }
+}
+@keyframes mfNudgeUp {
+  0%, 100% { transform: translateY(5px); opacity: 0.45; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+@keyframes mfPulse {
+  0% { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+@keyframes mfTap {
+  0%, 100% { transform: translateY(0); }
+  45% { transform: translateY(4px); }
+}
+@keyframes mfSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes mfDash {
+  to { stroke-dashoffset: -13; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mf-anim-down, .mf-anim-up, .mf-anim-pulse, .mf-anim-tap, .mf-anim-spin, .mf-anim-dash {
+    animation: none;
+  }
+}
+
+/* ── 시작 카드 ── */
+.mf-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  place-items: center;
+  padding: 20px;
+  background: rgba(9, 7, 4, 0.82);
+  font-family: var(--mf-font);
+  box-sizing: border-box;
+  overflow: auto;
+}
+body.mf-intro-open .mf-intro {
+  display: grid;
+}
+.mf-intro-card {
+  width: min(460px, 100%);
+  background: var(--mf-panel);
+  border: 1px solid var(--mf-border);
+  border-radius: 14px;
+  padding: 26px 26px 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  box-sizing: border-box;
+}
+.mf-intro-num {
+  color: var(--mf-gold-soft);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.mf-intro-card h2 {
+  margin: 4px 0 6px;
+  color: var(--mf-gold);
+  font-size: 22px;
+  line-height: 1.25;
+}
+.mf-intro-lead {
+  margin: 0 0 16px;
+  color: var(--mf-text-soft);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.mf-intro-steps {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.mf-intro-steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: rgba(245, 167, 0, 0.06);
+  border: 1px solid var(--mf-track);
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+.mf-step-ico {
+  flex-shrink: 0;
+  width: 30px;
+  height: 38px;
+}
+.mf-step-ico svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.mf-intro-steps b {
+  display: block;
+  color: var(--mf-text);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.mf-intro-steps span.mf-step-sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--mf-text-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.mf-intro-option {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--mf-track);
+  border-radius: 9px;
+  color: var(--mf-text-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.mf-intro-tip {
+  margin: 0 0 8px;
+  color: var(--mf-text-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.mf-intro-note {
+  margin: 0 0 16px;
+  color: var(--mf-gold-soft);
+  font-size: 12.5px;
+}
+.mf-intro-btn {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 9px;
+  padding: 12px;
+  background: linear-gradient(180deg, #f5a700, #c98600);
+  color: #1a1206;
+  font-family: var(--mf-font);
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .mf-header { padding: 8px 10px; gap: 10px; }
+  .mf-title h1 { font-size: 15px; }
+  .mf-sub { display: none; }
+  .mf-progress { min-width: 110px; }
+  /* 좁은 화면: 기기 안내를 한 줄 위로 올리고, 버튼은 그 아래 오른쪽에 모은다 */
+  .mf-footer { padding: 7px 10px; flex-wrap: wrap; row-gap: 6px; }
+  .mf-foot-note { font-size: 11px; flex-basis: 100%; }
+  .mf-foot-actions { flex-wrap: wrap; justify-content: flex-end; width: 100%; }
+  .mf-btn { padding: 6px 10px; font-size: 12px; }
+}

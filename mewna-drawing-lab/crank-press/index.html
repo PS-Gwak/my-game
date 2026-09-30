@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>등사기 크랭크 · 새 반복행위 시안</title>
+<title>05 등사기 크랭크 · 뮤나리자 그리기 실험</title>
 <link rel="icon" href="data:," />
+<link rel="stylesheet" href="../common/frame.css" />
 <style>
   :root {
     --bg: #15110a;
@@ -31,86 +32,27 @@
     -webkit-user-select: none;
     user-select: none;
   }
-  header, footer {
-    background: var(--panel-dark);
-    border-color: var(--border);
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-width: 0;
-  }
-  header {
-    border-bottom: 1px solid var(--border);
-    padding: 9px 16px;
-  }
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 9px 16px;
-    color: var(--text-soft);
-    font-size: 13px;
-    line-height: 1.4;
-  }
-  a {
-    color: var(--gold-soft);
-    text-decoration: none;
-    font-weight: 800;
-    white-space: nowrap;
-  }
-  .title { min-width: 0; }
-  h1 {
-    margin: 0;
-    color: var(--gold);
-    font-size: 18px;
-    line-height: 1.2;
-    letter-spacing: 0;
-  }
-  .subtitle {
-    margin: 2px 0 0;
-    color: var(--text-soft);
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .readout {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    min-width: 220px;
-  }
-  .readout span {
-    color: var(--text-soft);
-    font-size: 12px;
-    white-space: nowrap;
-  }
-  .bar {
-    flex: 1;
-    height: 8px;
-    background: var(--track);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  .bar > i {
-    display: block;
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #be7c00, #f5a700);
-    transition: width 0.12s linear;
-  }
   main {
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
+    /* 그림 틀이 화면 높이를 넘지 않고, 남은 공간에 맞춰 줄어들게 한다 */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     gap: 14px;
     padding: 14px;
     background:
       linear-gradient(180deg, rgba(21, 17, 10, 0.92), rgba(9, 8, 5, 0.98)),
       radial-gradient(circle at 58% 8%, rgba(245, 167, 0, 0.1), transparent 32%);
   }
+  /* 손맛 조절 창을 열면 오른쪽에 자리를 내준다 */
+  body.mf-tuning-open main {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 260px);
+  }
   .stage {
     min-height: 0;
+    height: 100%;
     display: grid;
+    grid-template-rows: minmax(0, 1fr);
     place-items: center;
   }
   .frame {
@@ -168,36 +110,6 @@
     gap: 10px;
     overflow: auto;
   }
-  .howBox {
-    background: rgba(245, 167, 0, 0.1);
-    border: 1px solid rgba(245, 167, 0, 0.35);
-    border-radius: 7px;
-    padding: 9px 10px;
-  }
-  .howBox b {
-    display: block;
-    margin-bottom: 4px;
-    color: var(--gold);
-    font-size: 13px;
-    line-height: 1.35;
-  }
-  .howBox span {
-    display: block;
-    margin: 0;
-    color: var(--text-soft);
-    font-size: 11.5px;
-    line-height: 1.45;
-  }
-  .tuner {
-    border-top: 1px solid var(--track);
-    padding-top: 10px;
-  }
-  .tuner h2 {
-    margin: 0 0 9px;
-    color: var(--gold-soft);
-    font-size: 13px;
-    letter-spacing: 0;
-  }
   .tuner .row {
     margin-bottom: 12px;
   }
@@ -238,10 +150,6 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .tunerActions .actionBtn.primary {
-    background: var(--gold);
-    color: #1a1206;
-  }
   .complete {
     margin-top: auto;
     border-top: 1px solid var(--track);
@@ -250,6 +158,7 @@
     font-weight: 900;
     min-height: 42px;
   }
+  /* 그림 불러오기 안내·오류는 시작 카드보다 위에 보이게 한다 */
   #loading {
     position: fixed;
     inset: 0;
@@ -257,83 +166,109 @@
     place-items: center;
     background: var(--bg);
     color: var(--text-soft);
-    z-index: 5;
+    z-index: 50;
     text-align: center;
     line-height: 1.6;
     padding: 20px;
   }
   @media (max-width: 760px) {
-    header { padding: 8px 10px; }
-    .subtitle { display: none; }
-    .readout { min-width: 130px; }
-    main { grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 10px; padding: 10px; }
+    main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 10px; padding: 10px; }
+    body.mf-tuning-open main { grid-template-columns: 1fr; }
     aside { max-height: 35vh; padding: 10px; }
-    .howBox b { font-size: 12px; }
-    .howBox span, .tuner label { font-size: 11px; }
+    .tuner label { font-size: 11px; }
     .complete { min-height: 0; }
-    footer { font-size: 11px; padding: 7px 10px; }
     .done-toast { top: 10px; font-size: 12px; padding: 6px 14px; }
   }
 </style>
 </head>
 <body>
-  <header>
-    <a href="../index.html">← 메뉴로</a>
-    <div class="title">
-      <h1>등사기 크랭크</h1>
-      <p class="subtitle">오른쪽 손잡이를 시계방향으로 돌리면 인쇄바가 한 줄씩 내려옵니다.</p>
+  <header class="mf-header">
+    <a class="mf-back" href="../index.html">← 목록으로</a>
+    <div class="mf-title">
+      <h1><span class="mf-num">05</span>등사기 크랭크 — 손잡이 돌리기</h1>
+      <p class="mf-sub">오른쪽 손잡이를 누른 채 시계방향으로 돌리면 인쇄바가 한 줄씩 내려와요.</p>
     </div>
-    <div class="readout" aria-label="인쇄 진행">
-      <span id="progressText">0%</span>
-      <div class="bar"><i id="progressBar"></i></div>
+    <div class="mf-progress" aria-label="인쇄 진행">
+      <span class="mf-progress-label" id="progressText">0%</span>
+      <div class="mf-bar"><i id="progressBar"></i></div>
     </div>
   </header>
 
   <main>
     <section class="stage" aria-label="등사기 작업대">
-      <div class="frame">
+      <div class="frame" id="artFrame">
         <canvas id="game" width="760" height="760"></canvas>
         <div class="done-toast" id="doneToast">그림 완성!</div>
       </div>
     </section>
-    <aside>
-      <div class="howBox">
-        <b>손잡이를 시계방향으로 계속 돌리세요</b>
-        <span>마우스를 누른 채 원을 그리면 전진합니다. 멈추면 태엽처럼 부드럽게 되감깁니다.</span>
-      </div>
-      <div class="tuner" aria-label="등사기 손맛 튜닝">
-        <h2>손맛 튜닝</h2>
+    <aside id="tunerPanel" data-mf-tuning>
+      <div class="tuner" aria-label="등사기 손맛 조절">
+        <h2 class="mf-tuner-title">⚙ 손맛 조절 (개발용)</h2>
+        <p class="mf-tuner-desc">수치를 바꿔 가며 <b>가장 손맛 좋은 조합</b>을 찾아보는 창이에요. 바꾼 값은 <b>새로고침하면 원래대로</b> 돌아가요.<br />단축키 <kbd class="mf-kbd">D</kbd> (한글 입력 중이면 <kbd class="mf-kbd">ㅇ</kbd>)로 열고 닫아요.</p>
         <div class="row">
           <label for="turnsRange"><span>완성까지 바퀴수</span><b id="turnsValue">9.0</b></label>
           <input id="turnsRange" type="range" min="4" max="14" step="0.5" value="9" />
+          <p class="mf-hint">손잡이를 몇 바퀴 돌려야 끝까지 찍히는지 정해요.</p>
         </div>
         <div class="row">
           <label for="rewindStrengthRange"><span>되감기 강도</span><b id="rewindStrengthValue">7.5%/초</b></label>
           <input id="rewindStrengthRange" type="range" min="0" max="0.16" step="0.005" value="0.075" />
+          <p class="mf-hint">손을 떼고 있을 때 1초에 되감기는 양. 0이면 되감기지 않아요.</p>
         </div>
         <div class="row">
           <label for="rewindSmoothRange"><span>되감기 부드러움</span><b id="rewindSmoothValue">10.0</b></label>
           <input id="rewindSmoothRange" type="range" min="3" max="18" step="0.5" value="10" />
+          <p class="mf-hint">화면 속 인쇄바가 실제 진행을 따라가는 빠르기. 낮을수록 천천히 부드럽게 따라와요.</p>
         </div>
         <div class="row">
           <label for="edgeBlurRange"><span>경계 부드럽기</span><b id="edgeBlurValue">1.6px</b></label>
           <input id="edgeBlurRange" type="range" min="0" max="4" step="0.1" value="1.6" />
+          <p class="mf-hint">찍힌 부분의 가장자리가 번지는 정도. 0이면 경계가 또렷해요.</p>
         </div>
         <div class="tunerActions">
           <button class="actionBtn" id="resetTunerBtn" type="button">설정 기본값</button>
-          <button class="actionBtn primary" id="redrawBtn" type="button">다시 그리기</button>
         </div>
       </div>
       <div class="complete" id="completeText"></div>
     </aside>
   </main>
 
-  <footer>
-    작은 등사기 체험판입니다. 손잡이 회전감과 한 줄씩 찍히는 느낌만 확인하는 용도입니다.
+  <footer class="mf-footer">
+    <span class="mf-foot-note">💻 PC(마우스)에 맞춰 만든 시안이에요. 터치 화면에서도 할 수 있어요.</span>
+    <div class="mf-foot-actions">
+      <button class="mf-btn ghost" id="mfTuneToggle" type="button" aria-controls="tunerPanel" title="손맛 조절(개발용) — 단축키 D">⚙ 손맛 조절 <kbd class="mf-kbd">D</kbd></button>
+      <button class="mf-btn" id="redrawBtn" type="button">다시 그리기</button>
+    </div>
   </footer>
 
-  <div id="loading">기준 그림을 읽는 중입니다.</div>
+  <div class="mf-intro" id="mfIntro" role="dialog" aria-modal="true" aria-labelledby="mfIntroTitle">
+    <div class="mf-intro-card">
+      <div class="mf-intro-num">05</div>
+      <h2 id="mfIntroTitle">등사기 크랭크 — 손잡이 돌리기</h2>
+      <p class="mf-intro-lead">옛날 등사기처럼 손잡이를 돌려서 그림을 한 줄씩 찍어내는 방식이에요.</p>
+      <ol class="mf-intro-steps">
+        <li>
+          <span class="mf-step-ico" data-mf-icon="circle"></span>
+          <div><b>오른쪽 손잡이를 누른 채 시계방향으로 돌리세요</b><span class="mf-step-sub">원을 그릴수록 인쇄바가 내려오며 그림이 찍혀요.</span></div>
+        </li>
+        <li>
+          <span class="mf-step-ico" data-mf-icon="button"></span>
+          <div><b>손을 떼면 태엽처럼 되감겨요</b><span class="mf-step-sub">멈추지 말고 이어서 돌려야 끝까지 찍혀요.</span></div>
+        </li>
+        <li>
+          <span class="mf-step-ico" data-mf-icon="flag"></span>
+          <div><b>9바퀴를 돌리면 완성!</b><span class="mf-step-sub">오른쪽 위 막대로 얼마나 찍혔는지 볼 수 있어요.</span></div>
+        </li>
+      </ol>
+      <p class="mf-intro-tip">⚙ 아래 <b>손맛 조절</b>(단축키 <kbd class="mf-kbd">D</kbd>)로 바퀴수·되감기 세기 같은 수치를 직접 바꿔 볼 수 있어요.</p>
+      <p class="mf-intro-note">💻 PC(마우스)에 맞춰 만든 시안이에요. 터치 화면에서도 할 수 있어요.</p>
+      <button class="mf-intro-btn" id="mfStart" type="button">시작하기</button>
+    </div>
+  </div>
 
+  <div id="loading" data-mf-keep>기준 그림을 읽는 중입니다.</div>
+
+<script src="../common/frame.js"></script>
 <script>
 (() => {
   "use strict";
@@ -745,6 +680,7 @@
     updateProgress();
     turning = false; // 다음 프레임을 위해 리셋
     render();
+    refreshCoach();
     if (finished) {
       loopRunning = false;
       return;
@@ -779,11 +715,15 @@
   }
 
   canvas.addEventListener("pointerdown", (event) => {
+    if (MewnaFrame.isIntroOpen()) return;
     const p = toLocal(event);
     const dx = p.x - crank.x;
     const dy = p.y - crank.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > crank.r + 48) return;
+    if (dist > crank.r + 48) {
+      MewnaFrame.wake(); // 손잡이가 아닌 곳을 눌렀으면 안내를 또렷하게
+      return;
+    }
     dragging = true;
     lastAngle = angleOf(p);
     crankAngle = lastAngle;
@@ -803,16 +743,77 @@
       updateProgress();
     }
     lastAngle = nextAngle;
+    coachOnTurn(d);
   });
 
   function stopDrag() {
     dragging = false;
+    ccwAccum = 0;
+    refreshCoach();
   }
   canvas.addEventListener("pointerup", stopDrag);
   canvas.addEventListener("pointercancel", stopDrag);
   canvas.addEventListener("lostpointercapture", stopDrag);
 
+  // ── 처음 보는 사람용 안내: 작업대 옆 조작 배지 (공통 틀 common/frame.js 사용) ──
+  // 게임 규칙은 건드리지 않고, 지금 상태(돌리는 중·반대 방향·되감기·완성)를 읽어서 할 동작만 알려 준다.
+  const COACH = {
+    grab: { icon: "circle", title: "손잡이를 누른 채 시계방향으로 돌리세요", sub: "오른쪽 동그란 손잡이를 잡고 원을 그리면 인쇄바가 내려와요" },
+    turn: { icon: "circle", title: "그대로 계속 돌리세요", sub: "" },
+    wrong: { icon: "circle", title: "반대 방향이에요", sub: "시계방향(12시 → 3시 쪽)으로 돌려야 찍혀요" },
+    rewind: { icon: "circle", title: "되감기는 중이에요", sub: "손을 떼면 태엽처럼 풀려요. 손잡이를 다시 잡고 이어서 돌리세요" },
+    done: { title: "완성!", sub: "마지막 줄까지 찍혔어요", done: true },
+  };
+
+  function setCoachMode(mode) {
+    const cfg = mode === "turn"
+      ? { ...COACH.turn, sub: `${crankSettings.turnsToFinish}바퀴를 돌리면 끝까지 찍혀요` }
+      : COACH[mode];
+    return MewnaFrame.setCoach(mode, cfg);
+  }
+
+  // 손잡이를 돌리는 중: 시계방향이면 '계속', 반시계면 '반대 방향'
+  // 반대로 돌린 각도는 모아서 약 2도가 넘으면 알린다 — 손 떨림에는 안 깜빡이고, 천천히 반대로 돌려도 놓치지 않게.
+  let ccwAccum = 0;
+  function coachOnTurn(d) {
+    if (finished) return;
+    if (d > 0.002) {
+      ccwAccum = 0;
+      setCoachMode("turn");
+      MewnaFrame.activity(true);
+    } else if (d < 0) {
+      ccwAccum += -d;
+      if (ccwAccum > 0.035) {
+        setCoachMode("wrong");
+        MewnaFrame.activity(false);
+      }
+    }
+  }
+
+  // 손을 뗀 상태: 진행이 남아 있으면 '되감겨요', 다 풀렸으면 처음 안내로
+  function refreshCoach() {
+    if (finished) {
+      setCoachMode("done");
+      return;
+    }
+    if (dragging) return;
+    setCoachMode(targetProgress > 0 ? "rewind" : "grab");
+  }
+
+  MewnaFrame.init({
+    coachAnchor: document.getElementById("artFrame"),
+    coachLimit: () => [document.getElementById("tunerPanel")],
+    next: { href: "../silkscreen/index.html", label: "다음 시안 →" },
+    onRedraw: () => tuner.redrawBtn.click(),
+  });
+  setCoachMode("grab");
+
   bindTuner();
+  // bindTuner가 '다시 그리기'에 초기화를 먼저 연결하므로, 배지 갱신은 그 뒤에 붙인다
+  tuner.redrawBtn.addEventListener("click", () => {
+    MewnaFrame.wake();
+    refreshCoach();
+  });
   load();
 })();
 </script>

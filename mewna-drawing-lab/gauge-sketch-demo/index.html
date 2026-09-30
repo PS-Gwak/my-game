@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>게이지 데생 시안 — 연타로 채우는 연필 스케치</title>
+<title>03 연타 스케치 · 뮤나리자 그리기 실험</title>
 <link rel="icon" href="data:," />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../common/frame.css" />
 <style>
   :root {
     --bg: #15110a;
@@ -22,9 +23,10 @@
     --paper: #ece2cf;
   }
   * { box-sizing: border-box; }
-  html, body { height: 100%; }
+  html, body { height: 100%; overflow: hidden; }
   body {
     margin: 0;
+    height: 100vh;
     background:
       radial-gradient(1200px 600px at 50% -10%, #221a0d 0%, var(--bg) 55%),
       var(--bg);
@@ -32,120 +34,72 @@
     font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', system-ui, sans-serif;
     -webkit-user-select: none;
     user-select: none;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* ---------- 상단 제목 ---------- */
-  header {
-    text-align: center;
-    padding: 14px 16px 10px;
-    border-bottom: 1px solid var(--border);
-    background: linear-gradient(180deg, var(--panel-dark), transparent);
-    flex: 0 0 auto;
-  }
-  header h1 {
-    margin: 0;
-    font-size: clamp(16px, 2.4vw, 24px);
-    font-weight: 900;
-    color: var(--gold);
-    letter-spacing: -0.5px;
-  }
-  header p {
-    margin: 5px 0 0;
-    font-size: 12.5px;
-    color: var(--text-soft);
-    line-height: 1.5;
+    /* 윗줄 · 작업대 · 아랫줄 세 칸 (06과 같은 틀) */
+    display: grid;
+    grid-template-rows: auto 1fr auto;
   }
 
   /* ---------- 본문 레이아웃 ---------- */
+  /* 평소에는 그림만 가운데 크게. 손맛 조절 창을 열면 왼쪽(업그레이드 미리보기)·오른쪽(조절판)이 나타난다 */
   main {
-    flex: 1 1 auto;
     min-height: 0;
     display: grid;
-    grid-template-columns: 230px minmax(0,1fr) 230px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     gap: 16px;
-    max-width: 1180px;
     width: 100%;
-    margin: 0 auto;
     padding: 14px 16px;
   }
-  @media (max-width: 900px) {
-    body { overflow: auto; }
-    main { grid-template-columns: 1fr; }
+  body.mf-tuning-open main {
+    grid-template-columns: 230px minmax(0, 1fr) 230px;
   }
 
   .panel {
+    min-height: 0;
+    overflow: auto;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 14px;
     padding: 14px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(245,167,0,0.06);
   }
-  .panel h2 {
-    margin: 0 0 10px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--gold-light);
-    letter-spacing: 0.3px;
-  }
   .hint { font-size: 11.5px; color: var(--text-soft); line-height: 1.55; }
 
   /* ---------- 중앙 캔버스 영역 ---------- */
+  /* 그림이 화면 높이를 넘지 않고, 남은 공간에 맞춰 줄어들게 한다 */
   .stage {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     min-height: 0;
+    height: 100%;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    place-items: center;
+  }
+  /* 조작 배지가 붙는 자리 (그림 틀 바깥쪽에 배지가 나오므로 여기엔 잘라내기 없음) */
+  .art-frame {
+    position: relative;
+    height: 100%;
+    max-height: 100%;
+    max-width: 100%;
   }
   .canvas-wrap {
     position: relative;
+    height: 100%;
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 12px 40px rgba(0,0,0,0.5), inset 0 0 0 1px var(--border);
     cursor: crosshair;
     line-height: 0;
   }
-  #sketch { display: block; background: var(--paper); touch-action: none; }
-
-  /* 완성 배지 */
-  .done-badge {
-    position: absolute;
-    left: 50%;
-    bottom: 14px;
-    transform: translateX(-50%) translateY(8px);
-    background: rgba(17,13,6,0.82);
-    border: 1px solid var(--gold);
-    color: var(--gold-light);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    padding: 7px 16px;
-    border-radius: 999px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .5s ease, transform .5s ease;
+  #sketch {
+    display: block;
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    background: var(--paper);
+    touch-action: none;
   }
-  .done-badge.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .done-badge #redrawBtn {
-    margin-left: 12px;
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 700;
-    color: #0a0a0a;
-    background: var(--gold);
-    border: none;
-    border-radius: 999px;
-    padding: 3px 12px;
-    cursor: pointer;
-    pointer-events: none;
-  }
-  .done-badge.show #redrawBtn { pointer-events: auto; }
-  .done-badge #redrawBtn:hover { filter: brightness(1.12); }
 
-  /* 로드 실패 안내 */
+  /* 로드 실패 안내 (평소엔 비어 있어 자리를 차지하지 않음) */
   .loadnote {
     margin-top: 8px;
     font-size: 11.5px;
@@ -153,39 +107,11 @@
     text-align: center;
     max-width: 360px;
     line-height: 1.5;
-    min-height: 16px;
   }
+  .loadnote:empty { display: none; }
   .loadnote.warn { color: #e0a96b; }
 
-  /* ---------- 진하기 막대 (보조, 최소) ---------- */
-  .meter {
-    margin-top: 12px;
-    width: 100%;
-    max-width: 360px;
-  }
-  .meter-track {
-    height: 7px;
-    border-radius: 999px;
-    background: var(--track);
-    border: 1px solid var(--border);
-    overflow: hidden;
-  }
-  .meter-fill {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #6b5a36, var(--gold));
-    border-radius: 999px;
-    transition: width .08s linear;
-  }
-  .meter-cap {
-    margin-top: 5px;
-    font-size: 11px;
-    color: var(--text-soft);
-    text-align: center;
-    letter-spacing: 0.5px;
-  }
-
-  /* ---------- 상점 (시연용) ---------- */
+  /* ---------- 업그레이드 미리보기 (개발용) ---------- */
   .shop-item {
     background: var(--track);
     border: 1px solid var(--border);
@@ -211,18 +137,8 @@
   .shop-item button:hover { filter: brightness(1.08); }
   .shop-item button:active { transform: translateY(1px); }
   .shop-item .lv { font-size: 11px; color: var(--gold-light); margin-top: 6px; text-align: right; }
-  .shop-tag {
-    display: inline-block;
-    font-size: 10px;
-    color: var(--text-soft);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 1px 6px;
-    margin-bottom: 10px;
-  }
 
-  /* ---------- 손맛 튜닝 슬라이더 ---------- */
-  .tuner { margin-top: 14px; }
+  /* ---------- 손맛 조절 슬라이더 ---------- */
   .tuner .row { margin-bottom: 12px; }
   .tuner label {
     display: flex;
@@ -238,138 +154,123 @@
     cursor: pointer;
   }
 
-  /* ---------- 하단 평가 ---------- */
-  footer {
-    flex: 0 0 auto;
-    border-top: 1px solid var(--border);
-    background: linear-gradient(0deg, var(--panel-dark), transparent);
-    padding: 10px 16px;
+  /* 좁은 화면: 조절 창을 열면 그림 아래로 차례로 쌓이고, 본문만 위아래로 넘겨 볼 수 있게 */
+  @media (max-width: 900px) {
+    body.mf-tuning-open main {
+      grid-template-columns: 1fr;
+      grid-template-rows: minmax(360px, 1fr) max-content max-content; /* 조절 칸이 눌려 찌그러지지 않게 내용 크기 그대로 */
+      overflow-y: auto;
+    }
+    body.mf-tuning-open .stage { order: -1; }
   }
-  .eval {
-    max-width: 1180px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .eval .lab { font-size: 12.5px; font-weight: 700; color: var(--gold-light); white-space: nowrap; }
-  .stars { display: flex; gap: 3px; }
-  .star {
-    font-size: 22px;
-    line-height: 1;
-    color: var(--track);
-    cursor: pointer;
-    transition: transform .1s ease, color .1s ease;
-  }
-  .star.on { color: var(--gold); }
-  .star:hover { transform: scale(1.18); }
-  .eval input[type=text] {
-    flex: 1 1 200px;
-    min-width: 160px;
-    font-family: inherit;
-    font-size: 12.5px;
-    color: var(--text);
-    background: var(--track);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 10px;
-  }
-  .eval input[type=text]::placeholder { color: var(--text-soft); }
-  .save-btn {
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 700;
-    color: #1a1408;
-    background: var(--gold);
-    border: none;
-    border-radius: 8px;
-    padding: 8px 16px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .save-btn:active { transform: translateY(1px); }
-  .saved-msg { font-size: 11.5px; color: var(--gold-light); min-width: 80px; }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>게이지 데생 시안 — 연타로 채우는 연필 스케치</h1>
-  <p>고양이 모나리자 윤곽 위를 <b>마우스로 톡톡 연타</b>하세요. 칠수록 연필선이 진해지고, 손을 놓으면 다시 흐려집니다.</p>
+<header class="mf-header">
+  <a class="mf-back" href="../index.html">← 목록으로</a>
+  <div class="mf-title">
+    <h1><span class="mf-num">03</span>연타 스케치 — 두드려 채우기</h1>
+    <p class="mf-sub">종이를 톡톡 연타해 연필 스케치를 진하게 채워요. 손을 멈추면 다시 흐려져요.</p>
+  </div>
+  <div class="mf-progress" aria-label="연필 진하기">
+    <span class="mf-progress-label" id="progressText">0%</span>
+    <div class="mf-bar"><i id="meterFill"></i></div>
+  </div>
 </header>
 
 <main>
-  <!-- 왼쪽: 상점 (시연용) -->
-  <section class="panel" aria-label="상점">
-    <h2>상점 (맛보기)</h2>
-    <span class="shop-tag">나중에 정식 구현 · 지금은 시연</span>
+  <!-- 왼쪽: 업그레이드 미리보기 (개발용 — ⚙ 손맛 조절로 열림) -->
+  <section class="panel" id="shopPanel" aria-label="업그레이드 미리보기" data-mf-tuning>
+    <h2 class="mf-tuner-title">🛒 업그레이드 미리보기 (개발용)</h2>
+    <p class="mf-tuner-desc">정식 게임에서 코인으로 살 <b>업그레이드를 미리 체감</b>해 보는 칸이에요. 누르면 바로 효과가 붙고(여러 번 누르면 쌓여요), <b>새로고침하면 사라져요.</b></p>
 
     <div class="shop-item">
       <div class="si-name">연필 심 굵게</div>
-      <div class="si-desc">클릭 한 번에 차오르는 양이 늘어납니다.</div>
+      <div class="si-desc">한 번 누를 때 차오르는 양이 늘어나요.</div>
       <button id="buyCharge">강화 (한 번 체감)</button>
       <div class="lv" id="chargeLv">Lv.1</div>
     </div>
 
     <div class="shop-item">
       <div class="si-name">선이 잘 안 마름</div>
-      <div class="si-desc">손을 놓아도 게이지가 덜 떨어집니다.</div>
+      <div class="si-desc">손을 멈춰도 연필선이 덜 흐려져요.</div>
       <button id="buyDecay">강화 (한 번 체감)</button>
       <div class="lv" id="decayLv">Lv.1</div>
     </div>
-
-    <p class="hint">정식 게임에선 코인을 모아 이 칸에서 영구 업그레이드를 살 예정이에요. 지금은 누르면 효과만 잠깐 체감됩니다.</p>
   </section>
 
   <!-- 가운데: 캔버스 -->
-  <section class="stage">
-    <div class="canvas-wrap" id="canvasWrap">
-      <canvas id="sketch" width="420" height="600"></canvas>
-      <div class="done-badge" id="doneBadge">데생 완성<button id="redrawBtn" type="button">다시 그리기</button></div>
+  <section class="stage" aria-label="연필 스케치 작업대">
+    <div class="art-frame" id="artFrame">
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="sketch" width="420" height="600"></canvas>
+      </div>
     </div>
     <div class="loadnote" id="loadNote"></div>
-
-    <div class="meter">
-      <div class="meter-track"><div class="meter-fill" id="meterFill"></div></div>
-      <div class="meter-cap">연필 진하기</div>
-    </div>
   </section>
 
-  <!-- 오른쪽: 손맛 튜닝 -->
-  <section class="panel" aria-label="손맛 튜닝">
-    <h2>손맛 튜닝</h2>
-    <p class="hint">직접 만져보며 가장 손맛 좋은 값을 찾아보세요.</p>
+  <!-- 오른쪽: 손맛 조절 (개발용) -->
+  <section class="panel" id="tunerPanel" aria-label="손맛 조절" data-mf-tuning>
+    <h2 class="mf-tuner-title">⚙ 손맛 조절 (개발용)</h2>
+    <p class="mf-tuner-desc">수치를 바꿔 가며 <b>가장 손맛 좋은 조합</b>을 찾아보는 창이에요. 바꾼 값은 <b>새로고침하면 원래대로</b> 돌아가요.<br />단축키 <kbd class="mf-kbd">D</kbd> (한글 입력 중이면 <kbd class="mf-kbd">ㅇ</kbd>)로 열고 닫아요.</p>
 
     <div class="tuner">
       <div class="row">
         <label>클릭당 충전량 <b id="chargeVal">9%</b></label>
         <input type="range" id="chargeSlider" min="2" max="20" step="1" value="9" />
+        <p class="mf-hint">한 번 누를 때 진하기가 차오르는 양. 높이면 적게 눌러도 완성돼요.</p>
       </div>
       <div class="row">
         <label>손 놓았을 때 하락 속도 <b id="decayVal">22%/초</b></label>
         <input type="range" id="decaySlider" min="5" max="80" step="1" value="22" />
+        <p class="mf-hint">누르지 않을 때 1초마다 흐려지는 양(진할수록 조금 덜 흐려져요). 높이면 쉬지 않고 눌러야 해요.</p>
       </div>
       <div class="row">
         <label>선이 진해지는 부드러움 <b id="smoothVal">중간</b></label>
         <input type="range" id="smoothSlider" min="2" max="20" step="1" value="9" />
+        <p class="mf-hint">화면의 선이 진하기를 따라가는 속도. 낮으면 바로바로, 높으면 번지듯 천천히 진해져요.</p>
       </div>
     </div>
 
-    <p class="hint" style="margin-top:14px">충전량을 크게, 하락을 작게 하면 쉽게 채워지고, 반대로 하면 계속 톡톡 쳐야 하는 긴장감이 생겨요.</p>
+    <p class="mf-hint">충전량을 크게, 하락을 작게 하면 쉽게 채워지고, 반대로 하면 계속 톡톡 쳐야 하는 긴장감이 생겨요.</p>
   </section>
 </main>
 
-<footer>
-  <div class="eval">
-    <span class="lab">손맛 평가</span>
-    <div class="stars" id="stars" role="radiogroup" aria-label="별점"></div>
-    <input type="text" id="evalNote" placeholder="손맛 메모 (예: 연필 티는 좋은데 하락이 좀 빠름)" />
-    <button class="save-btn" id="saveBtn">저장</button>
-    <span class="saved-msg" id="savedMsg"></span>
+<footer class="mf-footer">
+  <span class="mf-foot-note">💻 PC(마우스)에 맞춰 만든 시안이에요. 터치 화면에서도 할 수 있어요.</span>
+  <div class="mf-foot-actions">
+    <button class="mf-btn ghost" id="mfTuneToggle" type="button" aria-controls="tunerPanel shopPanel" title="손맛 조절(개발용) — 단축키 D">⚙ 손맛 조절 <kbd class="mf-kbd">D</kbd></button>
+    <button class="mf-btn" id="redrawBtn" type="button">다시 그리기</button>
   </div>
 </footer>
 
+<div class="mf-intro" id="mfIntro" role="dialog" aria-modal="true" aria-labelledby="mfIntroTitle">
+  <div class="mf-intro-card">
+    <div class="mf-intro-num">03</div>
+    <h2 id="mfIntroTitle">연타 스케치 — 두드려 채우기</h2>
+    <p class="mf-intro-lead">종이를 톡톡 두드려서 연필 스케치를 점점 진하게 채우는 방식이에요.</p>
+    <ol class="mf-intro-steps">
+      <li>
+        <span class="mf-step-ico" data-mf-icon="tap"></span>
+        <div><b>종이를 마우스로 톡톡 연타하세요</b><span class="mf-step-sub">누를 때마다 고양이 연필선이 조금씩 진해져요.</span></div>
+      </li>
+      <li>
+        <span class="mf-step-ico" data-mf-icon="tap"></span>
+        <div><b>손을 멈추면 다시 흐려져요</b><span class="mf-step-sub">쉬지 말고 계속 두드려서 진하기를 끌어올리세요.</span></div>
+      </li>
+      <li>
+        <span class="mf-step-ico" data-mf-icon="flag"></span>
+        <div><b>막대가 끝까지 차면 완성!</b><span class="mf-step-sub">오른쪽 위 막대로 얼마나 진해졌는지 볼 수 있어요.</span></div>
+      </li>
+    </ol>
+    <p class="mf-intro-tip">⚙ 아래 <b>손맛 조절</b>(단축키 <kbd class="mf-kbd">D</kbd>)로 차오르는 양·흐려지는 속도 같은 수치와 업그레이드 미리보기를 직접 만져 볼 수 있어요.</p>
+    <p class="mf-intro-note">💻 PC(마우스)에 맞춰 만든 시안이에요. 터치 화면에서도 할 수 있어요.</p>
+    <button class="mf-intro-btn" id="mfStart" type="button">시작하기</button>
+  </div>
+</div>
+
+<script src="../common/frame.js"></script>
 <script>
 (function () {
   "use strict";
@@ -395,7 +296,7 @@
   var W = canvas.width, H = canvas.height;
 
   var meterFill = document.getElementById("meterFill");
-  var doneBadge = document.getElementById("doneBadge");
+  var progressText = document.getElementById("progressText");
   var loadNote = document.getElementById("loadNote");
 
   // ====== 종이 질감 (한 번 생성해 재사용) ======
@@ -415,7 +316,7 @@
     img.onload = function () {
       try {
         buildOutlineFromImage(img);
-        loadNote.textContent = "백지 위를 톡톡 연타하면 고양이 윤곽이 서서히 떠올라요.";
+        loadNote.textContent = ""; // 사용법은 그림 옆 조작 배지가 알려 준다
         ready = true;
       } catch (e) {
         // file:// 등에서 픽셀 읽기 차단(CORS/보안) → 폴백
@@ -580,8 +481,9 @@
     gauge = Math.min(1, gauge + bonus);
   }
   var wrap = document.getElementById("canvasWrap");
-  wrap.addEventListener("mousedown", function (e) { e.preventDefault(); tap(); });
-  wrap.addEventListener("touchstart", function (e) { e.preventDefault(); tap(); }, { passive: false });
+  // 시작 카드를 읽는 동안에는 누르기가 그림을 건드리지 않게 막는다
+  wrap.addEventListener("mousedown", function (e) { e.preventDefault(); if (MewnaFrame.isIntroOpen()) return; tap(); noteTap(); });
+  wrap.addEventListener("touchstart", function (e) { e.preventDefault(); if (MewnaFrame.isIntroOpen()) return; tap(); noteTap(); }, { passive: false });
 
   // 다시 그리기 — 완성 잠금 해제 후 백지로 초기화
   document.getElementById("redrawBtn").addEventListener("click", function (e) {
@@ -589,7 +491,6 @@
     completed = false;
     gauge = 0;
     shown = 0;
-    doneBadge.classList.remove("show");
   });
 
   // ====== 메인 루프 ======
@@ -617,11 +518,12 @@
     // 완성 판정 — 사람이 도달 가능한 현실적 임계(0.98). 완성 후엔 위에서 1.0 잠금.
     if (gauge >= 0.98 && !completed) {
       completed = true;
-      doneBadge.classList.add("show");
     }
 
     render(shown);
     meterFill.style.width = (shown * 100).toFixed(1) + "%";
+    progressText.textContent = Math.round(shown * 100) + "%";
+    updateCoach(now);
 
     requestAnimationFrame(loop);
   }
@@ -699,50 +601,47 @@
     document.getElementById("decayLv").textContent = "Lv." + decayLv;
   });
 
-  // ====== 별점 평가 + localStorage ======
-  var STORE_KEY = "gauge-sketch-eval";
-  var starsEl = document.getElementById("stars");
-  var noteEl = document.getElementById("evalNote");
-  var savedMsg = document.getElementById("savedMsg");
-  var rating = 0;
+  // ====== 처음 보는 사람용 안내: 그림 옆 조작 배지 (공통 틀 common/frame.js) ======
+  // 게임 규칙은 건드리지 않고, 지금 상태(진하기·마지막으로 누른 때·완성)를 읽어서 할 동작만 알려 준다.
+  var COACH = {
+    start: { icon: "tap", title: "종이를 톡톡 연타하세요", sub: "누를 때마다 연필선이 조금씩 진해져요" },
+    keep: { icon: "tap", title: "좋아요, 계속 톡톡!", sub: "위쪽 막대가 끝까지 차면 완성이에요" },
+    fading: { icon: "tap", title: "손을 멈추면 연필선이 흐려져요", sub: "계속 톡톡 두드려 주세요" },
+    done: { title: "완성!", sub: "연필 스케치가 다 그려졌어요", done: true }
+  };
+  var lastTapAt = -Infinity;
 
-  for (var s = 1; s <= 5; s++) {
-    var el = document.createElement("span");
-    el.className = "star";
-    el.textContent = "★";
-    el.setAttribute("role", "radio");
-    el.setAttribute("aria-label", s + "점");
-    el.dataset.v = s;
-    el.addEventListener("click", function () { setRating(+this.dataset.v); });
-    starsEl.appendChild(el);
+  // 지금 할 동작을 고른다. 상태가 바뀌었으면 true
+  function updateCoach(now) {
+    var state;
+    if (completed) state = "done";
+    else if (now - lastTapAt < 900) state = "keep";      // 방금까지 누르고 있음
+    else if (gauge > 0.02) state = "fading";             // 손을 멈춰서 흐려지는 중
+    else state = "start";
+    return MewnaFrame.setCoach(state, COACH[state]);
   }
-  function setRating(v) {
-    rating = v;
-    var nodes = starsEl.children;
-    for (var i = 0; i < nodes.length; i++) {
-      nodes[i].classList.toggle("on", i < v);
-      nodes[i].setAttribute("aria-checked", (i + 1) === v ? "true" : "false");
-    }
-  }
-  // 복원
-  try {
-    var saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
-    if (saved) {
-      if (saved.rating) setRating(saved.rating);
-      if (saved.note) noteEl.value = saved.note;
-    }
-  } catch (e) {}
 
-  document.getElementById("saveBtn").addEventListener("click", function () {
-    var payload = { rating: rating, note: noteEl.value, at: new Date().toISOString() };
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
-      savedMsg.textContent = "저장됨 ✓";
-    } catch (e) {
-      savedMsg.textContent = "저장 실패";
-    }
-    setTimeout(function () { savedMsg.textContent = ""; }, 2200);
+  // 누를 때마다: 할 일이 바뀌면 또렷하게, 같은 동작을 이어 가면 흐리게(방해 안 되게)
+  function noteTap() {
+    if (completed) return; // 완성 뒤의 누르기는 게임도 무시하므로 기록하지 않는다
+    lastTapAt = performance.now();
+    if (!updateCoach(lastTapAt)) MewnaFrame.activity(true);
+  }
+
+  // 다시 그리기: 게임 초기화(먼저 연결된 처리) 뒤에 '처음 안내'로 되돌린다
+  document.getElementById("redrawBtn").addEventListener("click", function () {
+    lastTapAt = -Infinity;
+    MewnaFrame.wake();
+    updateCoach(performance.now());
   });
+
+  MewnaFrame.init({
+    coachAnchor: document.getElementById("artFrame"),
+    coachLimit: function () { return [document.getElementById("tunerPanel")]; },
+    next: { href: "../click-palette/index.html", label: "다음 시안 →" },
+    onRedraw: function () { document.getElementById("redrawBtn").click(); }
+  });
+  updateCoach(performance.now());
 
   // ====== 시작 ======
   loadOutline();
