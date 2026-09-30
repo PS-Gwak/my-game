@@ -81,7 +81,7 @@ body {
   color: var(--text-soft);
   font-size: clamp(13px, 1.8vw, 15px);
   line-height: 1.6;
-  max-width: 640px;
+  max-width: 760px;
   margin: 0 auto;
 }
 
@@ -125,13 +125,13 @@ body {
   color: var(--gold-soft);
 }
 
-/* 소개 상자 3칸: 게임 소개 → 모작 설명 → 이 페이지를 만든 이유 순서로 읽힌다 */
+/* 소개 상자 2칸: 게임 소개 → 이 페이지를 만든 이유 순서로 읽힌다 */
 .intro {
   width: min(1060px, calc(100vw - 40px));
   margin: 0 auto;
   padding-top: 44px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 
@@ -372,7 +372,7 @@ body {
 <header class="page-header">
   <p class="eyebrow">Mewna Lisa · 김인표 · 그리기 손맛 실험</p>
   <h1>그리는 방법 6가지 비교</h1>
-  <p class="subtitle">고양이가 된 명화를 따라 그리는 게임 '뮤나리자'에서 가장 기본이 되는 동작, '그림 그리기'를 여섯 가지 손맛으로 만들어 비교하는 페이지입니다.</p>
+  <p class="subtitle">고양이가 된 명화를 따라 그리는 게임 '뮤나리자'에서 가장 기본이 되는 동작,<br>'그림 그리기'를 여섯 가지 손맛으로 만들어 비교하는 페이지입니다.</p>
 </header>
 
 <section class="intro" aria-label="뮤나리자와 이 페이지 소개">
@@ -383,11 +383,6 @@ body {
   </div>
   <div class="intro-item">
     <span class="intro-step">02</span>
-    <h2>'모작'이 뭔가요?</h2>
-    <p>모작(模作)은 원작을 보고 <b>그대로 따라 그리는 것</b>이에요. 미술을 배울 때 명화를 따라 그리며 연습하는 것과 같아요. 뮤나리자에서는 이 모작이 돈을 버는 <b>기본 일</b>이에요. 한 장을 완성하면 팔고, 다시 다음 그림을 그리는 과정을 게임 내내 수십, 수백 번 반복합니다.</p>
-  </div>
-  <div class="intro-item">
-    <span class="intro-step">03</span>
     <h2>이 페이지는 왜 만들었나요?</h2>
     <p>수백 번 반복하는 행동이 지루하면 게임 전체가 지루해져요. 그래서 '따라 그리기'를 어떤 손동작으로 표현해야 반복해도 재미있을지 찾으려고, <b>같은 고양이 모나리자를 여섯 가지 방식</b>으로 그리는 시안을 만들었어요. 이 중 '진짜 그림을 그리고 있다'는 감각이 가장 살아 있는 방식을 골라 게임의 기본 동작으로 정할 예정입니다.</p>
   </div>
