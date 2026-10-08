@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>뮤노폴리 인트로 A안</title>
+<style>
+@font-face { font-family: "Galmuri11"; src: url("assets/Galmuri11.ttf") format("truetype"); }
+:root { --bg: #f2efe8; --ink: #1c1a17; --muted: #5b554c; --line: #d8d2c6; --card: #ffffff; --accent: #c08125; --on: #1c1a17; --onink: #ffffff; }
+@media (prefers-color-scheme: dark) { :root { --bg: #15130f; --ink: #f1ece2; --muted: #b9b0a2; --line: #3a352d; --card: #1f1c17; --accent: #ecba5c; --on: #f1ece2; --onink: #15130f; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+main { max-width: 1320px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 34px; margin: 8px 0 6px; }
+h2 { font-size: 28px; margin: 36px 0 14px; }
+.lead { font-size: 20px; color: var(--muted); margin: 0 0 18px; }
+.tabs { display: flex; gap: 10px; padding: 8px 0 14px; flex-wrap: wrap; }
+.tab { font-size: 24px; font-weight: 700; padding: 12px 26px; border-radius: 999px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--on); color: var(--onink); border-color: var(--on); }
+.box { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+video { display: block; width: 100%; max-width: 1280px; margin: 0 auto; background: #000; border-radius: 8px; }
+.stage { position: relative; width: 100%; max-width: 1280px; margin: 0 auto; aspect-ratio: 4 / 3; background: #000; border-radius: 8px; overflow: hidden; cursor: pointer; user-select: none; touch-action: pan-y; }
+.screen { position: absolute; left: 0; top: 0; width: 640px; height: 480px; transform-origin: 0 0; }
+.pic { position: absolute; left: 120px; top: 40px; width: 400px; height: 216px; overflow: hidden; }
+.pic img { display: block; width: 400px; }
+.pixel .pic img { image-rendering: pixelated; }
+.pan-now, .pan-past { position: absolute; left: 0; top: 0; }
+.text { position: absolute; left: 120px; top: 290px; width: 400px; font-family: "Galmuri11", monospace; font-size: 22px; line-height: 34px; color: #fff; white-space: pre; }
+.bar { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 12px; margin: 14px auto 0; max-width: 1280px; }
+.count { text-align: center; font-size: 26px; font-weight: 700; }
+.bar button { font-size: 22px; padding: 10px 22px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.meta { font-size: 20px; color: var(--muted); max-width: 1280px; margin: 8px auto 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cmp { margin: 0; }
+.cmp img { width: 100%; display: block; border-radius: 8px; background: #000; }
+.cmp figcaption { font-size: 20px; margin-top: 8px; }
+.source { font-size: 18px; color: var(--muted); margin-top: 14px; }
+@media (max-width: 720px) { h1 { font-size: 26px; } h2 { font-size: 22px; } .lead, .meta { font-size: 17px; } .tab { font-size: 18px; padding: 10px 16px; } .bar { grid-template-columns: 1fr auto 1fr; } .bar button { font-size: 18px; padding: 8px 14px; } #replay { grid-column: 1 / -1; } .count { font-size: 20px; } .grid { grid-template-columns: 1fr; } }
+@keyframes pastfade { from { opacity: 1; } to { opacity: 0; } }
+@keyframes panup { from { transform: translateY(var(--pan-from)); } to { transform: translateY(0); } }
+.panning .pan-past { animation: pastfade 1.5s linear both; }
+.panning .pan-wrap { animation: panup 5s ease-in-out 1.5s both; }
+</style>
+</head>
+<body>
+<main>
+<h1>뮤노폴리 인트로 — A안 · 하늘에서 온 주사위</h1>
+<p class="lead">위 탭으로 그림체를 바꿉니다. 문장은 두 그림체가 같습니다. 소리는 없습니다.</p>
+<div class="tabs" role="tablist"><button class="tab" role="tab" data-set="undertale" aria-selected="false">언더테일풍</button><button class="tab" role="tab" data-set="vector" aria-selected="false">벡터 선화</button></div>
+
+<h2>이어 보기 영상</h2>
+<div class="box"><video id="video" controls muted playsinline preload="metadata"></video></div>
+
+<h2>컷 넘겨 보기</h2>
+<div class="box">
+  <div class="tabs" role="tablist"><button class="tab" role="tab" data-set="undertale" aria-selected="false">언더테일풍</button><button class="tab" role="tab" data-set="vector" aria-selected="false">벡터 선화</button></div>
+  <div class="stage" id="stage" aria-label="인트로 컷 화면 — 클릭하거나 화살표 키로 넘깁니다">
+    <div class="screen" id="screen"></div>
+  </div>
+  <div class="bar">
+    <button id="prev" aria-label="이전 컷">◀ 이전</button>
+    <span class="count" id="count">1 / 6</span>
+    <button id="next" aria-label="다음 컷">다음 ▶</button>
+    <button id="replay" aria-label="이 컷 다시 보기">다시 보기</button>
+  </div>
+  <p class="meta" id="meta"></p>
+</div>
+
+<h2>그림체 비교 — 1 · 3컷 나란히</h2>
+<div class="box">
+  <div class="grid">
+<figure class="cmp"><img src="assets/undertale/screen-1.png" alt="언더테일풍 1컷 하늘에서 온 주사위"><figcaption>언더테일풍 — 1컷 하늘에서 온 주사위</figcaption></figure>
+<figure class="cmp"><img src="assets/vector/screen-1.png" alt="벡터 선화 1컷 하늘에서 온 주사위"><figcaption>벡터 선화 — 1컷 하늘에서 온 주사위</figcaption></figure>
+<figure class="cmp"><img src="assets/undertale/screen-3.png" alt="언더테일풍 3컷 봉인"><figcaption>언더테일풍 — 3컷 봉인</figcaption></figure>
+<figure class="cmp"><img src="assets/vector/screen-3.png" alt="벡터 선화 3컷 봉인"><figcaption>벡터 선화 — 3컷 봉인</figcaption></figure>
+  </div>
+  <p class="source">벡터 선화 레퍼런스: user/donghyun/art-references/vector-20260914 · vector-animals-20260914 (9/14 조사) + 쇠똥구리 영상판</p>
+</div>
+</main>
+<script>
+const SETS = {"undertale": {"label": "언더테일풍", "pixel": true, "video": "intro-full.mp4", "poster": "assets/undertale/screen-1.png", "slides": [{"type": "cut", "label": "1컷", "music": "플레이리스트 1~3번", "pic": "assets/undertale/cut-1.png", "lines": ["아주 먼 옛날, 하늘에서 주사위 하나가", "내려와 이 산 꼭대기에 머물렀다."]}, {"type": "cut", "label": "2컷", "music": "플레이리스트 1~3번", "pic": "assets/undertale/cut-2.png", "lines": ["누구나 1부터 6까지 새겨진 주사위로", "산을 오르내렸다. 발길이 늘수록 나무는", "베이고 물은 흐려졌다."]}, {"type": "cut", "label": "3컷", "music": "플레이리스트 5번", "pic": "assets/undertale/cut-3.png", "lines": ["그러자 누군가 주사위를 봉인했다.", "그날부터 주사위에는 마이너스 눈금이", "새겨졌다."]}, {"type": "cut", "label": "4컷", "music": "플레이리스트 5번", "pic": "assets/undertale/cut-4.png", "lines": ["산은 다시 푸르러졌지만, 아무도 정상에", "닿지 못했다. 그곳엔 아직 온전한", "주사위가 있다고 한다."]}, {"type": "cut", "label": "5컷", "music": "플레이리스트 5번", "pic": "assets/undertale/cut-5.png", "lines": ["오랜 세월이 흘러, 이제 산이 기울고", "있다. 비는 멎고, 밤은 오지 않는다."]}, {"type": "pan", "label": "마지막 · 글 없음 — 절벽 아래 염소에서 정상까지", "music": "글 없이 그림만", "now": "assets/undertale/pan-now.png", "past": "assets/undertale/pan-past.png", "h": 800}]}, "vector": {"label": "벡터 선화", "pixel": false, "video": "intro-full-vector.mp4", "poster": "assets/vector/screen-1.png", "slides": [{"type": "cut", "label": "1컷", "music": "플레이리스트 1~3번", "pic": "assets/vector/cut-1.png", "lines": ["아주 먼 옛날, 하늘에서 주사위 하나가", "내려와 이 산 꼭대기에 머물렀다."]}, {"type": "cut", "label": "2컷", "music": "플레이리스트 1~3번", "pic": "assets/vector/cut-2.png", "lines": ["누구나 1부터 6까지 새겨진 주사위로", "산을 오르내렸다. 발길이 늘수록 나무는", "베이고 물은 흐려졌다."]}, {"type": "cut", "label": "3컷", "music": "플레이리스트 5번", "pic": "assets/vector/cut-3.png", "lines": ["그러자 누군가 주사위를 봉인했다.", "그날부터 주사위에는 마이너스 눈금이", "새겨졌다."]}, {"type": "cut", "label": "4컷", "music": "플레이리스트 5번", "pic": "assets/vector/cut-4.png", "lines": ["산은 다시 푸르러졌지만, 아무도 정상에", "닿지 못했다. 그곳엔 아직 온전한", "주사위가 있다고 한다."]}, {"type": "cut", "label": "5컷", "music": "플레이리스트 5번", "pic": "assets/vector/cut-5.png", "lines": ["오랜 세월이 흘러, 이제 산이 기울고", "있다. 비는 멎고, 밤은 오지 않는다."]}, {"type": "pan", "label": "마지막 · 글 없음 — 절벽 아래 염소에서 정상까지", "music": "글 없이 그림만", "now": "assets/vector/pan-now.png", "past": "assets/vector/pan-past.png", "h": 800}]}};
+const stage = document.getElementById("stage");
+const scr = document.getElementById("screen");
+const video = document.getElementById("video");
+let setKey = Object.keys(SETS)[0];
+try { const saved = localStorage.getItem("introSet"); if (saved && SETS[saved]) setKey = saved; } catch (e) {}
+let idx = 0, timer = null, typed = 0, full = 0;
+
+function slides() { return SETS[setKey].slides; }
+function fit() { scr.style.transform = "scale(" + (stage.clientWidth / 640) + ")"; }
+window.addEventListener("resize", fit);
+
+function chooseSet(key) {
+  setKey = key;
+  try { localStorage.setItem("introSet", key); } catch (e) {}
+  document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.set === key)));
+  stage.classList.toggle("pixel", SETS[key].pixel);
+  video.poster = SETS[key].poster;
+  video.src = SETS[key].video;
+  render();
+}
+
+function render() {
+  clearInterval(timer);
+  const all = slides();
+  const s = all[idx];
+  document.getElementById("count").textContent = (idx + 1) + " / " + all.length;
+  document.getElementById("meta").textContent = SETS[setKey].label + " · " + s.label + " · 곡: " + s.music;
+  if (s.type === "pan") {
+    scr.innerHTML = '<div class="pic" id="pic"><div class="pan-wrap" style="--pan-from:-' + (s.h - 216) + 'px;position:absolute;left:0;top:0;width:400px;height:' + s.h + 'px;transform:translateY(-' + (s.h - 216) + 'px)">' +
+      '<img class="pan-now" src="' + s.now + '" alt="세로 그림 — 염소에서 정상까지">' +
+      '<img class="pan-past" src="' + s.past + '" alt=""></div></div>';
+    const pic = document.getElementById("pic");
+    void pic.offsetWidth; pic.classList.add("panning");
+    typed = full = 0;
+    return;
+  }
+  scr.innerHTML = '<div class="pic"><img src="' + s.pic + '" alt="' + s.label + ' 그림"></div><div class="text" id="txt"></div>';
+  const txt = document.getElementById("txt");
+  const text = s.lines.join("\n");
+  full = text.length; typed = 0;
+  timer = setInterval(() => {
+    typed++;
+    txt.textContent = text.slice(0, typed);
+    if (typed >= full) clearInterval(timer);
+  }, 70);
+}
+
+function next() {
+  if (typed < full) { clearInterval(timer); typed = full; const t = document.getElementById("txt"); if (t) t.textContent = slides()[idx].lines.join("\n"); return; }
+  if (idx < slides().length - 1) { idx++; render(); }
+}
+function prev() { if (idx > 0) { idx--; render(); } }
+
+document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => chooseSet(t.dataset.set)));
+document.getElementById("next").addEventListener("click", (e) => { e.stopPropagation(); next(); });
+document.getElementById("prev").addEventListener("click", (e) => { e.stopPropagation(); prev(); });
+document.getElementById("replay").addEventListener("click", (e) => { e.stopPropagation(); render(); });
+stage.addEventListener("click", next);
+document.addEventListener("keydown", (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains("tab")) return;
+  if (e.key === "ArrowRight" || e.key === " " || e.key === "Enter") { e.preventDefault(); next(); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+});
+let tx = null;
+stage.addEventListener("touchstart", (e) => { tx = e.touches[0].clientX; }, { passive: true });
+stage.addEventListener("touchend", (e) => {
+  if (tx === null) return;
+  const dx = e.changedTouches[0].clientX - tx; tx = null;
+  if (dx < -40) next(); else if (dx > 40) prev();
+});
+fit(); chooseSet(setKey);
+</script>
+</body>
+</html>
