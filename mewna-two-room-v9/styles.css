@@ -1,0 +1,1877 @@
+/* ══════════════════════════════════════════════════════════════
+   뮤나리자 B 플레이 데모 — 고정 무대 스타일.
+   · 논리 해상도 1920×1080, 페이지 스크롤 없음, 작은 창은 JS 등비 축소.
+   · 3열 = 왼쪽 구매줄 310px / 중앙 작업공간 1110px / 오른쪽 세로줄 360px.
+   · 모든 고정 앵커(data-anchor)는 상태·오버레이 등장과 무관하게
+     x/y/width/height가 변하지 않도록 절대 좌표로 잡는다.
+   (phone-guided-ui-variants-2026-08-06/shared/base.css의 좌표 체계를 이어받음)
+   ══════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #17120d; }
+body {
+  color: #e8dcc4;
+  font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  word-break: keep-all;
+}
+button { font-family: inherit; }
+[inert] { pointer-events: none; }
+
+/* ── 1920×1080 고정 무대 ── */
+#stage {
+  position: absolute; left: 50%; top: 50%;
+  width: 1920px; height: 1080px;
+  transform: translate(-50%, -50%);
+  transform-origin: center center;
+  overflow: hidden;
+  background: #221c16;
+  padding: 16px 40px 14px;
+}
+
+/* ── 검수 상태바 — 높이 48px 상시 예약 ── */
+#reviewBar {
+  position: absolute; left: 40px; top: 16px;
+  width: 1840px; height: 48px;
+  display: flex; align-items: center; gap: 14px;
+  background: #1b140f; border: 1px solid #57452c; border-radius: 8px;
+  padding: 0 16px; font-size: 12.5px; color: #b09d7e;
+}
+#reviewBar h1 { font-size: 15px; color: #f0e3c2; letter-spacing: 0.4px; white-space: nowrap; }
+#scopeNote { flex: 1 1 auto; font-size: 13.5px; color: #9fc37a; font-weight: 800; white-space: nowrap; overflow: hidden; }
+#reviewBar .money { white-space: nowrap; font-size: 12px; }
+#reviewBar .money b { font-size: 18px; color: #d8b978; margin-left: 4px; }
+/* 2026-08-25 계약 5 — 무이자 빚 표시. 잔고가 음수일 때만 글자가 생기고,
+   그때도 상태바 안 같은 줄에 붙어 다른 구역을 밀지 않는다. */
+#reviewBar .money[data-loan="true"] b { color: #e08a6a; }
+#debtNote { margin-left: 6px; font-size: 12px; color: #e08a6a; font-weight: 800; }
+#resetArea { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; justify-content: flex-end; min-width: 300px; }
+#resetArea button {
+  background: #2e251b; color: #c9b891; border: 1px solid #57452c;
+  border-radius: 6px; padding: 6px 11px; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#resetArea button:hover { border-color: #d8b978; }
+#resetArea .reset-ask { color: #e0b0a0; font-size: 12px; white-space: nowrap; }
+#resetConfirm { display: flex; align-items: center; gap: 8px; }
+/* 검수 전용 돈 도구 — 실제 경제와 분리. 사용 표시 자리는 처음부터 폭을 예약해
+   표시가 켜져도 옆 칸이 밀리지 않는다. */
+#reviewMoneyTools { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
+#reviewMoneyTools button {
+  background: #2e251b; color: #c9b891; border: 1px solid #57452c;
+  border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+#reviewMoneyTools button:hover:not(:disabled) { border-color: #d8b978; }
+#reviewMoneyTools button:disabled { opacity: 0.45; cursor: default; }
+#reviewMoneyNote {
+  min-width: 116px; font-size: 12px; font-weight: 800; color: #e0b0a0; white-space: nowrap;
+}
+#resetConfirm[hidden] { display: none; }
+#resetConfirmBtn { border-color: #8a4a3a; color: #e0b0a0; }
+
+/* 검수 전용 제작 전환 — 검수 바 48px 안에서 끝난다. 자리를 처음부터 예약해 두므로
+   작업대 수를 1~4로 바꿔도 검수 바 높이가 튀거나 옆 칸이 밀리지 않는다.
+   자연 플레이 화면이 아니라는 것이 글자(검수 전용 TEST)와 data 속성으로 함께 읽힌다. */
+#reviewProductionTools {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 6px;
+  padding: 0 8px; height: 34px;
+  border: 1px dashed #8a6f3c; border-radius: 6px;
+}
+/* 2026-10-06 두 방 데모 B-1: 작업대 확장 제외 — 검수 묶음 자체를 화면에서 숨긴다(hidden이 display:flex에 지지 않게). */
+#reviewProductionTools[hidden] { display: none; }
+#reviewProductionTools .review-only-tag {
+  font-size: 10.5px; font-weight: 900; letter-spacing: 0.4px; color: #d8b978; white-space: nowrap;
+}
+#reviewProductionTools .review-group { display: flex; align-items: center; gap: 3px; }
+#reviewProductionTools button {
+  background: #2e251b; color: #c9b891; border: 1px solid #57452c;
+  border-radius: 5px; padding: 4px 7px; font-size: 11.5px; cursor: pointer; white-space: nowrap;
+  min-width: 24px;
+}
+#reviewProductionTools button:hover:not(:disabled) { border-color: #d8b978; }
+#reviewProductionTools button[data-on="true"] {
+  background: #d8b978; color: #221c16; border-color: #d8b978; font-weight: 800;
+}
+#reviewProductionTools button:disabled { opacity: 0.4; cursor: default; }
+
+/* ── 본문 3열 — 절대 좌표 앵커 (상단 16+48+12 = 76부터) ── */
+[data-anchor="left-rail"] {
+  position: absolute; left: 40px; top: 76px;
+  width: 310px; height: 988px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: #191411; border: 1px solid #3a2f24; border-radius: 10px;
+  padding: 14px;
+  overflow: hidden;
+}
+[data-anchor="center-workspace"] {
+  position: absolute; left: 380px; top: 76px;
+  width: 1110px; height: 988px;
+  background: radial-gradient(circle at 50% 42%, #34291e 0, #251e17 55%, #1d1712 100%);
+  border: 1px solid #493a29; border-radius: 12px;
+  box-shadow: inset 0 -20px 34px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+[data-anchor="right-rail"] {
+  position: absolute; left: 1520px; top: 76px;
+  width: 360px; height: 988px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: #191411; border: 1px solid #3a2f24; border-radius: 10px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+/* ── 왼쪽 구매줄: 전체 탭형 ── */
+.rail-tabs { display: flex; gap: 6px; flex: 0 0 auto; }
+.rail-tabs button {
+  flex: 1 1 0; position: relative;
+  background: #2e251b; color: #c9b891; border: 1px solid #57452c;
+  border-radius: 6px; padding: 10px 8px; font-size: 15px; cursor: pointer;
+}
+.rail-tabs button:hover:not(:disabled) { border-color: #d8b978; }
+.rail-tabs button.on {
+  background: #d8b978; color: #221c16; font-weight: 800; border-color: #d8b978;
+  box-shadow: inset 0 -3px 0 #8a6f3c;
+}
+/* 상점 탭 — 해금 전에는 자리만 지키고 보이지 않는다 (레이아웃 불변) */
+#shopTabBtn[data-unlocked="false"] { visibility: hidden; pointer-events: none; }
+/* 방금 해금됐는데 아직 열어보지 않았을 때의 금빛 「NEW」 (2026-08-12 계약 9).
+   예전 붉은 점을 대신한다 — 새 상품이 열렸다는 신호는 금빛 하나로 통일한다.
+   카드 금빛 테두리와 짝을 이루고, 카드를 확인하면 둘이 함께 꺼진다. */
+.rail-tabs button[data-new="true"]::after {
+  content: "NEW"; position: absolute; top: 4px; right: 6px;
+  padding: 1px 5px; border-radius: 4px;
+  font-size: 10px; font-weight: 900; letter-spacing: 0.6px; line-height: 1.4;
+  color: #2a2113; background: #f4dc9a; border: 1px solid #d8b046;
+  box-shadow: 0 0 8px rgba(244, 220, 154, 0.7);
+}
+
+.rail-pane {
+  display: flex; flex-direction: column; gap: 12px; min-height: 0;
+  flex: 1 1 auto; overflow: hidden;
+  border-top: 1px dashed #3a2f24; padding-top: 10px;
+}
+.rail-pane[hidden] { display: none; }
+.rail-title { font-size: 14px; color: #f0e3c2; letter-spacing: 0.4px; padding: 2px 2px 4px; }
+.rail-note { font-size: 11.5px; color: #8d7b5f; line-height: 1.55; padding: 0 2px; }
+.big-slot {
+  width: 100%; height: 128px; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 14px; text-align: left;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 12px 16px; cursor: pointer; color: #e8dcc4;
+}
+.big-slot:hover:not(:disabled) { border-color: #d8b978; }
+.mobile-workspace-jump { display: none; }
+.big-slot[data-ready="true"] {
+  border-color: #f1d37e;
+  box-shadow: 0 0 0 2px rgba(241, 211, 126, 0.24), 0 0 18px rgba(216, 176, 70, 0.34);
+}
+.big-slot:disabled { cursor: default; opacity: 0.75; }
+.big-slot[hidden] { display: none; }
+/* 잠긴 칸은 자리를 그대로 지킨 채 보이지만 않는다 — 열려도 레이아웃이 밀리지 않는다 */
+.big-slot[data-locked="true"] { visibility: hidden; pointer-events: none; }
+.big-slot canvas { image-rendering: pixelated; image-rendering: crisp-edges; flex: 0 0 auto; }
+.big-slot .slot-text b { display: block; font-size: 17px; color: #f3e7c8; margin-bottom: 4px; }
+.big-slot .slot-text span { font-size: 13.5px; color: #b09d7e; }
+.big-slot .slot-text .gain { color: #9fc37a; font-weight: 800; }
+.big-slot .slot-text .cost { color: #e08a7a; font-weight: 800; }
+.big-slot .slot-sub { display: block; font-size: 11.5px; color: #8d7b5f; margin-top: 3px; }
+#inkBtn[data-owned="true"] .slot-sub { color: #9fc37a; }
+/* 작업대 상태 — 살 수 없는 읽기 전용 자리. 같은 크기를 차지해 좌표가 흔들리지 않는다. */
+.bench-state { cursor: default; }
+.big-slot.bench-state:hover { border-color: #6a563a; }
+.bench-state[data-expanded="true"] { border-color: #6f8f5a; }
+.bench-state[data-expanded="true"] .slot-sub { color: #9fc37a; }
+
+/* ── 돈 · 대출 카드는 없다 (2026-08-27 2차 피드백 ㉱) ────────────────────
+   2026-08-26에 C안 정보 구조로 들어왔던 왼쪽 경제 카드(#economyCard)와 전용 규칙
+   (.econ-state / .econ-rows / .econ-row / .econ-note / .econ-last / .econ-phone)은
+   전부 지웠다. 현금은 상단 보유 금액이, 대출은 낙하 계약서(#loanDrop) ·
+   우상단 계약 카드(#loanSlot) · 상환 UI가 그대로 말한다.
+   앞서 2026-08-26 v1에서 자동 신용과 함께 사라진 .econ-credit · .loan-paper도
+   되살아나지 않는다. */
+
+/* 계약서 화면 — 열려 있는 동안만 존재한다. 닫히면 display:none이라 작업대·작품
+   자리를 한 픽셀도 차지하지 않는다. 전화 오버레이(z-index 100)보다 아래에 둬서
+   전화 안내가 뜨면 그쪽이 위에 온다. */
+.loan-contract-overlay {
+  position: absolute; inset: 0; z-index: 92;
+  background: rgba(8, 5, 3, 0.62);
+}
+.loan-contract-overlay[hidden] { display: none; }
+.loan-contract-dialog {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  width: 440px; max-width: calc(100% - 32px);
+  background: #efe1bd; border: 3px solid #8a7448; border-radius: 4px;
+  padding: 22px 24px; color: #2a2113;
+}
+.loan-build {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.3px; color: #8a7448;
+  margin-bottom: 6px;
+}
+.loan-contract-dialog h2 {
+  font-size: 22px; font-weight: 900; color: #2a2113;
+  padding-bottom: 10px; border-bottom: 2px solid #c3ae7f;
+}
+/* 핵심 조건 두 줄 — 이 화면에서 가장 큰 글자다. 다른 조항은 없다. */
+.loan-terms { margin: 14px 0 10px; }
+.loan-term {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 7px 0;
+}
+.loan-term span { font-size: 14px; font-weight: 800; color: #6b5a3a; }
+.loan-term b { font-size: 30px; font-weight: 900; color: #8a3a2a; line-height: 1.15; }
+.loan-total { font-size: 12.5px; color: #6b5a3a; line-height: 1.5; }
+/* 남은 대출 — 미서명일 때는 자리만 지키고 조용히 흐려져 있는다. */
+.loan-status {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin-top: 12px; padding: 9px 12px;
+  background: #e2d1a6; border: 2px solid #c3ae7f; border-radius: 3px;
+}
+.loan-status span { font-size: 13px; font-weight: 800; color: #6b5a3a; }
+.loan-status b { font-size: 19px; font-weight: 900; color: #8a4a3a; }
+.loan-status[data-signed="false"] { opacity: 0.45; }
+.loan-note {
+  min-height: 32px; margin-top: 8px;
+  font-size: 12.5px; font-weight: 700; color: #6b5a3a; line-height: 1.45;
+}
+.loan-note[data-tone="warn"] { color: #a2402c; }
+.loan-note[data-tone="done"] { color: #46672f; }
+.loan-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.loan-actions button {
+  border: 2px solid #8a7448; border-radius: 4px; background: #e2d1a6;
+  color: #2a2113; font-size: 14px; font-weight: 900; padding: 10px 16px; cursor: pointer;
+}
+.loan-actions button:hover:not(:disabled) { border-color: #8a3a2a; background: #f6ecd0; }
+.loan-actions button:disabled { opacity: 0.4; cursor: default; }
+#loanSignBtn { background: #d8b978; border-color: #8a6f3c; }
+/* 2026-08-26 동현 확정 — 전액 상환이 「유리창 선투자 20원을 남겨야 해서」 잠긴 자리.
+   잔액만큼은 모았는데 잠긴 것이라 그냥 흐린 버튼과 구별되게 붉은 테두리를 준다.
+   버튼 크기·자리는 그대로라 계약서 높이가 튀지 않는다. */
+#loanRepayBtn[data-guard="true"] {
+  border-color: #a2402c; border-style: dashed; color: #a2402c; opacity: 0.7;
+}
+#loanContractClose { margin-left: auto; }
+/* 서명 직후의 반전 — 계약서 뒷면이 뒤집히듯 열린다. 자리는 늘 예약돼 있어
+   열려도 아래 버튼 줄이 밀리지 않는다 (닫혀 있을 때 높이 0). */
+.loan-reveal {
+  overflow: hidden; max-height: 0; margin: 0;
+  border-left: 4px solid #8a3a2a; padding: 0 0 0 10px;
+}
+.loan-reveal[data-open="true"] { max-height: 120px; margin: 4px 0 10px; padding: 8px 0 8px 10px; }
+.loan-reveal-head { display: block; font-size: 12px; font-weight: 900; color: #8a3a2a; }
+.loan-reveal-lines { list-style: none; margin: 4px 0 0; padding: 0; }
+.loan-reveal-lines li {
+  font-size: 14px; font-weight: 900; color: #8a3a2a; line-height: 1.5;
+}
+
+/* ══ 0827 승인 · 대출 A「스크래치 충실형」의 세 자리 ═══════════════════════
+   ① 상단에서 내려오는 작은 종이 계약서 · ② 접혀 날아가는 한 조각 ·
+   ③ 우상단에 정착한 계약 카드.
+   셋 다 무대 좌표에 못박힌 덮개층이라 원작 카드·전화기·확률 띠·작업대를 밀지 않는다.
+   A안이라 안내 장치를 더 얹지 않는다 — 점선 목적지도, 비행 경로도, 스포트라이트도 없다. */
+
+/* ① 상단 중앙 낙하 계약서 — 중앙 작업공간 위쪽 빈 띠(y 14~102)에 내려앉는다.
+   왼쪽 원작 카드(오른끝 260)와 오른쪽 전화기(왼끝 898) 사이 한가운데다.
+   아래끝 102px은 확률 띠 윗변(106px)보다 위라 어느 상태에서도 띠를 가리지 않는다. */
+#loanDrop {
+  position: absolute; left: 475px; top: 14px;
+  width: 160px; height: 88px; z-index: 64;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: #efe1bd; border: 2px solid #8a7448; border-radius: 3px;
+  color: #2a2113; cursor: pointer; padding: 8px 10px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+  visibility: hidden; pointer-events: none;
+}
+#loanDrop[data-open="true"] {
+  visibility: visible; pointer-events: auto;
+  animation: loan-drop-fall 0.62s cubic-bezier(0.22, 0.9, 0.3, 1) 1;
+}
+#loanDrop:hover { border-color: #8a3a2a; background: #f6ecd0; }
+#loanDrop .ld-title { font-size: 22px; font-weight: 900; letter-spacing: 2px; color: #2a2113; }
+#loanDrop .ld-sub { font-size: 12px; font-weight: 800; color: #6b5a3a; }
+#loanDrop .ld-rule { display: block; width: 74%; height: 2px; background: #c3ae7f; }
+@keyframes loan-drop-fall {
+  0% { transform: translateY(-160px) rotate(-4deg); opacity: 0; }
+  70% { transform: translateY(6px) rotate(1deg); opacity: 1; }
+  100% { transform: translateY(0) rotate(0deg); opacity: 1; }
+}
+
+/* ② 서명 뒤 접혀 날아가는 한 조각 — 중앙에서 우상단 카드 자리까지.
+   입력을 가로채지 않고, 끝나면 스스로 사라진다. */
+#loanFlyer {
+  position: absolute; left: 50%; top: 50%; z-index: 96;
+  width: 220px; height: 150px;
+  display: flex; align-items: center; justify-content: center;
+  background: #efe1bd; border: 2px solid #8a7448; border-radius: 3px;
+  color: #2a2113; font-size: 22px; font-weight: 900; letter-spacing: 2px;
+  pointer-events: none; opacity: 0;
+  transition: left 640ms ease-in-out, top 640ms ease-in-out,
+              width 640ms ease-in-out, height 640ms ease-in-out,
+              transform 640ms ease-in-out, opacity 640ms ease-in-out;
+}
+#loanFlyer[data-open="true"] { opacity: 1; }
+
+/* ③ 우상단 계약 카드 — 전화기(x 898) 왼쪽, 확률 띠(y 106) 위의 빈 자리다.
+   체결 뒤 남기는 것은 승인 계약 그대로 상환금액 · 디버프 정보 · (누르면) 상환버튼뿐이다. */
+#loanSlot {
+  position: absolute; left: 700px; top: 14px;
+  width: 186px; height: 88px; z-index: 62;
+  display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  text-align: left; padding: 8px 12px;
+  background: #241c14; border: 2px solid #d8b978; border-radius: 8px;
+  color: #e8dcc4; cursor: pointer;
+  visibility: hidden; pointer-events: none;
+}
+#loanSlot[data-open="true"] { visibility: visible; pointer-events: auto; }
+/* 상세가 열려 있는 동안에는 카드를 감춰 겹침을 원천 차단한다 (승인 배치 계약). */
+#loanSlot[data-hidden="true"] { visibility: hidden; pointer-events: none; }
+#loanSlot:hover { border-color: #f4dc9a; }
+#loanSlot .ls-name { font-size: 13px; font-weight: 900; color: #f4dc9a; }
+#loanSlot .ls-repay {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  font-size: 11.5px; color: #b09d7e;
+}
+#loanSlot .ls-repay b { font-size: 15px; font-weight: 900; color: #e08a7a; }
+#loanSlot .ls-debuff { font-size: 11px; color: #e6b45c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 재전화가 걸려 온 동안에는 이 자리가 조용히 맥동한다 — A안은 화살표도 덮개도 쓰지 않는다. */
+#loanSlot[data-highlight="true"] { animation: loan-slot-pulse 1.1s ease-in-out infinite; }
+@keyframes loan-slot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 220, 154, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(244, 220, 154, 0.5), 0 0 16px rgba(216, 176, 70, 0.5); }
+}
+
+/* 계약서 두 모습 — 서명 전(sign)과 체결 뒤(detail). 한 번에 하나만 보인다. */
+.loan-contract-dialog[data-mode="sign"] .loan-detail-body { display: none; }
+.loan-contract-dialog[data-mode="detail"] .loan-sign-body { display: none; }
+/* 체결 뒤 상세에는 상환금액 · 디버프 정보 · 상환버튼만 남는다 (0827 승인).
+   이자율·총상환액이라는 반전은 서명 직후의 재전화가 이미 밝혔으므로,
+   여기서 「계약서 뒷면」을 한 번 더 펴 놓지 않는다. */
+.loan-contract-dialog[data-mode="detail"] .loan-reveal { display: none; }
+.loan-amount {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin: 14px 0 8px;
+}
+.loan-amount span { font-size: 14px; font-weight: 800; color: #6b5a3a; }
+.loan-amount b { font-size: 34px; font-weight: 900; color: #8a3a2a; line-height: 1.1; }
+.loan-sign-line { display: flex; align-items: flex-end; gap: 10px; margin: 18px 0 14px; }
+.loan-sign-label { font-size: 13px; font-weight: 800; color: #6b5a3a; }
+.loan-sign-rule { flex: 1 1 auto; border-bottom: 2px solid #8a7448; padding: 0 6px 2px; }
+.loan-sign-name { font-size: 20px; font-weight: 900; color: #2f4d8a; font-style: italic; }
+/* 체결 뒤 상세 — 상환금액 · 디버프 한 줄 · 상환 버튼. 그 밖의 숫자는 두지 않는다. */
+.loan-detail-no {
+  font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #8a7448; margin: 12px 0 6px;
+}
+.loan-detail-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 9px 12px; background: #e2d1a6; border: 2px solid #c3ae7f; border-radius: 3px;
+}
+.loan-detail-row span { font-size: 13px; font-weight: 800; color: #6b5a3a; }
+.loan-detail-row b { font-size: 26px; font-weight: 900; color: #8a3a2a; }
+.loan-detail-debuff {
+  margin: 10px 0 14px; font-size: 14px; font-weight: 800; color: #8a3a2a; line-height: 1.5;
+}
+.loan-detail-body button {
+  border: 2px solid #8a6f3c; border-radius: 4px; background: #e8c14a;
+  color: #2a2113; font-size: 15px; font-weight: 900; padding: 11px 18px; cursor: pointer;
+}
+.loan-detail-body button:hover:not(:disabled) { border-color: #8a3a2a; background: #f2d271; }
+.loan-detail-body button:disabled { opacity: 0.4; cursor: default; }
+/* 2026-08-27 2차 피드백 ㉰: 대출 통화에만 붙던 하단 안내 줄(.phone-only /
+   #phoneOnlyNote)은 전용 규칙까지 함께 지웠다. 그 줄 하나가 대출 통화창만
+   다른 전화보다 높게 만들었다 — 이제 모든 전화의 통화창 높이가 같다. */
+
+/* ── 구간 달성 알림 (2026-10-08 3단계 별도 검수) ───────────────────────
+   옛 레벨업 토스트(오른쪽 위에 떠 있던 작은 상자)는 구간 목표 칸 테두리와 겹쳐서 지웠다
+   (형님 「UI 겹침 금지」). 대신 구간 목표 칸의 「다음: …」 줄이 2.4초 동안
+   「▲ 구간 n 달성」으로 바뀌고 금빛으로 밝아진다. 칸 안의 글자만 바뀌니 겹칠 상자가 없다. */
+#goalPanel[data-flash="true"] #goalReward { color: #f4dc9a; font-weight: 900; }
+
+/* ── 상점 최초 해금 아이콘 팝업 (2026-08-26 v1 · 계약 6항) ────────────
+   새 장비가 「처음」 열릴 때만 뜬다. 전면 덮개가 아닌 작은 알림이다.
+   2026-10-08 3단계 별도 검수: 옛 자리(left 292 · top 62)는 상점 탭 오른쪽과 원작 카드 윗부분을
+   가렸다(형님 「UI 겹침 금지」). 가운데 칸 위쪽, 원작 카드와 전화기 사이의 빈 띠로 옮겼다
+   (무대 좌표 1920×1080 기준 — 원작 카드 오른쪽 끝 ≈641, 전화기 왼쪽 끝 ≈1279, 작업대 위 끝 ≈327). */
+.shop-unlock-popup {
+  position: absolute; left: 680px; top: 100px; z-index: 60;
+  display: flex; align-items: center; gap: 10px;
+  max-width: 260px; box-sizing: border-box;
+  padding: 8px 12px;
+  background: #241d10; border: 2px solid #d8b978; border-radius: 6px;
+  opacity: 0; transition: opacity 160ms ease;
+  pointer-events: none;
+}
+.shop-unlock-popup[data-open="true"] { opacity: 1; }
+.shop-unlock-popup canvas {
+  flex: 0 0 auto; width: 32px; height: 32px; image-rendering: pixelated;
+}
+.sup-text { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sup-text b {
+  font-size: 13px; font-weight: 900; color: #f4dc9a; white-space: nowrap;
+}
+.sup-new {
+  font-size: 10.5px; font-weight: 900; letter-spacing: 0.6px; color: #241d10;
+  background: #f4dc9a; border-radius: 3px; padding: 1px 5px;
+}
+
+.rail-back {
+  margin-top: auto; flex: 0 0 auto;
+  background: #2e251b; color: #c9b891; border: 1px solid #57452c;
+  border-radius: 6px; padding: 10px 12px; font-size: 13.5px;
+  cursor: pointer; text-align: left;
+}
+.rail-back:hover { border-color: #d8b978; }
+.rail-count { font-size: 11.5px; color: #8d7b5f; margin-left: 6px; }
+
+/* ══ 0827 승인 · 작업 탭 공통 카드 「B · 한줄 균형형」 ═══════════════════
+   상점 카드와 작업 카드(유리창 알바 · 도화지 구매)가 한 문법을 나눠 쓴다.
+     첫 줄  — 이름(왼쪽) · 현재 돈 금액(오른쪽, 후치 $)
+     둘째 줄 — 레벨(고정폭 칸) · 레벨 게이지바(남은 폭 전부)
+   그 밖의 글자는 카드 본문에 두지 않는다. 왜 꺼졌는지·무슨 효과인지는 접근성 이름과
+   왼쪽 안내 줄(workshopHint)이 말한다.
+   겉모습은 부모 데모 그대로다 — 짙은 갈색 바탕 #241c14, 금빛 테두리, 같은 글꼴·간격.
+   자리는 모든 상태에서 같은 높이(88px)라 잠금·구매·MAX에서 좌표가 흔들리지 않는다. */
+.upg-list { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; }
+.work-card {
+  height: 88px; width: 100%; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 12px;
+  text-align: left; color: #e8dcc4; cursor: pointer;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 10px 14px; overflow: hidden;
+}
+.work-card:hover:not(:disabled):not([data-state="locked"]) { border-color: #d8b978; }
+.work-card canvas { image-rendering: pixelated; image-rendering: crisp-edges; flex: 0 0 auto; }
+.work-card .wc-body {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 9px;
+}
+.work-card .wc-top {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; width: 100%;
+}
+.work-card .wc-name {
+  font-size: 16px; color: #f3e7c8; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.work-card .wc-money {
+  font-size: 14px; font-weight: 800; color: #f4dc9a; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* 둘째 줄은 flex가 아니라 2칸 격자다. 첫 칸은 화면 코드가 실측해 못박는 고정폭
+   (--wc-lv-col)이라 「Lv. 0」과 「Lv. 2」에서 게이지 길이가 흔들리지 않는다
+   (승인 비교판 0827 r1 수정 그대로 — tabular-nums만 믿으면 3.5px가 어긋난다). */
+.work-card .wc-bottom {
+  display: grid;
+  grid-template-columns: var(--wc-lv-col, max-content) minmax(0, 1fr);
+  align-items: center; column-gap: 9px; width: 100%;
+}
+.work-card .wc-level, .wc-lv-probe {
+  font-size: 12.5px; color: #b09d7e; min-width: 0;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.work-card .wc-track {
+  position: relative; height: 8px;
+  width: auto; min-width: 0; justify-self: stretch;
+  background: #16110c; border: 1px solid #4a3d2c; border-radius: 4px;
+  overflow: hidden;
+}
+/* 차오르는 안쪽 막대 — 길이만 비율로 바뀐다. 트랙은 건드리지 않는다. */
+.work-card .wc-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: var(--wc-gauge-ratio, 0%);
+  background: #d8b978;
+  transition: width 140ms ease-out;
+}
+/* 레벨 칸 폭 실측용 프로브 — 화면 밖. 상품 카드로 오인되지 않게 .work-card를 달지
+   않고, 글꼴 규칙만 위에서 함께 받는다 (승인 비교판과 같은 처리). */
+.wc-lv-probe {
+  position: fixed; top: -4000px; left: 0;
+  display: block; width: auto; padding: 0; border: 0; background: none;
+  visibility: hidden; pointer-events: none;
+}
+/* 아직 열리지 않은 자리 — 자물쇠 상태. 다음 차례라는 것만 알려 준다. */
+.work-card[data-state="locked"] {
+  border-style: dashed; border-color: #3a2f24; background: #1c1610; cursor: default;
+}
+.work-card[data-state="locked"] .wc-name { color: #5c5140; }
+.work-card[data-state="locked"] .wc-money { color: #4d4436; }
+.work-card[data-state="locked"] .wc-track { visibility: hidden; }
+.work-card[data-state="ready"],
+.work-card[data-ready="true"] {
+  border-color: #f1d37e;
+  box-shadow: 0 0 0 2px rgba(241, 211, 126, 0.22), 0 0 14px rgba(216, 176, 70, 0.3);
+}
+/* 최고 단계 — 「MAX」라고 쓰지 않는다. 가득 찬 게이지와 초록 테두리가 그 사실을 말한다. */
+.work-card[data-state="owned"] { border-color: #6f8f5a; opacity: 0.9; cursor: default; }
+.work-card[data-state="owned"] .wc-fill { background: #9fc37a; }
+.work-card[data-state="owned"] .wc-money { color: #9fc37a; }
+.work-card[data-state="owned"] .wc-level { color: #9fc37a; }
+.work-card[data-state="short"] { opacity: 0.8; cursor: default; }
+/* 2026-08-26 동현 확정 — 공통 교착 방지 계약이 막은 카드.
+   돈은 있는데 꺼져 있다는 사실을 카드 문장이 아니라 테두리 색으로만 말한다.
+   이유 한 마디는 접근성 이름과 왼쪽 안내 줄이 계속 담당한다. */
+.work-card[data-guard="true"] { border-color: #e6b45c; opacity: 0.8; }
+.work-card:disabled { cursor: default; }
+.work-card[hidden] { display: none; }
+/* 잠긴 칸은 자리를 그대로 지킨 채 보이지만 않는다 — 열려도 레이아웃이 밀리지 않는다 */
+.work-card[data-locked="true"] { visibility: hidden; pointer-events: none; }
+/* 방금 열린 새 상품 카드 — 금빛 테두리로 「이게 새 것」이라고 말한다 (2026-08-12 계약 9).
+   상점을 열어 카드를 확인하면 꺼지고, 구매 전이어도 다시 켜지지 않는다 (계약 10). */
+.work-card[data-new="true"] {
+  border-color: #f4dc9a;
+  box-shadow: 0 0 0 3px rgba(244, 220, 154, 0.45), 0 0 20px rgba(216, 176, 70, 0.55);
+}
+.work-card[data-new="true"] .wc-name { color: #f4dc9a; }
+
+/* ── 중앙: 원작 슬롯 — 좌상단 고정 (카탈로그가 여기로 편입된다) ── */
+[data-anchor="original-selector"] {
+  position: absolute; left: 20px; top: 16px;
+  width: 240px; height: 96px;
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  background: #1d1712; border: 1px solid #57452c; border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; color: #e8dcc4;
+}
+/* 카탈로그 편입 전에는 자리만 지키고 보이지 않는다 (좌표 불변) */
+[data-anchor="original-selector"][data-locked="true"] { visibility: hidden; pointer-events: none; }
+[data-anchor="original-selector"]:hover:not(:disabled) { border-color: #d8b978; }
+[data-anchor="original-selector"] canvas {
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  width: 72px; height: 72px; flex: 0 0 auto;
+  border: 2px solid #5b432c; border-radius: 4px; background: #14100c;
+}
+[data-anchor="original-selector"] .sel-text b { display: block; font-size: 14px; color: #f3e7c8; margin-bottom: 3px; }
+[data-anchor="original-selector"] .sel-text span { font-size: 11.5px; color: #9b8a6c; line-height: 1.4; display: block; }
+
+/* ── 중앙: 빨간 회전식 전화기 — 우상단 고정, 상시 설명문 금지 ── */
+[data-anchor="phone"] {
+  position: absolute; left: 898px; top: 14px;
+  width: 192px; height: 160px;
+  background: transparent; border: 0; padding: 0;
+  line-height: 0; cursor: pointer;
+}
+[data-anchor="phone"]:disabled { cursor: default; }
+[data-anchor="phone"]:disabled canvas {
+  filter: grayscale(0.72) saturate(0.3) brightness(0.58);
+  opacity: 0.52;
+}
+[data-anchor="phone"] canvas {
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  width: 192px; height: 160px; display: block;
+}
+[data-anchor="phone"].ringing canvas { animation: phone-shake 0.45s linear infinite; }
+[data-anchor="phone"].ringing::after {
+  content: ""; position: absolute; inset: -8px; border-radius: 14px;
+  border: 3px solid rgba(229, 72, 77, 0.75);
+  animation: phone-glow 0.9s ease-in-out infinite; pointer-events: none;
+}
+@keyframes phone-shake {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-2px, 1px) rotate(-2deg); }
+  50% { transform: translate(2px, -1px) rotate(2deg); }
+  75% { transform: translate(-1px, -1px) rotate(-1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+@keyframes phone-glow {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.95; }
+}
+
+/* ── 중앙: 잉크 표시 — 작업대(top 250) 바로 위 고정 자리 ──
+   왼쪽 원작 슬롯(x 20~260)·오른쪽 전화기(x 898~1090)와 가로로 겹치지 않고,
+   아래로도 작업대 위 8px 여백을 남긴다. 상태가 바뀌어도 이 상자는 그대로 있다.
+   플레이어에게 보여 주는 값은 「현재 잉크 %」와 「완성 필요 100%」뿐이다. */
+[data-anchor="ink-panel"] {
+  position: absolute; left: 315px; top: 150px;
+  width: 480px; height: 92px;
+  display: flex; flex-direction: column; gap: 5px;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 8px 14px;
+}
+.ink-head { display: flex; align-items: baseline; gap: 10px; }
+.ink-head .ink-name { font-size: 13.5px; color: #b09d7e; }
+.ink-head b { font-size: 19px; color: #62b6d8; }
+.ink-head .ink-need { font-size: 14px; color: #c9b891; margin-left: auto; }
+.ink-state {
+  font-size: 12.5px; color: #8d7b5f; height: 17px; line-height: 17px;
+  white-space: nowrap; overflow: hidden;
+}
+/* 잉크가 바닥난 미완성 상태 — 상자 크기는 그대로 두고 색과 문구만 바뀐다 */
+/* 작업대에 도화지가 한 장도 없으면 잉크 표시를 끈다 — 자리는 그대로 예약해 두므로
+   다시 켜져도 옆 패널이 밀리지 않는다 (라운드 005). */
+[data-anchor="ink-panel"][hidden] { display: none; }
+/* 2026-08-18 개량(원문 6번): 위쪽 가로 잉크 표시는 화면에서 제거한다.
+   잉크 정보는 왼쪽 세로 잉크통 하나로 합쳐졌다. 갱신 코드와 자리는 남겨 두되
+   어떤 상태에서도 보이지 않는다. */
+#inkPanel { display: none !important; }
+[data-anchor="ink-panel"][data-out="true"] { border-color: #e08a7a; }
+[data-anchor="ink-panel"][data-out="true"] .ink-head b { color: #e08a7a; }
+[data-anchor="ink-panel"][data-out="true"] .ink-state { color: #e08a7a; font-weight: 800; }
+[data-anchor="ink-panel"][data-out="true"] .ink-fill { background: #6b4038; }
+
+/* ── 중앙: 문 옆 잉크 카트리지 (2026-08-18 개량 · 비교판 v3 승인) ──
+   왼쪽 세로 잉크통 문법(I2)은 유지하고 비례와 움직임을 고쳤다.
+   폭 42 고정 · 언제나 작업대 묶음 왼쪽 38px 간격 · 세로는 묶음 높이와 같다.
+   자리·크기는 중앙 작업칸의 칸수 표식(data-slots)을 따라 아래 칸수별 규칙이 정한다 —
+   플레이어의 시선이 칸수와 무관하게 「잉크통 → 작업대」 한 방향으로 고정된다.
+   쌓임 순서는 결과판(z-index 36)보다 아래라 작품별 결과 연출을 덮지 않는다. */
+[data-anchor="ink-cartridge"] {
+  position: absolute;
+  width: 42px;
+  z-index: 20;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.55));
+}
+/* 칸수별 잉크통 자리 — 잉크통 오른쪽 끝에서 작업대 왼쪽 끝까지 언제나 38px이다. */
+[data-anchor="center-workspace"][data-slots="1"] #inkCartridge {
+  left: 235px; top: 250px; width: 42px; height: 480px;
+}
+[data-anchor="center-workspace"][data-slots="2"] #inkCartridge {
+  left: 37px; top: 250px; width: 42px; height: 430px;
+}
+[data-anchor="center-workspace"][data-slots="3"] #inkCartridge,
+[data-anchor="center-workspace"][data-slots="4"] #inkCartridge {
+  left: 87px; top: 190px; width: 42px; height: 776px;
+}
+/* 상단 배관 — 천장에서 유리통으로 내려오는 관 */
+.ink-pipe {
+  position: absolute; left: 40%; top: -22px; width: 22%; height: 26px;
+  background: #30281e; border: 2px solid #7d6848; border-bottom: 0; border-radius: 3px 3px 0 0;
+}
+/* 둥근 사각 유리통 — 액체는 아래에 고이고 소비하면 윗면이 내려간다.
+   2026-08-18 개량: 위 0부터 아래 40px(수치판 34px + 틈) 안쪽까지 길게 늘여
+   작업판 세로와 나란히 보이게 한다. */
+.ink-tank {
+  position: absolute; left: 10%; right: 10%; top: 0; bottom: 40px;
+  border: 3px solid #806849; border-radius: 9px; background: #130d16; overflow: hidden;
+}
+.ink-tank::before {
+  content: ""; position: absolute; left: 12%; top: 5%; bottom: 6%; width: 18%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  z-index: 3;
+}
+.ink-liquid {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 0;
+  background: linear-gradient(90deg, #3f6b8a, #62b6d8 55%, #3f6b8a);
+  transition: height 0.25s ease;
+}
+.ink-liquid::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px;
+  background: rgba(200, 240, 255, 0.75);
+}
+/* 아래 수치판 — 현재 잔량과 다음 한 번의 입력 비용을 함께 글자로 보여 준다 */
+/* 2026-08-18 개량: 수치판은 34px 높이에 전체 물감량 퍼센트만 남긴다.
+   다음 입력 비용과 주의·차단 문구는 화면에서 감춘다 — 경고는 아래 주의·차단
+   「색」 규칙이 그대로 알린다 (동현 선택: 색으로만 경고). */
+.ink-readout {
+  position: absolute; left: -8%; right: -8%; bottom: 0; height: 34px;
+  border: 2px solid #806849; border-radius: 5px; background: #2b2118;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; line-height: 1.2; overflow: hidden;
+}
+.ink-readout b { font-size: 14px; color: #f2d47f; }
+.ink-readout small { font-size: 11.5px; font-weight: 800; color: #ead7b1; white-space: nowrap; }
+.ink-readout span {
+  font-size: 10.5px; color: #b09d7e; white-space: nowrap; height: 13px; line-height: 13px;
+}
+/* 퍼센트만 남긴다 — 다음 비용(#inkNextView)·상태 문구(#inkCartridgeState)는 감춘다. */
+#inkNextView { display: none; }
+#inkCartridgeState { display: none; }
+/* 대기 — 제작할 작품이 없으면 장치를 소등한다 (자리·크기는 그대로다) */
+[data-anchor="ink-cartridge"][data-state="idle"] { filter: saturate(0.15) brightness(0.6); }
+/* 주의 — 문구 없이 색이 알린다 (테두리·액체색 변화) */
+[data-anchor="ink-cartridge"][data-state="warn"] .ink-tank,
+[data-anchor="ink-cartridge"][data-state="warn"] .ink-readout { border-color: #e5b94e; }
+[data-anchor="ink-cartridge"][data-state="warn"] .ink-liquid {
+  background: linear-gradient(90deg, #8d6524, #e4b747 55%, #8d6524);
+}
+[data-anchor="ink-cartridge"][data-state="warn"] .ink-readout span { color: #f0cf78; font-weight: 800; }
+/* 차단 — 다음 입력 비용보다 잔량이 적다. 입력 전에 제작 전체가 멈춘다 */
+[data-anchor="ink-cartridge"][data-state="blocked"] .ink-tank,
+[data-anchor="ink-cartridge"][data-state="blocked"] .ink-readout { border-color: #d75a55; }
+[data-anchor="ink-cartridge"][data-state="blocked"] .ink-liquid { background: #71312f; }
+[data-anchor="ink-cartridge"][data-state="blocked"] .ink-readout b { color: #e79a7c; }
+[data-anchor="ink-cartridge"][data-state="blocked"] .ink-readout span { color: #e79a7c; font-weight: 800; }
+
+/* ── 중앙: 작업대 — 칸수를 따라 커지고 작아지는 독립 작업대들 ──
+   2026-08-18 확정(비교판 v3 승인): 작업대 한 대의 크기는 칸수마다 다르다 —
+   1개 480 · 2개 430 · 3·4개 380, 50px씩 일정하게 준다. 작품은 언제나 작업대의 90%다.
+   상태는 서로 다르다 (2026-08-26 동현 확정) — 1개 480/432와 2개 430/387은 확정값이고,
+   3·4개 380/342는 상속된 시험 표현이며 최종 크기는 아직 미정이다. 아래 실제 값은
+   한 픽셀도 바꾸지 않되, 3·4개를 새 확정값으로 선언하지 않는다.
+   컨테이너는 자리만 잡는 투명 상자이고, 나무 가구 겉모습은 bench-unit 한 대가 가진다.
+   실제 배치(몇 열 몇 행인지, 어느 칸이 비는지)는 State.benchLayout(count)이 정하고
+   화면은 그 결과를 grid 자리로만 옮긴다. 격자 칸의 크기는 --bench-size(작업대 한 대)다. */
+[data-anchor="workbench"] {
+  position: absolute;
+  display: grid;
+  justify-content: center; align-content: start;
+  gap: 16px;
+  cursor: ns-resize;
+}
+/* 칸수별 자리·크기 — 2026-08-18 동현 확정값. 2×2(3·4개)는 세로 공간 때문에 top 190으로
+   올라가되, 위 y=190 위는 빨간 전화기 자리(y 14~174)라 넘지 않는다. */
+[data-anchor="workbench"][data-slots="1"] {
+  left: 315px; top: 250px; width: 480px; height: 480px;
+  --bench-size: 480px; --bench-art-size: 432px;
+}
+[data-anchor="workbench"][data-slots="2"] {
+  left: 117px; top: 250px; width: 876px; height: 430px;
+  --bench-size: 430px; --bench-art-size: 387px;
+}
+/* 3·4개 — 상속된 시험 표현이다 (최종 크기 미정). 값은 그대로 보존하되 확정 취급하지 않는다. */
+[data-anchor="workbench"][data-slots="3"],
+[data-anchor="workbench"][data-slots="4"] {
+  left: 167px; top: 190px; width: 776px; height: 776px;
+  --bench-size: 380px; --bench-art-size: 342px;
+}
+/* ── 유리창 알바 화면만의 크기 (2026-08-26 확정) ────────────────────────
+   유리창은 「작품 한 장」이 아니라 그 자체가 무대다. 부모에서는 칸수 규칙을 그대로 써서
+   작업대 한 대(480px)와 같은 크기였고, 3·4대 묶음(776×776) 옆에서 존재감이 눌렸다.
+   이제 유리창일 때만 3·4대 묶음과 같은 자리·같은 크기를 쓴다.
+   칸수별 규칙과 특이도가 같으므로 「반드시 그 뒤에」 와야 이긴다 — 순서가 계약이다.
+   칸수별 작업대 크기(1대 480/432 · 2대 430/387 확정값 · 3·4대 380/342 상속된 시험 표현)는
+   여기서 건드리지 않는다. */
+/* 2026-10-06 두 방 데모 B-1 (형님): 「유리창이 너무 커서 가운데 작업칸 바닥과 너무 붙어 있다 — 90% 정도로
+   줄여 바닥과 여백을 만들자」. 776 → 698(90%), 유리 면 698 → 628(창틀의 90% 그대로).
+   오른쪽 끝을 모작 작업대 한 대와 같은 x 795에 맞춰, 유리창 확률표가 모작 표와 같은 자리(812)에 선다.
+   아래 끝 888(+그림자) → 작업칸 바닥(988)과 약 100px 여백. 닦기 판정(칸·줄 수·확률·보수·균열)은 그대로다. */
+[data-anchor="workbench"][data-bench="window"] {
+  left: 97px; top: 190px; width: 698px; height: 698px;
+  --bench-size: 698px; --bench-art-size: 628px;
+}
+/* 유리창은 언제나 한 장이다. 작업대를 두 대 이상 사 둔 판에서도 빈 작업대가 옆에
+   끼어 776px 틀을 넘지 않도록, 유리창 중에는 빈 대를 자리째 접는다.
+   작업대를 「샀다」는 사실 자체는 State.benchUnits가 그대로 들고 있으므로
+   도화지를 놓는 순간 두 대가 다시 선다 (2026-08-12 계약 11은 그대로다). */
+[data-anchor="workbench"][data-bench="window"] .bench-unit[data-filled="false"] {
+  display: none;
+}
+/* 작업대 한 대 자리 — 크기는 칸수별 --bench-size가 정한다. 안쪽은 절대 나누지 않는다. */
+[data-anchor="workbench"] .bench-unit {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: var(--bench-size); height: var(--bench-size);
+}
+[data-anchor="workbench"] .bench-unit[hidden] { display: none; }
+/* 칸 하나 = 작업대 한 대. 나무 상판(테두리)과 아래로 깔리는 받침(그림자)을 갖는다.
+   가구는 「지금 서 있는 칸 수」에만 묶여 있다 — 도화지를 한 장도 올리지 않은 빈 상태에서도,
+   한 장만 올린 상태에서도, 유리창 알바 중에도 같은 규격 작업대가 그대로 선다
+   (2026-08-12 계약 11). 작품 수나 인쇄 모드로 가구를 켜고 끄지 않는다.
+   겉모습은 승인된 비교판 v3의 나무 틀(12px)을 그대로 가져왔다. */
+[data-anchor="workbench"][data-slots="1"] .bench-unit,
+[data-anchor="workbench"][data-slots="2"] .bench-unit,
+[data-anchor="workbench"][data-slots="3"] .bench-unit,
+[data-anchor="workbench"][data-slots="4"] .bench-unit {
+  background: #14100c;
+  border: 12px solid #5b432c;
+  border-radius: 6px;
+  box-shadow: 0 7px 0 #4a3826, 0 13px 0 #2b2016, 0 18px 20px rgba(0, 0, 0, 0.4);
+}
+/* 유리창 알바는 작품이 아니라 알바 화면이라 나무 가구 대신 흰 창틀만 남긴다. */
+[data-anchor="workbench"][data-bench="window"] .bench-unit {
+  background: #f7fbff; border-color: #dfe8ef;
+  box-shadow: 0 5px 0 #b9c6d0, 0 9px 14px rgba(0, 0, 0, 0.32);
+}
+[data-anchor="workbench"]:focus-visible { outline: 3px solid #d8b978; outline-offset: 2px; }
+/* 작품 canvas — 작업대 한 대 안 가운데에 작품 크기(작업대의 90%)로 선다. */
+[data-anchor="workbench"] canvas {
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  width: var(--bench-art-size); height: var(--bench-art-size); display: block;
+  flex: 0 0 auto;
+}
+[data-anchor="workbench"] canvas[hidden] { display: none; }
+/* 2026-08-19: 위쪽 공통 목재 밀대 스타일은 통째로 폐기됐다.
+   밀대가 도화지 그림 안으로 들어가면서(v6 시안 D) 화면 요소 자체가 없어졌고,
+   도화지마다 자기 밀대를 그림면 안에 그린다. */
+
+/* 빈 작업대 안내 글 — 작품 폭 안에서 가운데 정렬되고 줄바꿈이 살아 있어야 한다.
+   (2026-08-19 밀대 라운드에서 옆 규칙을 걷어내다 함께 지워진 것을 독립 검토가
+   잡아내 되살렸다. width가 없으면 글이 작업대 안에서 가로로 퍼지고,
+   white-space: pre-line이 없으면 두 줄짜리 안내가 한 줄로 뭉개진다.) */
+[data-anchor="workbench"] .bench-empty {
+  width: var(--bench-art-size);
+  font-size: 14px; color: #f0e2c6; text-align: center; line-height: 1.7; padding: 0 12px;
+  white-space: pre-line; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+[data-anchor="workbench"] .bench-empty[hidden] { display: none; }
+[data-anchor="workbench"].shake canvas { animation: bench-snap 0.28s linear; }
+@keyframes bench-snap {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-3px, 1px); }
+  50% { transform: translate(3px, -1px); }
+  75% { transform: translate(-2px, 0); }
+  100% { transform: translate(0, 0); }
+}
+/* ── 유리 파손 균열 층 — 0827 승인 「유리 A · 충격점 거미줄」 ──────────────
+   깨진 유리를 글자로만 알리지 않고, 닦고 있던 그 유리 한 장 위에 실제로 균열을 낸다.
+   한 번 세게 찍힌 중심에서 금이 사방으로 번지는 그림이고, 선·조각 모두 계단 모양
+   픽셀(shape-rendering: crispEdges)이라 3D 변환도 외부 이미지도 쓰지 않는다
+   (정본 4-3 아트 규칙). 덮개층이라 아래 작업대·작품 좌표를 밀지 않는다. */
+[data-anchor="workbench"] #glassCrackFx {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  pointer-events: none; z-index: 34;
+  opacity: 0;
+}
+/* 유리창 알바 화면이 아닐 때는 층 자체가 없다 — 도화지 작업대 위에는 절대 뜨지 않는다. */
+[data-anchor="workbench"]:not([data-bench="window"]) #glassCrackFx { display: none; }
+#glassCrackFx[data-open="true"] {
+  opacity: 1;
+  animation: glass-crack-jolt 0.32s steps(4, end) 1;
+}
+/* A안 충격점 거미줄 — 유리·창틀은 그대로 두고 균열 덮개만 SVG로 그린다. */
+#glassCrackFx .impact-web-crack {
+  position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
+  filter: drop-shadow(0 2px 0 rgba(35, 60, 78, 0.7));
+}
+#glassCrackFx .crack-shadow,
+#glassCrackFx .crack-core,
+#glassCrackFx .crack-chips { opacity: 0; }
+#glassCrackFx .crack-shadow path {
+  fill: none; stroke: rgba(35, 60, 78, 0.75); stroke-width: 8;
+  stroke-linecap: square; stroke-linejoin: miter;
+}
+#glassCrackFx .crack-core path {
+  fill: none; stroke: #f2fbff; stroke-width: 4;
+  stroke-linecap: square; stroke-linejoin: miter;
+}
+#glassCrackFx .crack-core rect { fill: #f2fbff; stroke: #5d8ba6; stroke-width: 3; }
+#glassCrackFx .crack-chips path { fill: rgba(215, 241, 249, 0.72); stroke: #f2fbff; stroke-width: 3; }
+/* 중앙 충격점 — 금이 시작되는 그 한 칸. */
+#glassCrackFx .impact-point {
+  position: absolute; left: 49.5%; top: 48.5%; width: 3%; aspect-ratio: 1;
+  transform: translate(-50%, -50%); background: #f2fbff;
+  box-shadow: 0 0 0 2px #5d8ba6, 0 0 0 4px rgba(35, 60, 78, 0.7);
+  image-rendering: pixelated;
+  opacity: 0;
+}
+/* data-step이 올라갈 때마다 다음 묶음이 드러난다 — 부드러운 보간이 아니라 계단이다. */
+#glassCrackFx[data-step="1"] .crack-step-1,
+#glassCrackFx[data-step="1"] .impact-point,
+#glassCrackFx[data-step="2"] .crack-step-1,
+#glassCrackFx[data-step="2"] .crack-step-2,
+#glassCrackFx[data-step="2"] .impact-point,
+#glassCrackFx[data-step="3"] .crack-step-1,
+#glassCrackFx[data-step="3"] .crack-step-2,
+#glassCrackFx[data-step="3"] .crack-step-3,
+#glassCrackFx[data-step="3"] .impact-point,
+#glassCrackFx[data-step="4"] .crack-shadow,
+#glassCrackFx[data-step="4"] .crack-core,
+#glassCrackFx[data-step="4"] .crack-chips,
+#glassCrackFx[data-step="4"] .impact-point { opacity: 1; }
+#glassCrackFx[data-step]:not([data-step="0"]) .crack-core,
+#glassCrackFx[data-step]:not([data-step="0"]) .crack-chips {
+  animation: glass-crack-spread 0.12s steps(3, end) 1;
+}
+@keyframes glass-crack-spread {
+  0% { opacity: 0; transform: translate(-1px, -1px); }
+  100% { opacity: 1; transform: translate(0, 0); }
+}
+@keyframes glass-crack-jolt {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 1px); }
+  50% { transform: translate(2px, -1px); }
+  75% { transform: translate(-1px, 0); }
+  100% { transform: translate(0, 0); }
+}
+
+/* .bench-caption은 2026-08-20 제거 — 3·4대에서 도화지를 덮던 고정 좌표 설명 글.
+   내용은 왼쪽 workshopHint·오른쪽 recEvent가 담당한다 (라운드 005 문제 A). */
+.help-icon {
+  display: inline-block; margin-top: 8px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid #6f5f45; background: #2c2519; color: #d8b978;
+  font-size: 13px; font-weight: 700; cursor: pointer; line-height: 1;
+}
+.help-icon:hover { background: #3a3222; }
+.scroll-help {
+  margin-top: 8px; padding: 10px 12px; border: 1px solid #6f5f45;
+  border-radius: 8px; background: #241d10; font-size: 13px; color: #cbb891;
+}
+.scroll-help b { color: #f0e3c2; }
+.scroll-help p { margin: 6px 0 8px; line-height: 1.5; }
+.scroll-help button {
+  border: 1px solid #6f5f45; border-radius: 6px; background: #3a3222;
+  color: #d8b978; font-size: 12.5px; padding: 4px 10px; cursor: pointer;
+}
+
+/* 등급 발표 배너 — 작업대 내부 absolute (레이아웃 불변) */
+#gradeBanner {
+  position: absolute; left: 0; right: 0; top: 42%;
+  text-align: center; font-size: 34px; font-weight: 900;
+  color: #f0e3c2; text-shadow: 0 2px 0 #14100c, 0 0 18px rgba(0, 0, 0, 0.8);
+  opacity: 0; pointer-events: none; transition: opacity 0.18s ease;
+  letter-spacing: 1px;
+}
+#gradeBanner.show { opacity: 1; }
+#gradeBanner.diamond { text-shadow: 0 0 10px #d8f5ff, 0 0 26px #62c7ff; }
+
+/* 창문 완성 +20원 — 작업대 안에서 잠깐 떠오르는 짧은 결과 피드백 */
+#windowPayFloat {
+  position: absolute; left: 0; right: 0; top: 30%;
+  text-align: center; font-size: 30px; font-weight: 900; color: #9fc37a;
+  text-shadow: 0 2px 0 #14100c;
+  opacity: 0; pointer-events: none;
+}
+#windowPayFloat.show { animation: pay-float 1.1s ease-out; }
+@keyframes pay-float {
+  0% { opacity: 0; transform: translateY(14px); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-26px); }
+}
+
+/* 유리창 대성공(잭팟) — 작업대 안에서만 크게 터진다 (옆 패널을 가리지 않음) */
+#jackpotFloat {
+  position: absolute; left: 0; right: 0; top: 16%;
+  text-align: center; font-size: 30px; font-weight: 900; color: #f4dc9a;
+  text-shadow: 0 2px 0 #14100c, 0 0 16px #d8b046;
+  opacity: 0; pointer-events: none; letter-spacing: 1px;
+}
+#jackpotFloat.show { animation: jackpot-pop 1.5s ease-out; }
+@keyframes jackpot-pop {
+  0% { opacity: 0; transform: scale(0.7); }
+  16% { opacity: 1; transform: scale(1.14); }
+  30% { transform: scale(1); }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* ── 유리창 대성공 오버레이 ── 무대 전체를 잠깐 어둡게 덮되 좌·중·우 구역의
+   크기와 위치를 밀지 않는다 ── 고정 무대 안에 절대 배치하고 클릭도 가로채지 않는다 */
+#jackpotOverlay {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  width: 100%; height: 100%;
+  background: rgba(8, 5, 3, 0.78);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 95;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+#jackpotOverlay[data-open="true"] { opacity: 1; }
+#jackpotOverlay .jackpot-box { text-align: center; }
+#jackpotOverlay .jackpot-title {
+  font-size: 56px; font-weight: 900; color: #f4dc9a; letter-spacing: 3px;
+  text-shadow: 0 3px 0 #14100c, 0 0 26px #d8b046;
+}
+#jackpotOverlay .jackpot-pay {
+  font-size: 108px; font-weight: 900; color: #f4dc9a; margin-top: 10px;
+  text-shadow: 0 4px 0 #14100c, 0 0 38px #d8b046;
+}
+#jackpotOverlay .jackpot-sub {
+  font-size: 20px; color: #c9b891; margin-top: 14px;
+}
+
+/* ── 2026-10-08 3단계 — 「1막 끝」 화면 자리 ──
+   유리창 대성공 오버레이와 같은 전면 덮개지만, 「계속 하기」를 눌러야 닫히므로 클릭을 받는다. */
+#act1Overlay {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  width: 100%; height: 100%;
+  background: rgba(8, 5, 3, 0.86);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 96;
+}
+#act1Overlay[hidden] { display: none; }
+#act1Overlay .act1-box { text-align: center; }
+#act1Overlay h2 {
+  font-size: 96px; font-weight: 900; color: #f4dc9a; letter-spacing: 6px;
+  text-shadow: 0 4px 0 #14100c, 0 0 38px #d8b046;
+}
+#act1Overlay .act1-sub { font-size: 24px; color: #c9b891; margin-top: 14px; }
+#act1ContinueBtn {
+  margin-top: 34px; padding: 14px 40px;
+  font: inherit; font-size: 22px; font-weight: 800;
+  background: #d8b978; color: #221c16; border: 2px solid #f1d37e; border-radius: 8px;
+  cursor: pointer;
+}
+#act1ContinueBtn:hover { background: #f1d37e; }
+
+/* ── 마감 알림 — 잉크가 바닥났을 때만 켜지는 고정 예약 자리 ── */
+[data-anchor="finish-choice"] {
+  position: absolute; left: 295px; top: 800px;
+  width: 500px; height: 104px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(20, 15, 10, 0.94); border: 2px solid #6a5a2c; border-radius: 10px;
+  padding: 10px 16px;
+  visibility: hidden; pointer-events: none;
+}
+[data-anchor="finish-choice"][data-open="true"] { visibility: visible; pointer-events: auto; }
+.finish-line { font-size: 15px; color: #f0e3c2; text-align: center; line-height: 1.4; }
+.finish-buttons { display: flex; gap: 12px; }
+.finish-buttons button {
+  background: #3a2f22; color: #e8dcc4; border: 1px solid #6a563a;
+  border-radius: 6px; padding: 9px 26px; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.finish-buttons button:hover:not(:disabled) { border-color: #d8b978; }
+.finish-buttons button:disabled { opacity: 0.45; cursor: default; }
+#sellNowBtn { background: #d8b978; color: #221c16; border-color: #d8b978; font-weight: 800; }
+[data-anchor="finish-choice"][data-open="true"] { border-color: #8a4a3a; }
+
+/* ── 결과판 — 중앙 구역 안쪽 아래에 처음부터 예약된 자리 ──
+   작업대(250~730) 아래, 중앙 구역(988) 안쪽에서 끝난다: 742 + 240 = 982.
+   가로도 두 칸 작업면과 같은 폭(75~1035)이라 좌·우 옆 패널을 덮지 않는다.
+   마감 알림과는 같은 시간에 켜지지 않게 화면 쪽에서 상태를 나눠 준다. */
+[data-anchor="result-board"] {
+  position: absolute; left: 75px; top: 742px;
+  width: 960px; height: 240px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: rgba(20, 15, 10, 0.96); border: 2px solid #6a5a2c; border-radius: 10px;
+  padding: 12px 18px; z-index: 36;
+  visibility: hidden; pointer-events: none;
+}
+[data-anchor="result-board"][data-open="true"] { visibility: visible; pointer-events: auto; }
+.board-title { font-size: 17px; font-weight: 800; color: #f0e3c2; }
+/* 2026-08-25 계약 6 — 경매 연결 보류 안내. 결과판 제목 아래 한 줄만 차지하고
+   버튼·작품 카드 자리를 밀지 않는다 (제목 줄과 같은 흐름 안에 있다). */
+.board-pending { font-size: 11.5px; color: #8d7b5f; margin-top: -4px; white-space: nowrap; }
+/* 산 작품을 나란히 두고 각각 판매·전시를 고른다.
+   한 장만 산 묶음에서는 오른쪽 카드가 빠지고 왼쪽 카드가 그 자리를 채운다. */
+.board-works { display: flex; gap: 12px; flex: 1 1 auto; }
+.board-works[hidden] { display: none; } /* 손실 결과가 이 자리를 쓸 때는 통째로 내린다 */
+.board-work[hidden] { display: none; }
+.board-work {
+  flex: 1 1 0; display: flex; flex-direction: column; gap: 8px;
+  background: #241c14; border: 1px solid #57452c; border-radius: 8px; padding: 10px 14px;
+}
+.board-work .work-name { font-size: 13px; color: #b09d7e; }
+.board-work .work-grade { font-size: 19px; font-weight: 800; color: #f0e3c2; }
+.board-work .work-buttons { display: flex; gap: 8px; }
+.board-work button {
+  flex: 1 1 0;
+  background: #3a2f22; color: #e8dcc4; border: 1px solid #6a563a;
+  border-radius: 6px; padding: 8px 10px; font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.board-work button:hover:not(:disabled) { border-color: #d8b978; }
+.board-work button:disabled { opacity: 0.4; cursor: default; }
+.board-note { font-size: 12.5px; color: #8d7b5f; line-height: 1.45; margin-top: auto; }
+
+/* 첫 판매 손실 결과 — 도화지값·판매가·손실을 한 줄에 나란히 두고 「확인」을 기다린다.
+   결과판 안쪽만 쓰므로 바깥 좌표는 그대로다 (라운드 001). */
+.board-loss { display: flex; align-items: center; gap: 18px; flex: 1 1 auto; }
+.board-loss[hidden] { display: none; }
+.loss-lines { display: flex; gap: 12px; flex: 1 1 auto; }
+.loss-line {
+  flex: 1 1 0; display: flex; flex-direction: column-reverse; gap: 4px;
+  background: #241c14; border: 1px solid #57452c; border-radius: 8px; padding: 12px 14px;
+}
+.loss-line span { font-size: 13px; color: #b09d7e; }
+.loss-line b { font-size: 24px; font-weight: 800; color: #f0e3c2; }
+.loss-line.loss-diff { border-color: #8a4f3a; }
+.loss-line.loss-diff b { color: #e79a7c; }
+#lossConfirmBtn {
+  flex: 0 0 auto; min-width: 132px;
+  background: #4a3a22; color: #f4dc9a; border: 1px solid #d8b046;
+  border-radius: 8px; padding: 16px 18px; font-size: 17px; font-weight: 800; cursor: pointer;
+}
+#lossConfirmBtn:hover:not(:disabled) { border-color: #f4dc9a; }
+#lossConfirmBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── 모작 등급 확률 — 그림 바로 오른쪽 세로표 (2026-10-06 두 방 데모 B-1) ──────
+   9/30 결정(그림 바로 오른쪽 · 마우스가 그림 위일 때만)을 클로드판(claude-look-20260930-v1 ·
+   체험판 claude-demo-look-20260930-v1)과 같은 자리·모양으로 옮겼다.
+   8/19에 이 자리를 버린 이유는 「여러 작업대를 가림」이었는데, 작업대 확장을 뺐으므로
+   (9/9 MNL-04 · 9/16 · 10/6 형님) 작업대는 언제나 한 대(x 315~795, y 250~730)다.
+   표 자리 x 812~1092 · y 250부터 — 작업대 오른쪽 17px, 작업공간 오른쪽 끝(1110)과 18px.
+   전화기(y 14~174)·원작 카드(x 20~260)·잉크통(x 235~277)·완료 점(작업대 아래 가운데)과 겹치지 않는다.
+   좌표는 CSS 고정이라 포인터를 따라다니지 않고, 포인터를 가로채지 않는다(라운드 001).
+   글씨는 클로드판 1.25배 값(제목 24 · 머리줄 17.5 · 칸 20px), 칸마다 한 줄 고정. */
+#probPanel {
+  position: absolute; left: 812px; top: 250px; width: 280px;
+  display: flex; flex-direction: column;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 14px 14px 12px; z-index: 38;
+  pointer-events: none;
+}
+#probPanel[hidden] { display: none; }
+#probPanel h2 { font-size: 24px; color: #f4dc9a; margin: 0 0 8px; letter-spacing: 0.4px; white-space: nowrap; }
+.prob-badge {
+  display: inline-block; vertical-align: middle;
+  font-size: 12px; font-weight: 700; color: #b09d7e;
+  border: 1px solid #6a5a2c; border-radius: 9px; padding: 2px 8px; margin-left: 6px;
+}
+.prob-table { width: 100%; border-collapse: collapse; }
+.prob-table th { font-size: 17.5px; color: #b09d7e; border-bottom: 1px solid #3a2f24; padding: 6px 2px; text-align: left; white-space: nowrap; }
+.prob-table td { font-size: 20px; color: #e8dcc4; padding: 9px 2px; text-align: left; white-space: nowrap; }
+.prob-table th.num, .prob-table td.num { text-align: right; }
+.prob-table td.num { color: #d8b978; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* 등급마다 고유 색 — 이름 칸 왼쪽 막대와 글자. 옛 띠 칸과 같은 다섯 색이다(실물 금속·보석의 색). */
+.prob-table .prob-row td:first-child {
+  box-shadow: inset 3px 0 0 var(--row-color, transparent); padding-left: 10px;
+  color: var(--row-color, #e8dcc4); font-weight: 700;
+}
+.prob-row[data-grade="bronze"] { --row-color: #c07a45; }
+.prob-row[data-grade="silver"] { --row-color: #c9d2da; }
+.prob-row[data-grade="gold"] { --row-color: #e8c14a; }
+.prob-row[data-grade="platinum"] { --row-color: #9ad7e8; }
+.prob-row[data-grade="diamond"] { --row-color: #d79ae8; }
+/* 확보 등급 줄의 고정 강조 + 최고 기록이 오를 때만 세 번 반응(0.3초 × 3) — 클로드판 표 효과 */
+.prob-row.held td { background: rgba(216, 185, 120, 0.12); color: #fff5dc; }
+.prob-row.held td:first-child { box-shadow: inset 4px 0 0 var(--row-color); color: var(--row-color); }
+.prob-row.pulse td { animation: rowPulse 0.3s ease-in-out 3; }
+@keyframes rowPulse {
+  0%, 100% { background: rgba(216, 185, 120, 0.12); }
+  50% { background: var(--row-color); color: #14100c; }
+}
+.prob-foot { font-size: 12px; color: #8d7b5f; margin-top: 8px; line-height: 1.45; }
+
+/* 2026-10-06 두 방 데모 B-1(2단계): 덩어리 A의 「띠 칸 강조(.prob-cell.held/.pulse)」는 띠가 세로표로
+   바뀌면서 .prob-row.held/.pulse(위)로 옮겼다. */
+
+/* ── 2026-10-06 두 방 데모 A: 회차 표시 (9/9 「인쇄 점 3개 · 등급 점프」, 클로드판) ──
+   · 완료 점 ○○○ — 지금 밀고 있는 작업대의 나무 틀 **바깥 아래** 가운데 (9/16 회의 "인쇄 점 하단" 결정 — 체험판 기본값 '위'보다 우선).
+     그림을 가리지 않게 틀 그림자(약 18px) 밖에 둔다(10/6 별도 검수 — 형님 "UI 겹침 방지").
+   · 확보 등급의 고정 강조 — 도화지 둘레선 색 = 확보 등급색(아직 없으면 갈색).
+   · 최고 기록이 오를 때만 둘레가 그 등급색으로 세 번 깜빡인다. */
+.print-dots {
+  position: absolute; left: 50%; top: calc(100% + 22px); transform: translateX(-50%);
+  display: flex; gap: 8px; line-height: 1; pointer-events: none;
+  font-size: 20px; color: #f3e7c8;
+  text-shadow: 0 0 3px #14100c, 0 0 6px #14100c, 0 1px 0 #14100c;
+  padding: 4px 10px; border-radius: 12px; background: rgba(10, 8, 6, 0.35);
+  z-index: 3;
+}
+.print-dots[hidden] { display: none; }
+.print-dots span::before { content: "○"; }
+.print-dots span.on::before { content: "●"; }
+/* ── 2026-10-16 v7 · 형님 49-B · 52(1·2·3·4): 잉크가 바닥나 못 찍게 된 회차 점은 잿빛 × ──
+   (시안 inkout-dots-mockup-2026-10-16-v1 · v2 그대로). 그림 위에는 글자를 올리지 않는다. */
+.print-dots span.x { color: #9b8f7a; }
+.print-dots span.x::before { content: "×"; color: inherit; }
+.print-dots.shake-x { animation: dots-shake 0.42s ease-in-out; }
+@keyframes dots-shake {
+  0%, 100% { transform: translateX(-50%); }
+  20% { transform: translateX(calc(-50% - 5px)); }
+  40% { transform: translateX(calc(-50% + 5px)); }
+  60% { transform: translateX(calc(-50% - 3px)); }
+  80% { transform: translateX(calc(-50% + 2px)); }
+}
+/* 2 × 튀어 오르기 — 크게 「툭」 + 붉은 잿빛 반짝 */
+.print-dots span.x.pop { display: inline-block; animation: x-pop 0.5s ease-out; }
+@keyframes x-pop { 0% { transform: scale(1); color: #9b8f7a; } 30% { transform: scale(1.9); color: #e0735a; } 100% { transform: scale(1); color: #9b8f7a; } }
+/* 1 그림 전체 경고 진동 — 작업대가 틀째 좌우로 덜컥덜컥 */
+[data-anchor="workbench"].ink-warn-shake { animation: ink-warn-shake 0.46s linear; }
+@keyframes ink-warn-shake {
+  0%, 100% { transform: translate(0, 0); } 12% { transform: translate(-9px, 1px); } 25% { transform: translate(9px, -1px); }
+  38% { transform: translate(-7px, 0); } 50% { transform: translate(7px, 1px); } 62% { transform: translate(-4px, 0); } 75% { transform: translate(4px, 0); }
+}
+/* 3 잉크통이 같이 알리기 — 빨갛게 두 번 깜빡 + 살짝 흔들림 */
+[data-anchor="ink-cartridge"].fx-blink { animation: tank-shake 0.5s linear; }
+[data-anchor="ink-cartridge"].fx-blink .ink-tank,
+[data-anchor="ink-cartridge"].fx-blink .ink-readout { animation: tank-blink 0.5s steps(1) 1; }
+@keyframes tank-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+@keyframes tank-blink { 0%, 50% { border-color: #ff5a4a; box-shadow: 0 0 14px #ff5a4a; } 25%, 75% { border-color: #d75a55; box-shadow: none; } }
+[data-anchor="workbench"] .bench-unit canvas.held-frame {
+  outline: 2px solid var(--held-color, #57452c);
+  outline-offset: 2px;
+}
+[data-anchor="workbench"] .bench-unit.grade-blink canvas { animation: gradeBlink 0.3s ease-in-out 3; }
+@keyframes gradeBlink {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; outline-color: var(--held-color, #57452c); }
+  50% { box-shadow: 0 0 0 4px var(--blink-color), 0 0 28px var(--blink-color); outline-color: #fff8e8; }
+}
+.prob-foot { font-size: 12px; color: #8d7b5f; margin-top: 8px; line-height: 1.45; }
+
+/* ── 가로 띠 안쪽(.prob-strip-* · .prob-cell)은 2026-10-06 두 방 데모 B-1(2단계)에서 지웠다 ──
+   모작·유리창 확률표가 모두 그림 오른쪽 세로표(.prob-table · .prob-row)가 되어 쓰는 곳이 없다.
+   8/26 v1 계약 4항의 뜻(등급마다 고유 색 · 발문 없음)은 .prob-row 규칙이 그대로 잇는다. */
+
+/* ── 자동판매 켜고 끄기 (2026-08-19) ───────────────────────────
+   상점 카드 사이에 끼는 작은 줄. 산 뒤에만 보이며, 자리를 차지하지 않을 때는
+   통째로 숨어 옆 카드가 밀리지 않는다. */
+.auto-sell-switch {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 10px; margin: 2px 0;
+  background: #1d1710; border: 1px solid #3a2f24; border-radius: 8px;
+}
+.auto-sell-switch[hidden] { display: none; }
+.ass-label { font-size: 12.5px; font-weight: 700; color: #b09d7e; flex: 0 0 auto; }
+.ass-btn {
+  font-size: 12px; color: #8d7b5f; background: #241c14;
+  border: 1px solid #4a3d2c; border-radius: 6px; padding: 4px 10px; cursor: pointer;
+}
+.ass-btn:hover { border-color: #d8b978; color: #f3e7c8; }
+.ass-btn[data-on="true"] {
+  background: #3d3020; border-color: #d8b978; color: #f4dc9a; font-weight: 800;
+}
+.ass-note { font-size: 11px; color: #8d7b5f; margin-left: auto; }
+
+/* ── 유리창 보수 확률 — 모작 등급 확률표와 「같은 자리·같은 등장 방식」 ──
+   0817 피드백 3번의 지시 그대로다. 좌표를 따로 정하지 않고 위 #probPanel과
+   같은 값을 쓴다. 둘은 동시에 뜨지 않는다 — 도화지가 올라와 있으면 유리창
+   알바를 할 수 없고, 유리창을 닦는 중에는 제작 중인 도화지가 없기 때문이다. */
+#windowProbPanel {
+  /* 2026-10-06 두 방 데모 B-1 (형님 2-A): 8/19 「모작 확률표와 같은 자리 · 같은 등장 방식」을
+     그대로 지켜, 모작 표와 함께 그림(유리창) 오른쪽 세로표로 옮겼다. 좌표·모양은 #probPanel과 같다.
+     유리창도 오른쪽 끝을 모작 작업대와 같은 x 795에 맞췄으므로(아래 유리창 크기 규칙) 표와 17px 떨어진다.
+     둘은 동시에 뜨지 않는다 — 도화지가 올라와 있으면 유리창 알바를 할 수 없다. */
+  position: absolute; left: 812px; top: 250px; width: 280px;
+  display: flex; flex-direction: column;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 14px 14px 12px; z-index: 38;
+  pointer-events: none;
+}
+#windowProbPanel h2 { font-size: 24px; color: #f4dc9a; margin: 0 0 8px; letter-spacing: 0.4px; white-space: nowrap; }
+#windowProbPanel .prob-badge { font-size: 15px; }
+/* 유리창 표의 두 줄 — 성공은 초록, 파손은 붉은 쪽(띠 시절과 같은 색 문법) */
+.prob-row[data-grade="win"] { --row-color: #8fbf6a; }
+.prob-row[data-grade="none"] { --row-color: #cf7a63; }
+#windowProbPanel[hidden] { display: none; }
+
+/* 2026-08-27 v1 · 0827 승인: 유리창 알바 카드의 옛 전용 게이지(.job-gauge)는
+   작업 탭 공통 카드(.work-card .wc-track)로 흡수됐다. 레벨 글자와 진행 막대가
+   여전히 같은 칸 안에 함께 살고, 자리는 모든 상태에서 예약돼 있다. */
+/* 최대 레벨에서는 색을 바꿔 「더 오를 곳이 없다」를 색으로만 말한다 —
+   「최고 레벨」이라는 글자를 카드에 두지 않는다. */
+#jobBtn[data-window-maxed="true"] .wc-fill {
+  background: linear-gradient(90deg, #b08b3a, #f4dc9a);
+}
+
+/* ── D키 디버그 창 — 화면 한가운데 뜨는 자기 층 ──
+   가장 위층(z-index 90)에 있어 무엇도 이 창을 덮지 않고, 닫히면 자리를
+   차지하지 않아 다른 요소를 밀지 않는다. 게임을 멈추지 않으므로
+   뒤 화면은 그대로 돌아간다. */
+#debugPanel {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 520px;
+  background: rgba(16, 12, 8, 0.97); border: 2px solid #6a5a2c; border-radius: 14px;
+  padding: 20px 24px 18px; z-index: 90;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.62);
+}
+#debugPanel[hidden] { display: none; }
+.debug-head {
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid #3a2f24; padding-bottom: 12px; margin-bottom: 14px;
+}
+.debug-head h2 { font-size: 22px; color: #f4dc9a; letter-spacing: 0.4px; }
+#debugCloseBtn {
+  font-size: 13px; color: #b09d7e; background: #241c14;
+  border: 1px solid #4a3d2c; border-radius: 8px; padding: 6px 12px; cursor: pointer;
+}
+#debugCloseBtn:hover { border-color: #d8b978; color: #f3e7c8; }
+.debug-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 10px 0;
+}
+.debug-row + .debug-row { border-top: 1px solid #2a2118; }
+.debug-label { font-size: 15px; color: #e8dcc4; font-weight: 700; }
+.debug-label small { display: block; font-size: 11.5px; color: #8d7b5f; font-weight: 400; margin-top: 3px; }
+.debug-ctl { display: flex; gap: 6px; flex: 0 0 auto; }
+/* 버튼이 여섯 개인 줄(등급 고르기)은 한 줄에 다 들어가지 않는다.
+   버튼을 억지로 줄이면 잘리고, 설명 글을 눌러도 네 줄로 찌그러진다.
+   그래서 줄 전체를 접어 「설명 위 · 버튼 아래」로 내려 준다. */
+.debug-row { flex-wrap: wrap; }
+.debug-ctl { flex-wrap: wrap; justify-content: flex-end; }
+.debug-label { flex: 1 1 190px; }
+.debug-pick,
+.prob-mode-pick { /* 2026-10-06: 확률 표기 손잡이도 같은 생김새 */
+  font-size: 13px; color: #b09d7e; background: #241c14;
+  border: 1px solid #4a3d2c; border-radius: 7px; padding: 7px 11px; cursor: pointer;
+  min-width: 52px;
+}
+.debug-pick:hover, .prob-mode-pick:hover { border-color: #d8b978; color: #f3e7c8; }
+.debug-pick[data-on="true"], .prob-mode-pick[data-on="true"] {
+  background: #3d3020; border-color: #d8b978; color: #f4dc9a; font-weight: 800;
+}
+/* 즉시 실행 버튼 — 값 버튼과 생김새를 달리해 「누르면 바로 일어난다」를 알린다 */
+.debug-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 320px; }
+.debug-do {
+  font-size: 12px; color: #cbb894; background: #2b2419;
+  border: 1px solid #5b4a33; border-radius: 6px; padding: 5px 9px; cursor: pointer;
+}
+.debug-do:hover { border-color: #d8b978; color: #f4dc9a; }
+.debug-foot { font-size: 12px; color: #8d7b5f; margin-top: 12px; line-height: 1.5; }
+/* 항목이 늘어 팝업이 길어졌다 — 무대를 넘지 않게 안쪽만 스크롤한다.
+   바깥 무대는 여전히 스크롤되지 않는다 (1920×1080 무스크롤 규칙 유지).
+   2026-08-19 정정: 처음엔 86vh로 잡았는데, vh는 무대를 줄이기 전 「실제 브라우저 창」을
+   가리킨다. 2560×1440 화면에서 86vh는 1,238px이라 무대 높이 1,080px을 넘어,
+   넘친 부분이 창 안쪽 스크롤이 아니라 무대에 잘려 닫기 버튼이 사라진다.
+   무대는 언제나 1080px 높이이므로 무대 좌표로 못박는다. */
+#debugPanel { max-height: 900px; overflow-y: auto; }
+
+/* ── 카탈로그 물건 — 위 프레임 밖에서 작업대로 낙하 → 클릭 → 슬롯 편입 ── */
+#catalogItem {
+  position: absolute; left: 491px; top: 300px;
+  width: 128px; height: 128px;
+  background: transparent; border: 0; padding: 0; cursor: pointer;
+  line-height: 0; z-index: 40;
+}
+#catalogItem[hidden] { display: none; }
+#catalogItem canvas {
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  width: 128px; height: 128px; display: block;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35));
+}
+#catalogItem.falling { animation: catalog-fall 0.9s cubic-bezier(0.3, 0, 0.6, 1) both; pointer-events: none; }
+@keyframes catalog-fall {
+  0% { transform: translateY(-560px); }
+  74% { transform: translateY(0); }
+  86% { transform: translateY(-16px); }
+  100% { transform: translateY(0); }
+}
+/* 내려앉아 클릭을 기다리는 카탈로그 — 도화지 구매 유도와 같은 금빛 테두리가
+   반복해서 빛난다. 클릭하는 순간 landed가 벗겨지며 유도도 함께 사라진다.
+   중앙 구역 안에서만 빛나므로 옆 패널을 가리지 않는다 (라운드 005). */
+#catalogItem.landed {
+  border-radius: 10px;
+  box-shadow: 0 0 0 2px rgba(241, 211, 126, 0.4), 0 0 22px rgba(216, 176, 70, 0.42);
+  animation: catalog-call 1.2s ease-in-out infinite;
+}
+@keyframes catalog-call {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(241, 211, 126, 0.32), 0 0 16px rgba(216, 176, 70, 0.3); }
+  50% { box-shadow: 0 0 0 3px #f1d37e, 0 0 30px #d8b046; }
+}
+#catalogItem.landed canvas { animation: catalog-bob 1.6s ease-in-out infinite; }
+@keyframes catalog-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+#catalogItem.unlocking { pointer-events: none; }
+#catalogItem.unlocking canvas {
+  filter: drop-shadow(0 0 14px #f4dc9a) drop-shadow(0 0 30px #d8b046);
+}
+#catalogItem.docking {
+  transition: left 0.55s ease-in, top 0.55s ease-in, transform 0.55s ease-in;
+  left: 32px; top: 22px; transform: scale(0.55);
+  transform-origin: top left; pointer-events: none;
+}
+
+/* 황금빛 「카탈로그 해금」 짧은 연출 */
+#unlockFlash {
+  position: absolute; left: 355px; top: 360px; width: 400px;
+  text-align: center; pointer-events: none; opacity: 0; z-index: 41;
+}
+#unlockFlash span {
+  display: inline-block; font-size: 30px; font-weight: 900; color: #f4dc9a;
+  text-shadow: 0 0 14px #d8b046, 0 2px 0 #14100c; letter-spacing: 2px;
+}
+#unlockFlash.show { animation: unlock-flash 1s ease-out; }
+@keyframes unlock-flash {
+  0% { opacity: 0; transform: scale(0.7); }
+  25% { opacity: 1; transform: scale(1.08); }
+  70% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* ── 오른쪽 세로줄 — 레벨·공방 기록 ──
+   두 상자 모두 처음부터 자리를 차지하므로, 플레이 중 위아래로 밀리지 않는다.
+   (잉크 상자는 라운드 003에서 작업대 바로 위 중앙 고정 자리로 옮겼다.) */
+[data-anchor="xp-panel"] {
+  flex: 0 0 auto; height: 132px;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 12px 16px; display: flex; flex-direction: column; gap: 7px;
+}
+.panel-head { display: flex; align-items: baseline; gap: 8px; }
+.panel-head .panel-name { font-size: 14px; color: #b09d7e; }
+.panel-head b { font-size: 19px; color: #d8b978; margin-left: auto; }
+.panel-sub { font-size: 13px; color: #c9b891; }
+.panel-note { font-size: 11.5px; color: #8d7b5f; line-height: 1.45; }
+.xp-track, .ink-track {
+  height: 14px; border-radius: 7px; background: #14100c;
+  border: 1px solid #3a2f24; overflow: hidden; flex: 0 0 auto;
+}
+.xp-fill, .ink-fill { display: block; height: 100%; width: 0; }
+.xp-fill { background: linear-gradient(90deg, #6f8f5a, #9fc37a); }
+/* 2026-10-08 3단계 — 구간 목표 금액. 「이번 구간 120 / 500$」가 이 칸의 핵심이라 크게 쓴다
+   (작은 설명 줄은 두지 않는다 — 9/30 형님 「핵심만 크게」). */
+#goalPanel .goal-amount { font-size: 17px; font-weight: 800; color: #f3e7c8; }
+#goalPanel[data-done="true"] .xp-fill { background: linear-gradient(90deg, #b08a3c, #f4dc9a); }
+
+/* 2026-10-08 3단계 — 경매장 문 자리. 구간 2를 넘기 전에는 자리만 지키고 보이지 않는다
+   (레이아웃 불변 — 상점 탭과 같은 방식). 넘은 뒤에도 4·5단계 전까지는 누를 수 없다. */
+/* 2026-10-08 4단계: 문 칸 = 다음 경매 작품 예고(실루엣 48px · 급 · 예상가 · 잉크 ×2 · 느낌표).
+   높이 64 → 72px — 실루엣이 칸 안에 온전히 들어가도록(아래 칸은 8px 내려가고 겹치지 않는다). */
+[data-anchor="auction-door"],
+[data-anchor="auction-level"] {
+  flex: 0 0 auto; height: 72px;
+  display: flex; align-items: center; gap: 12px;
+  background: #241c14; border: 2px dashed #6a563a; border-radius: 10px;
+  padding: 10px 14px; color: #c9b891; font: inherit; text-align: left;
+  cursor: default;
+}
+[data-anchor="auction-door"][data-open="false"],
+[data-anchor="auction-level"][data-open="false"] { visibility: hidden; }
+[data-anchor="auction-door"] #lotSilhouette,
+[data-anchor="auction-level"] #levelLotArt {
+  flex: 0 0 auto; width: 48px; height: 48px;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  border: 2px solid #5b432c; border-radius: 4px; box-sizing: border-box;
+}
+[data-anchor="auction-door"] .door-text,
+[data-anchor="auction-level"] .door-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-anchor="auction-door"] .door-name,
+[data-anchor="auction-level"] .door-name { font-size: 18px; font-weight: 800; color: #f3e7c8; }
+[data-anchor="auction-door"] .door-state,
+[data-anchor="auction-level"] .door-state { font-size: 16px; color: #d8b978; white-space: nowrap; }
+[data-anchor="auction-door"] .door-tags,
+[data-anchor="auction-level"] .door-tags { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+[data-anchor="auction-door"] .door-chip,
+[data-anchor="auction-level"] .door-chip {
+  font-size: 14px; font-weight: 800; color: #9fd4ea; white-space: nowrap;
+  border: 2px solid #3f6b8a; border-radius: 6px; padding: 2px 6px;
+}
+[data-anchor="auction-door"] .door-bang,
+[data-anchor="auction-level"] .door-bang {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #e8b84a; color: #241c14; font-size: 20px; font-weight: 900;
+}
+/* 별도 검수(10/8): 위 display가 hidden 속성을 덮어 느낌표가 늘 보였다 — 숨김이 이기게 한다 */
+[data-anchor="auction-door"] .door-bang[hidden],
+[data-anchor="auction-door"] .door-chip[hidden],
+[data-anchor="auction-level"] .door-bang[hidden],
+[data-anchor="auction-level"] .door-chip[hidden] { display: none; }
+/* 돈이 예상가에 닿았다 — 실선 금빛 테두리로 「누를 수 있다」를 보인다 */
+[data-anchor="auction-door"][data-ready="true"],
+[data-anchor="auction-level"][data-ready="true"] {
+  border-style: solid; border-color: #e8b84a; cursor: pointer;
+}
+[data-anchor="auction-door"][data-ready="true"]:hover,
+[data-anchor="auction-level"][data-ready="true"]:hover { background: #2e2418; }
+.ink-fill { background: linear-gradient(90deg, #3f6b8a, #62b6d8); }
+
+.record-box {
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.record-box p { font-size: 14px; color: #b09d7e; }
+.record-box b { font-size: 18px; color: #d8b978; margin: 0 2px; }
+.record-box .rec-side { font-size: 12.5px; color: #8d7b5f; margin-left: 8px; }
+
+/* ── 갤러리 칸 — 오른쪽 줄 안에서 높이를 고정해 아래 칸이 밀리지 않는다 ──
+   해금 전에도 같은 자리를 차지하고 잠긴 모습으로만 보인다. */
+[data-anchor="gallery-panel"] {
+  flex: 0 0 auto; height: 210px;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;
+}
+[data-anchor="gallery-panel"][data-unlocked="false"] {
+  border-style: dashed; border-color: #3a2f24; background: #1c1610;
+}
+[data-anchor="gallery-panel"][data-unlocked="false"] .panel-name,
+[data-anchor="gallery-panel"][data-unlocked="false"] .panel-head b { color: #5c5140; }
+.gallery-slot {
+  flex: 1 1 auto; display: flex; align-items: center; gap: 12px;
+  background: #1d1712; border: 1px solid #57452c; border-radius: 8px; padding: 10px 12px;
+}
+.gallery-slot canvas {
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  width: 64px; height: 64px; flex: 0 0 auto;
+  border: 2px solid #5b432c; border-radius: 4px; background: #14100c;
+}
+.gallery-text { min-width: 0; }
+.gallery-text b { display: block; font-size: 14px; color: #f3e7c8; margin-bottom: 4px; }
+.gallery-text span { font-size: 11.5px; color: #8d7b5f; line-height: 1.45; display: block; }
+[data-anchor="gallery-panel"][data-filled="true"] .gallery-slot { border-color: #d8b978; }
+
+/* ── 원작 선택 카탈로그 오버레이 ── */
+#dexOverlay {
+  position: absolute; inset: 0; z-index: 90;
+  background: rgba(8, 5, 3, 0.62);
+}
+#dexOverlay[hidden] { display: none; }
+#dexOverlay .dex-panel {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 760px; background: #221c16; border: 2px solid #d8b978; border-radius: 14px;
+  padding: 22px 26px;
+}
+#dexOverlay h2 { font-size: 18px; color: #f0e3c2; margin-bottom: 6px; }
+#dexOverlay #dexMode { font-size: 13px; color: #b09d7e; margin-bottom: 14px; }
+#dexOverlay #dexMode[data-selection-mode="next"] { color: #f4dc9a; font-weight: 800; }
+/* 2026-10-12 v5: 원작 6점 — 한 줄 6칸은 창 밖으로 넘쳐서 3칸 × 2줄로 둔다 */
+#dexList { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.dex-item {
+  flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 14px 10px; cursor: pointer; color: #e8dcc4; position: relative;
+}
+.dex-item:hover { border-color: #d8b978; }
+.dex-item canvas {
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  width: 128px; height: 128px; border: 2px solid #5b432c; border-radius: 4px;
+}
+.dex-item b { font-size: 15px; color: #f3e7c8; }
+/* 2026-10-08 4단계(형님 14-A): 가진 원작은 「Lv n」을 크게, 아직 없는 원작은 실루엣 + 자물쇠(누를 수 없음).
+   자물쇠는 그림 위에 얹지 않고 이름 줄에 둔다(겹침 금지). 작은 설명 글은 넣지 않는다. */
+.dex-item .dex-level { font-size: 18px; font-weight: 900; color: #e8b84a; min-height: 22px; }
+.dex-item[data-owned="false"] { cursor: default; border-style: dashed; }
+.dex-item[data-owned="false"]:hover { border-color: #6a563a; }
+.dex-item[data-owned="false"] b { color: #9b8a6c; }
+.dex-item .dex-badge { font-size: 11.5px; color: #6f6047; min-height: 16px; }
+.dex-item[data-current="true"] { border-color: #d8b978; }
+.dex-item[data-current="true"] .dex-badge { color: #d8b978; font-weight: 800; }
+.dex-item[data-next="true"] { border-color: #9fc37a; }
+.dex-item[data-next="true"] .dex-badge { color: #9fc37a; font-weight: 800; }
+#dexOverlay .dex-foot { display: flex; align-items: center; margin-top: 16px; gap: 10px; }
+#dexOverlay .dex-foot span { font-size: 12.5px; color: #9b8a6c; margin-right: auto; }
+#dexOverlay .dex-foot button {
+  background: #d8b978; color: #221c16; border: 0; border-radius: 6px;
+  padding: 9px 22px; font-size: 14px; font-weight: 800; cursor: pointer;
+}
+
+/* ── 전화 오버레이 — 최상위 fixed. 무대 앵커 좌표에 영향 없음 ── */
+#phoneOverlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(8, 5, 3, 0.72);
+}
+#phoneOverlay[hidden] { display: none; }
+#phoneOverlay .phone-dialog {
+  position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%);
+  width: 1280px; min-height: 190px;
+  display: flex; align-items: center; gap: 26px;
+  background: #221c16; border: 2px solid #d8b978; border-radius: 14px;
+  padding: 24px 30px;
+}
+#phoneOverlay .phone-text { flex: 1 1 auto; min-width: 0; }
+#phoneOverlay .phone-text p { font-size: 19px; line-height: 1.75; color: #f0e3c2; min-height: 100px; }
+#phoneOverlay .phone-controls { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+#phoneOverlay .phone-controls span { font-size: 13px; color: #b09d7e; margin-right: auto; }
+#phoneOverlay .phone-controls button {
+  background: #3a2f22; color: #e8dcc4; border: 1px solid #6a563a;
+  border-radius: 6px; padding: 9px 20px; font-size: 14px; cursor: pointer;
+}
+#phoneOverlay .phone-controls button:hover:not(:disabled) { border-color: #d8b978; }
+#phoneOverlay .phone-controls button:disabled { opacity: 0.4; cursor: default; }
+#phoneOverlay .phone-controls button.primary {
+  background: #d8b978; color: #221c16; border-color: #d8b978; font-weight: 800;
+}
+#phoneOverlay canvas {
+  image-rendering: pixelated; image-rendering: crisp-edges;
+  width: 176px; height: 56px; flex: 0 0 auto;
+}
+
+/* ── 시작 게이트 ── */
+#startGate {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(8, 5, 3, 0.86);
+}
+#startGate[hidden] { display: none; }
+#startGate button {
+  background: #d8b978; color: #221c16; border: 0; border-radius: 12px;
+  font-size: 26px; font-weight: 800; padding: 26px 60px; cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   모바일 전환 (2026-08-25 검수 지적 5)
+
+   문제: 좁은 화면에서도 1920×1080 무대를 통째로 등비 축소해 보여 줬다.
+   390×844에서는 축소율이 0.20까지 내려가 글자가 읽히지 않고, 무대 바깥이
+   잘려 시작·돈·현재 행동·작업대가 화면에서 사라졌다
+   (증거: qa/mobile-fresh-start-390x844.png · qa/mobile-count4-artworks-390x844.png).
+
+   해결: 좁은 화면에서는 축소를 걸지 않고 한 열 흐름으로 다시 배치한다.
+     상단 핵심 HUD(돈·초기화) → 작업/상점 → 중앙 작업대 → 상태 정보 순서다.
+   데스크톱 논리 좌표·크기 계약(1개 480/432 · 2개 430/387 · 배치 좌표)은
+   위쪽 규칙 그대로 남아 있고 여기서 건드리지 않는다 — 이 블록은 좁은 화면에서만 돈다.
+
+   기준값 700px는 app.js의 MOBILE_MAX_WIDTH와 같은 값이다.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 700px) {
+  /* 세로로는 읽을 수 있게 흐른다.
+     가로 넘침은 html에 뚜껑을 씌워 감추지 않는다 — 그렇게 하면 실제로 삐져나가도
+     문서 폭이 그대로라 qa-capture의 가로 넘침 검사가 아무것도 못 잡는다.
+     대신 아래에서 각 구역을 실제로 화면 폭 안에 담는다. */
+  html, body {
+    height: auto; min-height: 100%;
+    overflow-y: auto;
+  }
+
+  /* 무대 — 절대 상자와 인라인 축소를 함께 푼다.
+     축소 변환은 app.js가 인라인으로 걸던 값이라 !important로만 이길 수 있다.
+     overflow-x는 무대에만 건다: 무대 안 장식(카탈로그 낙하·배너 등)은 여기서 잘리고,
+     무대 밖 오버레이가 넘치면 문서 폭에 그대로 드러나 검사에 걸린다. */
+  #stage {
+    position: static; left: auto; top: auto;
+    width: 100%; max-width: 100%; height: auto; min-height: 100%;
+    /* 폭 100% 안에 좌우 padding 16px까지 포함한다. content-box면 390px 화면에서
+       실제 무대가 406px로 자라 가로 넘침이 생긴다. */
+    box-sizing: border-box;
+    transform: none !important;
+    overflow-x: hidden; overflow-y: visible;
+    padding: 8px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  /* 네 구역이 한 열로 선다 — 순서는 마크업 순서(HUD → 작업/상점 → 작업대 → 상태)다. */
+  #reviewBar,
+  [data-anchor="left-rail"],
+  [data-anchor="right-rail"] {
+    position: static; left: auto; top: auto;
+    width: 100%; max-width: 100%; height: auto;
+    overflow: visible;
+  }
+  /* 중앙 작업공간만 relative로 남긴다 — 안쪽 장식(등급 배너·카탈로그·해금 번쩍임)이
+     아직 절대 좌표를 쓰므로 기준 상자가 필요하고, 그 좌표가 화면 밖으로 나가지 않게
+     여기서 잘라 낸다. 흐름에 들어간 자식(작업대·결과판)은 높이를 그대로 밀어 올린다. */
+  [data-anchor="center-workspace"] {
+    position: relative; left: auto; top: auto;
+    width: 100%; max-width: 100%; height: auto;
+    overflow: hidden;
+  }
+  #reviewBar {
+    flex-wrap: wrap; gap: 8px; padding: 8px 10px; row-gap: 6px;
+  }
+  #reviewBar h1 { white-space: normal; font-size: 13px; flex: 1 1 100%; }
+  #scopeNote { flex: 1 1 100%; white-space: normal; }
+  /* 검수 제작 도구는 데스크톱에서 한 줄을 유지하되 모바일에서는 자기 줄 전체를 쓴다.
+     라벨만 첫 줄에 두고 버튼 묶음은 다음 줄에서 접어, 동시 제작을 해금한 뒤에도
+     마지막 「동시」 버튼의 실제 보이는 폭이 36px 아래로 잘리지 않게 한다. */
+  #reviewProductionTools {
+    flex: 1 1 100%; width: 100%; height: auto; min-width: 0;
+    box-sizing: border-box; flex-wrap: wrap; padding: 6px 8px;
+  }
+  #reviewProductionTools .review-only-tag { flex: 1 1 100%; }
+  /* 닫혀 있을 때도 opacity만 0인 NEW 알림이 데스크톱 left:292px를 유지하면
+     390px 화면 오른쪽을 약 15px 밀어낸다. 열릴 때와 닫힐 때 모두 화면 안에 둔다. */
+  .shop-unlock-popup {
+    left: 8px; right: 8px;
+    width: auto; max-width: none;
+  }
+  [data-anchor="left-rail"],
+  [data-anchor="right-rail"] { gap: 8px; padding: 10px; }
+  .mobile-workspace-jump {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    background: #d8b978;
+    color: #221c16;
+    border: 2px solid #f1d37e;
+    border-radius: 8px;
+    font-weight: 900;
+  }
+  [data-anchor="center-workspace"] {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 10px 6px;
+  }
+
+  /* 중앙 작업공간 안의 고정 좌표 조각들도 흐름 안으로 들어온다. */
+  [data-anchor="original-selector"],
+  [data-anchor="phone"],
+  [data-anchor="ink-panel"],
+  [data-anchor="ink-cartridge"],
+  [data-anchor="workbench"],
+  [data-anchor="finish-choice"],
+  [data-anchor="result-board"],
+  #probPanel,
+  #windowProbPanel,
+  /* 0827 승인 대출 A의 두 자리도 모바일에서는 한 열 흐름 안으로 들어온다.
+     닫혀 있을 때는 visibility만 감추는 것이 아니라 자리 자체를 접어, 390px 화면에서
+     빈 상자가 중앙 무대를 늘리지 않게 한다. */
+  #loanDrop,
+  #loanSlot {
+    position: static; left: auto; top: auto; right: auto; bottom: auto;
+    width: 100%; max-width: 100%; height: auto;
+    transform: none;
+  }
+  #loanDrop, #loanSlot { min-height: 60px; box-sizing: border-box; }
+  /* 계약서는 전화 확인 직후 반드시 다음 입력 대상이어야 한다. 한 열의 긴 문서 흐름에
+     놓으면 390×844 첫 화면 아래로 밀리므로, 열려 있는 동안만 화면 상단에 내려온다.
+     데스크톱 좌표와 우상단 상환 카드는 건드리지 않는다. */
+  #loanDrop {
+    position: fixed; left: 8px; right: 8px; top: 8px;
+    width: auto; max-width: none; z-index: 110;
+  }
+  /* 데스크톱의 우상단 계약 카드는 모바일에서 대응되는 고정 모서리가 필요하다.
+     서명 직후와 상환 중 언제든 확인할 수 있도록 하단 안전 여백 안에 붙인다. */
+  #loanSlot {
+    position: fixed; left: 8px; right: 8px; bottom: 8px; top: auto;
+    width: auto; max-width: none; z-index: 109;
+  }
+  #loanDrop:not([data-open="true"]),
+  #loanSlot:not([data-open="true"]),
+  #loanSlot[data-hidden="true"] { display: none; }
+  /* 접혀 날아가는 조각은 좌표 이동 연출이라 모바일에서는 쓰지 않는다 —
+     한 열 흐름에서는 출발·도착 좌표가 뜻을 잃고 화면만 흔든다. */
+  #loanFlyer { display: none; }
+  [data-anchor="phone"] { width: 140px; height: auto; margin: 0 auto; }
+  [data-anchor="phone"] canvas { width: 140px; height: auto; }
+  /* 모바일에서는 세로 잉크통을 그대로 세우면 480~776px 빈 기둥이 생겨
+     작품이 첫 화면 아래로 밀린다. 잔량 변화는 유지하되 짧은 가로 장치로 접는다. */
+  [data-anchor="ink-cartridge"] {
+    width: min(330px, calc(100vw - 44px)) !important;
+    height: 48px !important;
+    margin: 0 auto;
+    grid-template-columns: minmax(0, 1fr) 58px;
+    align-items: center;
+    gap: 6px;
+  }
+  [data-anchor="ink-cartridge"]:not([hidden]) { display: grid; }
+  [data-anchor="ink-cartridge"] .ink-pipe { display: none; }
+  [data-anchor="ink-cartridge"] .ink-tank {
+    position: relative; inset: auto;
+    width: 100%; height: 34px;
+  }
+  [data-anchor="ink-cartridge"] .ink-readout {
+    position: relative; inset: auto;
+    width: 58px; height: 34px;
+  }
+
+  /* 작업대 — 화면 폭을 따라 접힌다. 1칸은 한 장, 2~4칸은 두 열이다.
+     100vw를 그대로 쓰므로 어떤 칸수에서도 좌우로 잘리지 않는다. */
+  [data-anchor="workbench"] {
+    margin: 0 auto; gap: 8px; justify-content: center;
+    height: auto !important; min-height: 0;
+  }
+  [data-anchor="workbench"][data-slots="1"] {
+    --bench-size: min(330px, calc(100vw - 44px));
+    --bench-art-size: min(297px, calc((100vw - 44px) * 0.9));
+  }
+  [data-anchor="workbench"][data-slots="2"],
+  [data-anchor="workbench"][data-slots="3"],
+  [data-anchor="workbench"][data-slots="4"] {
+    --bench-size: min(161px, calc((100vw - 52px) / 2));
+    --bench-art-size: min(144px, calc(((100vw - 52px) / 2) * 0.9));
+  }
+  /* 유리창(2026-08-26)은 데스크톱에서 776px이지만 모바일에서는 화면 폭을 따라 접힌다.
+     1칸짜리 작업대와 같은 폭을 쓰므로 390×844에서도 좌우로 잘리지 않는다.
+     칸수 규칙보다 뒤에 와야 같은 특이도에서 이긴다 — 데스크톱과 같은 순서 계약이다. */
+  /* 2026-10-06 두 방 데모 B-1(2단계, 형님 「유리창 90% · 바닥 여백」): 모바일에서도 1칸 작업대 폭의 90%로 줄이고
+     작업칸 바닥과 여백(24px)을 둔다. 닦기 판정은 그대로다. */
+  [data-anchor="workbench"][data-bench="window"] {
+    --bench-size: min(297px, calc((100vw - 44px) * 0.9));
+    --bench-art-size: min(267px, calc((100vw - 44px) * 0.81));
+    margin-bottom: 24px;
+  }
+  [data-anchor="workbench"] .bench-unit { border-width: 6px; }
+
+  /* 결과판·마감 알림은 열릴 때 흐름 안에서 보인다 (덮어 가리지 않는다). */
+  [data-anchor="result-board"],
+  [data-anchor="finish-choice"] { order: 9; }
+  [data-anchor="result-board"][data-open="false"],
+  [data-anchor="finish-choice"][data-open="false"] { display: none; }
+  [data-anchor="result-board"][data-open="true"],
+  [data-anchor="finish-choice"][data-open="true"] { display: flex; }
+  .board-works { flex-direction: column; }
+
+  /* 넓은 오버레이 — 390px 안으로 묶는다. */
+  #phoneOverlay .phone-dialog,
+  #dexOverlay .dex-panel,
+  #debugPanel {
+    width: calc(100vw - 16px); max-width: 100%;
+    left: 8px; right: 8px; transform: none;
+  }
+  #phoneOverlay .phone-dialog { bottom: 12px; }
+  #dexOverlay .dex-panel,
+  #debugPanel { top: 8px; max-height: calc(100vh - 16px); overflow-y: auto; }
+  #dexOverlay, #jackpotOverlay, #act1Overlay { position: fixed; inset: 0; }
+  #act1Overlay h2 { font-size: 64px; letter-spacing: 3px; }
+  #act1Overlay .act1-sub { font-size: 18px; }
+
+  /* 단순 대출 계약서 — 390×844에서도 가로로 넘치지 않고 버튼을 누를 수 있어야 한다.
+     좌우 8px씩만 남기고 폭을 화면에 맞추고, 세로가 길어지면 종이 안에서 굴린다.
+     버튼은 줄바꿈으로 접히므로 세 개가 한 줄에 눌려 잘리는 일이 없다. */
+  .loan-contract-overlay { position: fixed; inset: 0; }
+  .loan-contract-dialog {
+    left: 8px; right: 8px; top: 50%;
+    width: auto; max-width: none;
+    transform: translateY(-50%);
+    max-height: calc(100vh - 16px); overflow-y: auto;
+    padding: 16px 14px;
+  }
+  .loan-term b { font-size: 26px; }
+  .loan-sign-body button,
+  .loan-actions button,
+  #phoneOverlay .phone-controls button { min-height: 44px; }
+  /* 닫기를 오른쪽 끝으로 밀면 좁은 화면에서 혼자 떨어져 보인다 — 흐름대로 둔다. */
+  #loanContractClose { margin-left: 0; }
+
+  #startGate button { font-size: 20px; padding: 18px 34px; }
+
+  /* 터치 목표 — 눌러야 하는 것은 모두 최소 36px 높이를 갖는다. */
+  button,
+  .rail-tabs button,
+  #reviewBar button,
+  [data-anchor="result-board"] button,
+  #debugPanel button {
+    min-width: 36px;
+    min-height: 36px;
+  }
+  .debug-pick, .debug-do { min-height: 36px; padding: 6px 10px; }
+}
+
+/* ══ 2026-10-20 두 방 데모 9판 — 그릴미 기둥 2단계 (시안 pillars-ui-mockup-2026-10-19-v2의 mockup.css를 옮김) ══
+   v8 규칙은 고치지 않고 위에 덧칠만 한다. 새 칸은 v8 카드(.work-card) · 경매장 문 칸 · 글꼴 · 색을 그대로 빌려 쓴다. */
+
+/* ── 왼쪽 맨 위 「보유 금액 + 구간 목표」 한 칸 (형님 10/19 12번 — 스크래치 왼쪽 위 돈 · 목표 막대처럼) ──
+   큰 돈 숫자 → 목표 막대(오른쪽에 구간 n / 11) → 이번 구간 금액 → 다음에 열리는 것.
+   v8 구간 목표 칸의 글(이번 구간 · 다음:)과 반짝임(data-flash)은 그대로 쓴다.
+   높이는 고정 — 글이 길어져도 아래 탭 · 카드가 밀리지 않는다(넘치는 글은 「…」). */
+[data-anchor="left-rail"] #goalPanel {
+  flex: 0 0 auto; height: 129px; overflow: hidden;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 10px 14px 11px; display: flex; flex-direction: column; gap: 6px;
+}
+#goalPanel .purse-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#goalPanel #coinIcon { flex: 0 0 auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+#goalPanel .purse-money { font-size: 30px; font-weight: 900; line-height: 1.05; color: #f4dc9a; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#goalPanel .purse-bar { display: flex; align-items: center; gap: 10px; }
+#goalPanel .purse-bar .xp-track { flex: 1 1 auto; min-width: 0; height: 12px; }
+#goalPanel .purse-step { flex: 0 0 auto; font-size: 12.5px; color: #b09d7e; white-space: nowrap; }
+#goalPanel .purse-step b { font-size: 15px; color: #d8b978; margin-left: 2px; }
+#goalPanel .goal-amount { font-size: 15px; }
+#goalPanel .goal-amount, #goalPanel .panel-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#goalPanel .panel-sub { font-size: 12.5px; line-height: 1.35; }
+/* 대출이 걸려 있을 때 위 막대의 짧은 요약 — 붉게(v8 보유 금액 색 규칙과 같은 뜻) */
+#reviewBar .money #loanNote2 { color: #e08a6a; font-weight: 800; }
+
+/* ── 왼쪽 원작 카탈로그 (한 장 제작) ── */
+/* 도화지 전화 전에는 자리만 지키고 보이지 않는다(v8 「도화지 구매」 카드와 같은 방식 — 좌표 불변). */
+.catalog-area { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; }
+.catalog-area[data-locked="true"] { visibility: hidden; pointer-events: none; }
+/* 원작 카드는 v8 레벨 칸 폭(--wc-lv-col)을 그대로 쓴다. 오른쪽 세 칸은 글자가 길어(「지금 브론즈」)
+   세 칸 중 가장 긴 글자 폭(--upg-lv-col)으로 첫 칸을 맞춰 막대가 같은 x에서 시작한다. */
+.upg3 .work-card .wc-bottom { grid-template-columns: var(--upg-lv-col, max-content) minmax(0, 1fr); }
+/* 돈이 모자란 카드 — 금액만 붉게(스크래치처럼), 누르지 못한다 */
+.work-card[data-short="true"] { cursor: default; }
+.work-card[data-short="true"] .wc-money { color: #e08a7a; }
+/* 지금 그리는 원작 — 금빛 테두리(v8 「살 수 있음」 테두리와 같은 빛) */
+.work-card[data-current="true"] {
+  border-color: #f1d37e;
+  box-shadow: 0 0 0 2px rgba(241, 211, 126, 0.22), 0 0 14px rgba(216, 176, 70, 0.3);
+}
+/* 그리는 동안 다른 카드는 흐리게 — 다 그린 뒤에 고른다(14-A) */
+.work-card[data-busy="true"] { opacity: 0.45; cursor: default; }
+/* 6-A — 첫 잉크통 선물: 다음 한 장 무료 */
+.work-card[data-free="true"] .wc-money { color: #9fc37a; }
+/* 다음 원작 예고 — 실루엣 · 「???」 · 참가비. 잠긴 칸처럼 점선이되 금액은 읽힌다 */
+.work-card[data-state="preview"] { border-style: dashed; border-color: #57452c; background: #1c1610; cursor: default; }
+.work-card[data-state="preview"] .wc-name { color: #8d7b5f; }
+.work-card[data-state="preview"] .wc-money { color: #b59a63; }
+.work-card[data-state="preview"] .wc-track { visibility: hidden; }
+/* 잠긴 칸 — 자물쇠 · 「잠김」 */
+.work-card[data-state="locked"] canvas { opacity: 0.8; }
+
+/* ── 오른쪽 「업그레이드」 세 칸 ── */
+.upg3 { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.upg3 .rail-title { padding-bottom: 0; }
+.upg3 .work-card[data-state="max"] { border-color: #6f8f5a; cursor: default; }
+.upg3 .work-card[data-state="max"] .wc-money,
+.upg3 .work-card[data-state="max"] .wc-level { color: #9fc37a; }
+.upg3 .work-card[data-state="max"] .wc-fill { background: #9fc37a; }
+.upg3 .work-card[data-state="ready"] .wc-money { color: #f4dc9a; }
+/* 산 직후 한 번 반짝 */
+.work-card.mk-bought { animation: mk-bought 0.6s ease-out; }
+@keyframes mk-bought { 0% { box-shadow: 0 0 0 0 rgba(244, 220, 154, 0.9); } 100% { box-shadow: 0 0 0 10px rgba(244, 220, 154, 0); } }
+
+/* ── 경매장 문 위 칸 — 예상가 · 한 장 참가비를 함께 (세 줄이라 높이 72 → 92) ── */
+[data-anchor="auction-door"] { height: 92px; }
+[data-anchor="auction-door"] .door-fee { font-size: 14px; color: #c9b891; white-space: nowrap; }
+[data-anchor="auction-door"] .door-fee b { color: #f4dc9a; font-weight: 800; }
+[data-anchor="auction-door"] .lock-chip { color: #8d7b5f; border-color: #57452c; }
+
+/* ── 갤러리 — 설명 글 두 줄을 빼 높이를 줄였다(형님: 작은 설명 글 금지) ── */
+[data-anchor="gallery-panel"] { height: 146px; }
+
+/* ── v9: 왼쪽 줄 자리 맞추기 — 맨 위에 돈 칸, 아래에 원작 카드 여섯 장이 들어가 v8의 아래쪽 줄이 모자란다 ──
+   · 상황 안내 한 줄(#workshopHint)은 화면에서 숨기고 읽어 주기(접근성)로만 남긴다 — 시안 2판에도 없던 줄이고,
+     같은 안내는 오른쪽 기록 줄(#recEvent) · 전화 · 빈 작업대 글이 말한다.
+   · 유리창 조작 도움(? 아이콘 · 도움 상자)은 DOM 자리는 그대로(안내 줄 곁) 두고 화면 자리만 옮긴다 —
+     ? 아이콘은 「작업 탭」 제목 줄 오른쪽 끝, 도움 상자는 작업 탭 맨 아래에 뜬다. 처음 자동으로 뜨는 첫 유리창 때는
+     원작 카탈로그가 아직 자리만 지키고 있어(보이지 않음) 아무것도 가리지 않고, 그 뒤 ?로 열면 아래쪽 카드를 잠깐 덮는다
+     (맨 위 뮤나리자 · 다음 원작 카드는 가리지 않는다). 휠을 굴리거나 「알겠어요」를 누르면 닫힌다. */
+#workshopPane { position: relative; }
+#workshopHint {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+#workshopPane #scrollHelpIcon { position: absolute; top: 10px; right: 2px; margin-top: 0; z-index: 6; }
+#workshopPane #scrollHelpBox {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; margin-top: 0;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+}

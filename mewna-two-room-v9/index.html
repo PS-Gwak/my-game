@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>뮤나리자 · B 전체 탭형 플레이 데모 — 2026-10-20 · 두 방 데모 9판 그릴미 기둥 2단계</title>
+<!--
+  뮤나리자 B 전체 탭형 기반 독립 플레이 데모.
+  · 2026-10-20 두 방 데모 9판(이 판 · 부모 = 8판 v8): 10/16 그릴미 기둥 2단계 — 시안 pillars-ui-mockup-2026-10-19-v2 그대로 옮김.
+    ① 한 장 제작: 왼쪽 「원작 카탈로그」 카드를 누르면 참가비를 내고 바로 그린다(도화지 구매 카드 · 원작 칸 · 카탈로그 팝업은 화면에서 뺌).
+    ② 한 번에 한 색: 원작 6점 4~6색(2번째 = 마티스 「춤」 고양이 다섯), 밀대 한 번 = 한 색, 마지막 색 자동 마감.
+    ③ 왼쪽 맨 위 = 보유 금액 + 구간 목표 · 오른쪽 맨 위 = 「업그레이드」 세 칸(모작 운 → 스퀴지 종류 → 스퀴지 속도).
+    ④ 기둥 경제 설계표 숫자 · 6-A(첫 잉크통 = 다음 한 장 무료) · 대출 「원」→「$」 · 저장 형식 6. 변경 계약 CHANGE-CONTRACT-9.md.
+  · 2026-10-16 두 방 데모 8판(이 판 · 부모 = 7판 v7): 10/16 그릴미 기둥 1단계 — 대출은 이자만(5$ 빌리고 10$ 갚기 · 불이익 효과 끔) ·
+    「잉크 질」 → 「모작 운」 · 경매장 문 아래 칸 = 지금 그리는 원작 레벨업(가진 원작 모두 레벨업). 변경 계약 CHANGE-CONTRACT-8.md.
+  · 2026-10-16 두 방 데모 7판(부모 · 그 부모 = 6판 v6): 잉크 부족 연출을 8/24 「치약 쥐어짜기」로 — 잔량이 한 장 필요량의 10% 아래면
+    칸이 군데군데 빠지고, 바닥나면 12% 마른 점만 남고 밀대 앞 잉크 둑이 사라진다(v6 세로 긁힘 대체).
+    형님 46-B(A·B·C 비교판 ink-squeeze-compare-2026-10-16-v1) · 47-A. 변경 계약 CHANGE-CONTRACT-7.md.
+  · 2026-10-16 두 방 데모 6판(부모 · 그 부모 = 5판 v5): 원작 6점을 모두 정사각형(16×16)으로 — 뮤나리자 예전 그림 롤백 ·
+    별밤 · 절규 여백 채움 · 해바라기 원작 구도로 다시(오푸스 임시) — 과 유리창 알바 하단 점(완주 횟수). 경제 숫자는 v5 그대로.
+    형님 메모 #2740 9 · 10번, 42-A · 43-A. 변경 계약 CHANGE-CONTRACT-6.md.
+  · 2026-10-12 두 방 데모 5판(부모 · 그 부모 = 4단계 v4): 작업실 경제 — 1달러 단위 · 원작 6점 사다리(원래 그림 비율) ·
+    업그레이드 5종 20단계 · 구간 11칸 · 확률 단계 표 · 경매장 문 매물 2칸(새 원작 + 주력 레벨업). 변경 계약 CHANGE-CONTRACT-5.md.
+  · 2026-10-08 두 방 데모 4단계(부모 · v3의 다음): 원작 고리 — 처음엔 뮤나리자만, 나머지 원작은 경매장 문에서
+    예상가로 얻는다(임시). 원작 급 배율 · 원작 레벨이 판매가를 올리고, 진주 고양이는 잉크가 두 배(잉크통 2단계가 다시 열림).
+  · 2026-10-08 두 방 데모 3단계(부모 · v3): 공방 경험치·레벨을 없애고 오른쪽 위를
+    「구간 목표 금액」 막대(이번 구간에 번 돈 · 200→500→1,200→3,000→7,500$)로 바꿨다. 구간마다
+    인쇄 스퀴지 → 경매장 문 자리 → 잉크 질 → 도화지 자동구매 → 작품 자동판매가 하나씩 열리고,
+    마지막 구간을 넘으면 「1막 끝」 화면(자리만). 레벨 판매가 보너스·잉크통 2단계 제거. 변경 계약: CHANGE-CONTRACT-3.md
+  · 2026-10-06 두 방 데모 A (이 자식 판 · 부모 = 2026-08-27 0827 2차 피드백 v1)에서 바꾼 것 —
+    그림 단계만 9/30 클로드판으로 바꿔 끼웠다: 세 회차 독립 추첨·최고 기록만 확보, 완료 점 ○○○,
+    확보 등급 둘레선·상승 때만 깜빡, 확보 등급 칸 강조(최종 결과 확률 기본).
+  · 2026-10-06 두 방 데모 B-1(2단계): 작업대 언제나 1대(두 번째 작업대 상품 제거), 모작·유리창 확률표를
+    그림 오른쪽 세로표로(마우스 올릴 때만, 9/30 클로드판), 유리창 90%. 변경 계약: CHANGE-CONTRACT-B1.md
+    최종 등급 확률·판매가·경제는 8/27 그대로. 변경 계약: CHANGE-CONTRACT-A.md
+  · 2026-08-27 0827 2차 피드백 v1 (부모 판)에서 바꾼 것 —
+    Apple Notes 2026-08-27 2차 피드백 네 항목만 반영했다. 경제 숫자·계산·규칙은
+    한 칸도 바꾸지 않았고, 표기와 화면 구성만 손댔다.
+    ㉮ 화폐 표기 — 활성 화면과 런타임 안내 전체에서 「원」을 버리고 숫자 뒤 `$`로
+       통일했다(이미 그렇게 쓰던 작업·상점 카드와 같은 문법). 「원작」·「원색」처럼
+       화폐가 아닌 낱말은 그대로 둔다.
+    ㉯ 유리창 알바 카드의 「현재 돈 금액」 — 레벨별 보수(40/53)가 아니라 매 작업을
+       시작할 때 실제로 내는 현재 구매값(선투자 s.windowCosts.upfront · 20$)을 쓴다.
+       보수 표기는 접근성 이름과 확률표에 그대로 남는다.
+    ㉰ 대출 통화 하단에만 붙던 안내 줄(#phoneOnlyNote)을 전용 CSS·JS 참조와 함께
+       지웠다. 대출 통화창 높이가 다른 전화와 같아진다.
+    ㉱ 왼쪽 「돈 · 대출」 카드(#economyCard)를 전용 CSS·렌더 함수·호출과 함께 통째로
+       뺐다. 상단 보유 금액, 대출 계약 흐름(위기 전화 → 낙하 계약서 → 서명 →
+       우상단 계약 카드 #loanSlot), 상환 UI는 그대로 살아 있다.
+    이 판은 여전히 검증용 시험안이다 — 최종안도, 채택된 판도, 배포된 판도 아니다.
+  · 아래는 부모(0827 승인 통합 · UI 프레젠테이션 v1)에서 물려받은 설명이다 —
+    부모(phone-guided-b-playable-0825-feedback-ui-followup-2026-08-27-v4)의 규칙과 잠긴 수치를
+    한 칸도 건드리지 않고, 동현이 0827에 명시 선택한 세 안만 이 판에 이식했다.
+    기술 검증 단계이며 최종안도, 채택된 판도, 배포된 판도 아니다.
+    ㉠ 대출 A · 스크래치 충실형 — 돈이 소진되면 대출은 거절 선택지 없이 반드시
+       진행한다. 전화는 안내만 한다. 상단에서 계약서가 내려오고(#loanDrop),
+       중앙 종이에서 서명한 뒤 계약이 우상단으로 접혀 이동하며(#loanSlot),
+       재전화가 그 자리를 가리킨다. 체결 뒤 대출 UI에는 상환금액 · 디버프 정보 ·
+       상환버튼만 남는다. 경제 계약(100/200 · 10% 셋 중 하나 · 완납 즉시 해제 ·
+       새 위기 재대출)은 부모 그대로다.
+    ㉡ 유리 A · 충격점 거미줄 — 파손 그림이 중앙 충격점에서 사방으로 번지는
+       거미줄형이 되고, 다음 단계로 넘어가기 전까지 화면에 그대로 남는다.
+       전체 초기화 시 정리 계약은 그대로 보존한다. 결과별 자동 마감은 승인
+       비교판의 감속 곡선(easeOutCubic)을 실제 게임 흐름에 연결했고, 디버그
+       창에서 자동 마감을 켜고 끄며 비교할 수 있다.
+    ㉢ 상점 B · 한줄 균형형 + 작업 탭 UI 통일 — 상점 카드와 작업 카드(유리창 알바 ·
+       도화지 구매)가 같은 네 항목만 담는다: 이름 / 현재 돈 금액 / 레벨 / 레벨
+       게이지바. 돈은 후치 $ 표기다. 설명문·보상 계산식·패널티 문장·진행 횟수·
+       최고 레벨 문구·재고 문구는 기본 카드에서 빠지고 접근성 이름에만 남는다.
+       경제·보상·해금 수치는 바뀌지 않았다.
+  · 아래는 부모 v4·v2 판에서 물려받은 설명이다 —
+    ㉠ 유리가 깨지는 결과에서만 닦던 그 유리 작업대 위에 2D 픽셀 균열이 단계별로
+       번진다(#glassCrackFx). 성공·대성공에서는 한 조각도 켜지지 않는다 —
+       판단은 화면이 아니라 State.glassBreakFx 규칙이 한다.
+    ㉡ 카드마다 고정 길이 레벨 진행 게이지가 있다. 트랙 길이는 레벨 0·1·MAX에서 같다.
+    ㉢ 두 확률 띠 모두 자기 대상(작업대·유리창)과의 세로 간격을 6px까지 줄였다.
+    ㉣ 유리 확률 띠는 유리 작업대 한가운데(중심 555px)에 정확히 선다. 두 띠의
+       폭은 내용에 맞게 서로 다르게 둔다.
+    부모(phone-guided-b-playable-simple-loan-contract-2026-08-26-v1)는 그대로 두고
+    승인된 0825 피드백과 스크래치식 대출 사건 순서를 이 판에서만 반영했다.
+    ① 자동 신용(debt)을 통째로 걷어냈다. 살 돈이 없으면 빚지지 않고 행동이 막힌다.
+       유리창 경제 20/20/40(시작 20 · 선투자 20 · 총보수 40 · 순이익 20)은 그대로다.
+       (2026-08-26 동현 확정) 선투자 20원을 못 내는 현금 0~19원에서는 유리창을
+       시작하지도, 첫 입력을 넣지도 못한다. 가진 돈만 내고 시작하거나 보수에서
+       부족분을 후불 정산하는 외상 경로는 없다. 막힌 그 순간이 생애 한 번의 위기
+       대출 전화가 열리는 자리이고, 전화를 이미 거절·소진한 생애에는 계속 막히기만
+       하며 자동 빚은 만들지 않는다. 그래서 총보수는 언제나 원금액 그대로다.
+    ② 유리창은 4겹을 유지하고, 기본 밀대 속도만 부모 기본값의 50%로 낮췄다.
+    ③ 레벨업 알림은 중앙 무대를 덮지 않는 작은 토스트다. 구매 카드는 이름·가격·
+       현재 단계·짧은 효과만 남긴다.
+    ④ 확률표는 제목을 가운데 두고 등급마다 고유 색을 쓴다. 군더더기 발문은 없앴다.
+       유리창 표는 같은 읽기 규칙을 쓰되 폭을 억지로 맞추지 않는다.
+    ⑤ 다중 작업대는 「포인터가 올라간 한 대」에만 입력이 들어가는 독립 입력이다.
+       그 작품만 진행되고 그 한 장분 잉크만 쓴다. 묶음 완료 조건은 그대로다.
+       검수용 동시 제작을 켜 둔 상태에서도 포인터·키 대상은 한 대뿐이고, 대상
+       판정이 실패해도 전체 입력으로 떨어지지 않는다. 1~4개 검수 전환은 그대로다.
+    ⑥ 새 장비가 처음 열릴 때만 작은 픽셀 아이콘 팝업 + NEW, 다음 단계는 NEW만.
+    ⑦ 대출은 상시 클릭 진입점이 아니다. 돈이 없어 막히는 한 번의 위기에서 전화가 오고,
+       권유 → 더 큰 금액 → 조건을 읽지 말라는 압박 → 안내 확인으로 이어진다.
+       (2026-08-27 대출 A 승인으로 마지막 장의 두 선택지는 확인 하나로 바뀌었다.)
+       레퍼런스 정본의 사건 순서는 「전화 안내 → 계약서 낙하 → 서명 → 100원 지급
+       → 악조건 공개」다. 안내 확인은 계약서를 내려보낼 뿐이고 돈이 오가지 않는다.
+       지급은 서명하는 그 순간이며, 이자 100%·총상환 200원은 지급 직후 재전화에서
+       반전으로 공개된다. 안내 확인은 전화 마지막 장에서만 성립한다(화면을 건너뛰어
+       불러도 실패한다). 분할 상환은 없고 언제나 200원을 한 번에 갚는다. 갚기 시작할
+       수 있는 현금은 회복 가능한 작품이 있으면 200원부터, 없으면 220원부터다(⑨).
+       (2026-08-26 독립 검토) 계약이 인정하는 잔액은 200원과 0원뿐이라, 저장이나 상태
+       주입으로 들어온 임의 잔액을 부분 상환액으로 받아들이지 않는다.
+       (2026-08-26 동현 승인) 잔액이 남은 동안 걸리는 것은 승인된 「약한」 불이익 셋 중
+       정확히 하나다 — 판매가 하락 / 상점가 상승 / 도구 감속이고 세 시험값은 모두 10%다.
+       서명하는 그 순간 결정적 난수 한 굴림이 하나를 고르고, 화면은 무엇이 걸렸는지와
+       그 폭을 숨기지 않는다. 옛 「핵심 반복 수입 전체를 50%로 깎는 규칙」은 폐기됐다.
+       제안·수락은 한 계약이 도는 동안 각각 한 번뿐이다. 다만 완납하면 그 계약이 닫혀
+       불이익이 즉시 풀리고, 그 뒤 새 위기가 오면 전화 → 수락 → 계약서 → 서명이
+       처음부터 다시 열려 100원을 또 빌릴 수 있다(그때 불이익을 다시 고른다).
+    ⑧ (2026-08-26 동현 확정) 공통 교착 방지 계약. 대출을 이미 쓰거나 거절해 다시 받을
+       수 없고 팔아서 회복할 작품도 없는 판에서, 현금을 선투자 20원 미만으로 떨어뜨리는
+       제품 구매를 막는다(재현 사례: 164원에서 150원짜리 잉크통 2단계 → 14원).
+       도화지·상점 업그레이드·두 번째 작업대가 같은 공통 함수 하나를 지난다. 도화지는
+       사는 순간 팔 수 있는 작품이 함께 생겨 막히지 않는다. 대출 제안이 남아 있거나 팔
+       작품이 있으면 기존 구매 규칙 그대로다. 막을 때는 카드에 「선투자 20원 남기기」를
+       띄우고 오른쪽 기록에 이유 한 줄을 남긴다. 검수용 현금 손잡이는 막지 않는다.
+    · 상단 탭 제목·h1에는 이 자식 판 라벨을 적는다.
+  · 아래는 부모(2026-08-26 C 작업 관제 통합 플레이판)에서 물려받은 설명이다:
+  · 2026-08-26 C 작업 관제 통합 플레이판에서 바꾼 것 —
+    비교판 C안(economy-ui-comparison-2026-08-26-v1/variant-c.html)의 「정보 구조」만
+    이 실제 플레이 화면에 최소 변경으로 이식했다. 비교판의 카드형 웹 UI는 가져오지 않았다.
+    ① 정보 구조 — 왼쪽 = 작업 행동 + 현금·대출 상태 / 중앙 = 기존 실제 작업 무대 /
+       오른쪽 = 기존 성장·갤러리·기록. 상단 HUD는 그대로 두되, 왼쪽만 봐도 행동과
+       경제를 함께 읽을 수 있다.
+    ② 경제 — 시작 현금 20원. 유리창 한 장을 시작할 때 선투자 20원을 먼저 낸다(한 장에 한 번).
+       레벨 0 = 일반 성공 100% · 총보수 40원(순이익 20원). 네 장이면 잔고가 정확히 100원.
+       레벨 1 = 일반 85%·53원 / 숨은 대성공 5%·86원 / 파손 10%.
+       확률표에는 성공 90% / 파손 10%만 보이고 대성공 5%와 86원은 숨긴다.
+       파손 = 선투자 20 + 배상 20 = 총손실 40원, 보수 0원.
+    ③ 신용 — 이 항목은 폐기됐다. 부모판에는 「유리창 노동비를 낼 때 부족한 만큼만
+       자동으로 빚이 되고, 모든 실제 수입이 그 빚부터 갚는다」는 자동 신용이 있었다.
+       위 ①의 2026-08-26 확정이 그 규칙을 통째로 대신한다 — 현금 하나뿐이고,
+       못 내면 빚이 아니라 차단이다. 이 판에서 「빚」은 계약 대출 하나뿐이다.
+    ④ 유리창 — 4겹으로 되돌렸고(부모의 6겹 회의 시험값 대체), 데스크톱에서는 3·4대 묶음과
+       같은 776×776 크기로 커진다. 모바일에서는 화면 폭을 따라 접힌다.
+    ⑤ 작업대 크기·배치는 한 픽셀도 바꾸지 않았다. 다만 상태가 서로 다르다 —
+       1대 480/432 · 2대 430/387은 확정값이고, 3·4대 380/342는 상속된 시험 표현이며
+       최종 크기는 아직 미정이다. 이 판에서 새로 확정하지 않는다.
+    여기 숫자는 이 판의 확정 규칙이며, 부모의 회의 시험값을 대신한다.
+  · 아래는 부모(2026-08-25 회의 전 추천안 통합판)에서 물려받은 설명이다:
+    ① 잉크 부족 — 「② 모자람」 기반. 잉크가 있는 구간은 정상 인쇄하고, 모자란 구간은
+       흐름을 끊지 않고 도화지 끝까지 밀되 마른 자국만 남는다(v6까지 세로 긁힘 → v7부터 8/24 치약 쥐어짜기 마른 점).
+    ② 밑그림 A/B — D키 디버그창의 「단색 윤곽(기본)」·「옅은 원색」 버튼으로 즉시 비교.
+    ③ 작품 경제 — 브론즈 기본 100원 · 미완성 정액 75원 · 손실 25원.
+    ④ 경매 — 「경매 연결 예정 · 세부 규칙 미정」 안내만. 배율·적발률·페널티는 만들지 않는다.
+  · 아래는 부모(2026-08-19 유리창 개편·잉크통 노출판)에서 물려받은 설명이다:
+  · 2026-08-19에서 바꾼 것 (0817 피드백 2·3·4번 + 8/18 저녁 잉크통 지시):
+    유리창 — 4겹 · 레벨 0(1~4장) 장당 25원 고정·일반 100%, 네 장 뒤 100원과 레벨 1,
+        레벨 1은 일반 85%·33원 / 대성공 5%·66원 / 실패 10%·0원(차감 없음).
+        대성공은 숨은 확률이라 화면 확률표에는 성공 90%로만 보인다.
+        레벨 게이지는 왼쪽 유리창 알바 버튼 안에, 확률표는 모작 확률표와 같은 자리에.
+    잉크통 — 도화지를 사기 전에는 화면에 아예 없다. 2단계(150원 · 두 장분)를 새로 만들었다.
+        잉크가 다음 한 장을 못 채우면 그 도화지를 놓지 않고 잉크통을 키우라고 안내한다.
+    디버그 — D키로 여는 가운데 팝업. 유리창 겹 수·밀대 속도·레벨 0 완성 보수 3항목.
+  · 아래는 부모(2026-08-15 A~D 통합판)에서 물려받은 설명이다:
+    C — 작업대 1~4개 배치(1 중앙 / 2 한 줄 중앙 / 3 오른쪽 아래 공석 / 4 2×2)와
+        1~4가 공유하는 작품 표시 크기 하나, 순차 시작 → 동시 해금 → 방식 선택.
+    B — 2×2 예약 틀 왼쪽에 고정된 문 옆 잉크 카트리지(상단 배관·유리통·수치판),
+        현재 잔량과 다음 입력 비용을 함께 글자로 표시, 주의·차단 문구.
+    D — 순차와 동시의 총 잉크는 같고 입력 횟수만 다르다는 비교 결과를 그대로 따른다.
+    3·4번째 작업대와 동시 제작은 「검수 전용 전환」으로만 체험한다 — 자연 플레이는
+    작업대 1개·순차 시작이다. (유료 두 번째 작업대 60원 경로는 2026-10-06 B-1에서 닫았다.)
+  · 2026-08-12에서 이어받은 것: 첫 정상 완성품 판매 직후 60원에 열리는 두 번째 작업대 상품,
+    상점 탭 금빛 NEW와 카드 금빛 테두리(확인하면 함께 꺼지고 다시 켜지지 않음),
+    구매 뒤 A안 문법의 같은 규격 독립 작업대 두 대와 위쪽 공통 수동 목재 밀대 하나,
+    일반 상점에서 빠진 유리창 전용 강화 카드 두 장.
+    무료 확장도, 세 번째 작업대도, 리셋용 별도 재화도 없다.
+  · 라운드 001에서 이어받은 것: 첫 도화지 안내 통화 전 유리창 대성공 0%,
+    자동 판매하지 않고 작업대에 남는 첫 미완성 작품과 「미완성 복제품 70원에 판매」,
+    도화지 100 / 판매 70 / 손실 30 결과와 「확인」, 확인 뒤에만 한 번 울리는 잉크통 전화,
+    포인터를 따라다니지 않고 제자리에 고정된 등급 확률표.
+  · 라운드 005의 무료 두 칸 작업대는 폐기 그대로 — 두 번째 칸은 반드시 사야 열린다.
+  · 라운드 005에서 이어받은 것: 한 번 누르면 한 장(100원)만 사는 도화지,
+    산 만큼만 처리하면 끝나는 결과판, 도화지가 있을 때만 켜지는 잉크 표시,
+    닦임 단계와 무관한 고정 작업 탭 아이콘, 유리창 전용 닦기 효과음,
+    내려앉은 카탈로그의 금빛 유도, 대성공의 1.2초 입력 잠금 오버레이.
+  · 부모 검수본: phone-guided-b-playable-flexible-workbench-ui-2026-08-10-v1 (라운드 005판).
+  · UI 골격: phone-guided-ui-variants-2026-08-06/variant-b (좌 탭줄 / 중앙 무대 / 우 세로줄)
+  · 유리창: show-window-print-feedback-v3-2026-08-04의 「B. 흰색 클린 창문」
+           + 2026-08-06 확정 「때 5레이어 실제 지우기」·창틀 두께 절반
+  · 인쇄: 정본 2026-07-21-squeegee-v6.html 「시안 D · 결과별 자동 마감」
+  · 학습 문법: 상황 → 전화 → 새 물건 등장 → 잠금 해제 → 고정 자리 편입 → 즉시 사용
+  · 새 UI(경험치·잉크·마감 알림)는 처음부터 자리를 차지해 두고 보이기만 켠다.
+    그래서 어떤 상태에서도 기존 구역이 밀리거나 잘리지 않는다.
+  · 잉크 표시는 오른쪽 세로줄에서 작업대 바로 위 고정 자리로 옮겼다(라운드 003).
+    칸·리터가 아니라 「현재 잉크 %」와 「완성 필요 100%」로만 말한다.
+  실행: 이 파일을 더블클릭(file://)하거나 아무 로컬 서버로 열면 된다. 외부 요청 없음.
+-->
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="stage" aria-label="뮤나리자 플레이 데모 무대">
+
+  <!-- 검수 상태바 — 높이 48px 상시 예약. 완료 표시와 전체 초기화(확인 절차)가 여기 산다. -->
+  <div id="reviewBar">
+    <h1>뮤나리자 · B 플레이 데모 · 2026-10-20 · 두 방 데모 9판 그릴미 기둥 2단계 (검증용 시험안)</h1>
+    <span id="scopeNote" aria-live="polite"></span>
+    <!-- 2026-08-26: 상단 HUD는 그대로 유지한다. 다만 이제 「같은 정보를 왼쪽에서도
+         읽을 수 있다」가 계약이라, 여기 지갑은 현금과 빚을 한 줄로 요약만 한다.
+         빚이 없을 때는 빈 글자라 자리만 잡고 아무것도 보이지 않는다. -->
+    <!-- 2026-10-20 v9(시안 2판 · 형님 12번): 보유 금액은 왼쪽 맨 위 「보유 금액 + 구간 목표」 칸으로 옮겼다.
+         여기는 대출이 걸려 있을 때의 짧은 요약 한 줄만 남는다(없으면 빈 글자). -->
+    <span class="money"><span id="loanNote2" aria-live="polite"></span></span>
+    <!-- 검수 전용 돈 — 실제 경제와 분리된 도구. 돈만 더하고 해금·판매 수·작품 결과·
+         경험치·작업 상태는 건드리지 않는다. 한 번이라도 쓰면 표시가 계속 남는다. -->
+    <span id="reviewMoneyTools" aria-label="검수용 돈 추가 도구">
+      <button type="button" id="reviewMoney20">+20$</button>
+      <button type="button" id="reviewMoney100">+100$</button>
+      <button type="button" id="reviewMoney500">+500$</button>
+      <button type="button" id="reviewMoney10000">+1만$</button>
+      <button type="button" id="reviewMoney100000">+10만$</button>
+      <span id="reviewMoneyNote" aria-live="polite"></span>
+    </span>
+    <!-- 검수 전용 제작 전환 — 3·4번째 작업대와 동시 제작은 여기서만 열어 본다.
+         자연 플레이는 언제나 작업대 1개·순차 시작이다(유료 두 번째 작업대는 10/6 B-1에서 닫음). 돈·경험치·판매수·상점·업그레이드·자연 상품 해금을
+         하나도 바꾸지 않으며, 전체 초기화하면 작업대 1·순차·동시 잠김으로 돌아간다.
+         제작 중(첫 입력 이후)에는 방식·작업대 수 전환을 거절하고 버튼도 비활성이다 —
+         제작 중 방식 변경 허용 여부 자체는 아직 미정이라 여기서 확정하지 않는다. -->
+    <!-- 2026-10-06 두 방 데모 B-1: 작업대 확장 제외 — 여러 작업대·동시 제작 검수 묶음은 화면에서 숨긴다.
+         버튼과 엔진 검수 손잡이는 남겨 두어 자동 검사·캡처 도구가 그대로 쓴다. -->
+    <span id="reviewProductionTools" data-review-only="true" hidden
+      aria-label="검수 전용 제작 전환 도구">
+      <span class="review-only-tag">검수 전용 TEST</span>
+      <span class="review-group" role="group" aria-label="검수 작업대 수">
+        <button type="button" id="reviewBench1">1</button>
+        <button type="button" id="reviewBench2">2</button>
+        <button type="button" id="reviewBench3">3</button>
+        <button type="button" id="reviewBench4">4</button>
+      </span>
+      <button type="button" id="reviewSimulUnlock">동시해금</button>
+      <span class="review-group" role="group" aria-label="검수 제작 방식">
+        <button type="button" id="reviewModeSequential">순차</button>
+        <button type="button" id="reviewModeSimultaneous">동시</button>
+      </span>
+    </span>
+    <span id="resetArea">
+      <button type="button" id="resetBtn">전체 초기화</button>
+      <span id="resetConfirm" hidden>
+        <span class="reset-ask">처음부터 다시 할까요?</span>
+        <button type="button" id="resetConfirmBtn">예, 초기화</button>
+        <button type="button" id="resetCancelBtn">취소</button>
+      </span>
+    </span>
+  </div>
+
+  <!-- 왼쪽 구매줄 — B 전체 탭형: 탭 막대 아래가 통째로 교체된다.
+       잠긴 항목은 자리를 그대로 차지한 채 보이지만 않는다(좌표 불변). -->
+  <aside data-anchor="left-rail" data-left-rail="full-tabs" aria-label="왼쪽 구매줄 — 전체 탭형">
+    <!-- 2026-10-20 v9(시안 2판 · 형님 12번): 보유 금액 + 구간 목표 한 칸 — 스크래치 왼쪽 위 돈 · 목표 막대처럼.
+         위 막대의 보유 금액과 오른쪽 줄의 구간 목표 칸을 여기로 합쳤다. 앵커 이름(xp-panel)은 그대로 쓴다.
+         높이는 고정 — 글이 길어져도 아래 탭 · 카드가 밀리지 않는다(넘치는 글은 「…」). -->
+    <div data-anchor="xp-panel" id="goalPanel" role="group" aria-label="보유 금액과 구간 목표">
+      <div class="purse-top">
+        <canvas id="coinIcon" width="22" height="22" aria-hidden="true"></canvas>
+        <b class="purse-money" id="moneyView">1$</b>
+      </div>
+      <div class="purse-bar">
+        <div class="xp-track"><span class="xp-fill" id="goalFill"></span></div>
+        <span class="purse-step">구간 <b id="goalStep">1 / 11</b></span>
+      </div>
+      <p class="goal-amount" id="goalText">이번 구간 0 / 10$</p>
+      <!-- 별도 검수(10/8): 「구간 n 달성」은 따로 떠 있는 토스트 대신 이 줄이 2.4초 동안 바뀌어 알린다 -->
+      <p class="panel-sub" id="goalReward" role="status" aria-live="polite">다음: 스퀴지 속도</p>
+    </div>
+    <div class="rail-tabs" id="paneToggle" role="tablist" aria-label="작업/상점 전환">
+      <button type="button" id="workshopTabBtn" class="on" role="tab"
+        aria-selected="true" aria-controls="workshopPane">작업</button>
+      <button type="button" id="shopTabBtn" role="tab" tabindex="-1" data-unlocked="false"
+        aria-selected="false" aria-controls="shopPane">상점</button>
+    </div>
+
+    <div class="rail-pane" id="workshopPane" role="tabpanel" aria-labelledby="workshopTabBtn">
+      <div class="rail-title">작업 탭</div>
+      <!-- 보수 문구와 접근성 이름에는 숫자를 고정해 두지 않는다. 지금 유리창 레벨의
+           확정 결과표(State.windowResultFor)를 읽어 app.js가 둘 다 다시 쓴다 (A 계약 5절). -->
+      <!-- ── 0827 승인 · 상점 B「한줄 균형형」 + 작업 탭 UI 통일 ─────────────────
+           작업 버튼으로 열리는 카드와 상점 카드가 같은 네 항목만 담는다.
+             첫 줄 — 이름 · 현재 돈 금액(후치 $)
+             둘째 줄 — 레벨 · 레벨 게이지바(남은 폭 전부)
+           설명문·보상 계산식·패널티 문장·진행 횟수·최고 레벨 문구·재고 문구는 본문에서
+           빠지고 접근성 이름에만 남는다. 짙은 갈색 바탕·금빛 테두리·글꼴·간격은
+           부모 데모의 실제 룩 그대로다. -->
+      <button type="button" class="work-card" id="jobBtn" aria-label="유리창 알바">
+        <canvas id="windowIcon" width="48" height="48" aria-hidden="true"></canvas>
+        <span class="wc-body">
+          <span class="wc-top">
+            <span class="wc-name">유리창 알바</span>
+            <span class="wc-money" id="jobMoney">2$</span>
+          </span>
+          <span class="wc-bottom">
+            <span class="wc-level" id="jobLevel">Lv. 0</span>
+            <span class="wc-track" aria-hidden="true"><span class="wc-fill" id="jobGaugeFill"></span></span>
+          </span>
+        </span>
+      </button>
+      <!-- 모바일에서는 왼쪽 카드가 세로로 쌓이므로 현재 작업까지 바로 내려가는 길을 둔다.
+           데스크톱에서는 중앙 작업대가 늘 보이므로 CSS로 숨긴다. -->
+      <button type="button" class="mobile-workspace-jump" id="mobileWorkspaceJump">
+        현재 작업 보기
+      </button>
+      <!-- 2026-10-20 v9 · 한 장 제작(그릴미 기둥 2-1 · 시안 2판 · 형님 11-A · 15-A) —
+           원작 사다리 순서로 카드 여섯 장이 선다: 가진 원작 · 다음 새 원작(??? 실루엣 + 참가비) · 그 뒤 잠김.
+           가진 원작 카드를 누르면 그 원작의 한 장 참가비를 내고 바로 그리기 시작한다. 카드 금액 = 한 장 참가비.
+           그리는 동안(판매 전) 다른 카드는 누를 수 없다(14-A). 도화지 전화 전에는 자리만 지키고 보이지 않는다.
+           (v8의 「도화지 구매」 카드와 「작업대 · 한 대」 칸은 뺐다 — 작업대 늘리기는 9/9에 제외.) -->
+      <div class="catalog-area" id="catalogArea" data-locked="true">
+        <div class="rail-title">원작 카탈로그</div>
+        <div class="upg-list catalog-list" id="catalogList" aria-label="원작 카탈로그 — 누르면 참가비를 내고 바로 한 장 제작">
+        <button type="button" class="work-card" id="cat-mewna-lisa" data-state="locked">
+          <canvas width="48" height="48" aria-hidden="true"></canvas>
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name"></span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+        <button type="button" class="work-card" id="cat-dance" data-state="locked">
+          <canvas width="48" height="48" aria-hidden="true"></canvas>
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name"></span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+        <button type="button" class="work-card" id="cat-pearl-cat" data-state="locked">
+          <canvas width="48" height="48" aria-hidden="true"></canvas>
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name"></span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+        <button type="button" class="work-card" id="cat-starry-night" data-state="locked">
+          <canvas width="48" height="48" aria-hidden="true"></canvas>
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name"></span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+        <button type="button" class="work-card" id="cat-scream" data-state="locked">
+          <canvas width="48" height="48" aria-hidden="true"></canvas>
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name"></span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+        <button type="button" class="work-card" id="cat-kiss" data-state="locked">
+          <canvas width="48" height="48" aria-hidden="true"></canvas>
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name"></span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+        </div>
+      </div>
+      <!-- 2026-08-27 2차 피드백 ㉱: 여기 있던 왼쪽 경제 카드(#economyCard)는 통째로
+           빠졌다. 현금은 상단 보유 금액이 말하고, 대출은 위기 전화 → 낙하 계약서 →
+           서명 → 우상단 계약 카드(#loanSlot) → 상환 UI가 그대로 말한다.
+           전용 CSS(.econ-*)와 렌더 함수(renderEconomyCard)도 함께 지웠다. -->
+      <p class="rail-note" id="workshopHint"></p>
+      <!-- 유리창 조작 도움 — 2026-08-20 형 확정(문제 A): benchCaption 제거의 보완.
+           첫 유리창 진입 때 1회 자동으로 열리고, 휠을 굴리면 닫힌다. 이후엔 ? 아이콘.
+           왼쪽 카드 안에만 살아서 작업대(도화지)와 겹칠 일이 원천적으로 없다. -->
+      <button type="button" class="help-icon" id="scrollHelpIcon"
+              aria-label="유리창 조작 도움말">?</button>
+      <div class="scroll-help" id="scrollHelpBox" hidden>
+        <b>유리창 닦는 법</b>
+        <p>작업대 위에서 <b>휠을 아래로</b> 굴리거나 <b>↓키</b>를 누르면 밀대가 내려갑니다.
+           맨 위부터 끝까지 완주하면 한 겹이 벗겨져요. 겹을 모두 벗기면 창문 한 장 완성!</p>
+        <button type="button" id="scrollHelpClose">알겠어요</button>
+      </div>
+    </div>
+
+    <!-- 상점 탭 — 업그레이드 3항목이 「선형 해금」 순서대로 열리고, 그 아래에
+         두 번째 작업대 상품 자리가 붙는다. 네 자리 모두 처음부터 예약되어 있고,
+         열리기 전에는 잠긴 모습으로만 보인다.
+         2026-08-12 계약 15: 유리창 전용 강화 카드 두 장은 일반 상점에서 뺐다.
+         유리창 전용 성장 화면도 따로 만들지 않는다. -->
+    <div class="rail-pane" id="shopPane" role="tabpanel" aria-labelledby="shopTabBtn" hidden>
+      <div class="rail-title">상점 탭 <span class="rail-count" id="shopCount"></span></div>
+      <!-- 0827 승인 · 상점 B「한줄 균형형」 — 작업 탭 카드와 정확히 같은 네 칸 구조다.
+           카드 여섯 자리는 그대로 예약되어 있고, 잠긴 자리는 글자만 비운다. -->
+      <div class="upg-list" id="upgradeList">
+        <button type="button" class="work-card" id="upg-inkTank" data-state="locked">
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name">잉크통 크기</span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+        <!-- 2026-10-20 v9: 「인쇄 스퀴지 속도」 · 「모작 운」은 오른쪽 맨 위 「업그레이드」 세 칸으로 옮겼다(시안 2판). -->
+        <!-- 2026-08-19 자동화 두 종 (0817 피드백 9번 · 재현이형 아이디어).
+             손으로 누르던 반복을 게임이 대신한다. 자동구매를 앞에 둔 것은 도화지 사기가
+             선택도 볼거리도 없는 순수 반복이기 때문이고, 자동판매를 뒤로 미룬 것은
+             팔기에 「등급 확인」이라는 이 게임 최고의 볼거리가 붙어 있기 때문이다. -->
+        <button type="button" class="work-card" id="upg-autoBuyPaper" data-state="locked">
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name">한 장 자동 제작</span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+        <button type="button" class="work-card" id="upg-autoSellWork" data-state="locked">
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name">작품 자동판매</span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+        <!-- 자동판매 켜고 끄기 — 산 뒤에만 보인다. 갤러리에 걸고 싶은 작품이 나왔을 때
+             잠시 꺼 두라고 만든 스위치다. 없으면 자동판매를 사는 순간 갤러리에 걸
+             작품이 영영 안 생긴다. -->
+        <div class="auto-sell-switch" id="autoSellSwitch" hidden>
+          <span class="ass-label">자동판매</span>
+          <button type="button" class="ass-btn" id="autoSellOnBtn">켬</button>
+          <button type="button" class="ass-btn" id="autoSellOffBtn">끔</button>
+          <span class="ass-note" id="autoSellNote"></span>
+        </div>
+        <!-- 두 번째 작업대 상품 — 첫 정상 완성품을 판 순간에만 열린다.
+             열리는 동안 data-new="true"가 되어 카드에 금빛 테두리가 켜지고,
+             상점을 열어 카드를 확인하면 상점 탭 NEW와 함께 꺼진다. -->
+        <!-- 2026-10-06 두 방 데모 B-1: 작업대 확장 제외 — 카드는 남기되 상점에 세우지 않는다(hidden). -->
+        <button type="button" class="work-card" id="upg-secondWorkbench"
+          data-state="locked" data-new="false" hidden>
+          <span class="wc-body">
+            <span class="wc-top"><span class="wc-name">두 번째 작업대</span><span class="wc-money"></span></span>
+            <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+          </span>
+        </button>
+      </div>
+      <p class="rail-note">업그레이드는 갈래로 나뉘지 않고 위에서 아래로 하나씩 열립니다.</p>
+      <button type="button" class="rail-back" id="backToWorkshopBtn"
+        aria-label="작업 탭으로 돌아가기">작업 탭으로 돌아가기</button>
+    </div>
+  </aside>
+
+  <!-- 중앙 작업공간 -->
+  <section data-anchor="center-workspace" aria-label="중앙 작업공간">
+
+    <!-- 원작 슬롯 — 카탈로그가 고정 편입되기 전에는 보이지 않는다 (자리만 예약) -->
+    <button type="button" data-anchor="original-selector" id="originalSelectorBtn" data-locked="true"
+      aria-haspopup="dialog" aria-label="원작 선택 카탈로그 열기">
+      <canvas id="originalIcon" width="64" height="64" aria-hidden="true"></canvas>
+      <span class="sel-text">
+        <b id="originalName">원작을 고르세요</b>
+        <span id="originalSub">누르면 카탈로그가 열립니다</span>
+      </span>
+    </button>
+
+    <!-- 빨간 전화기 — 처음부터 이 자리에 보이지만 울리기 전에는 클릭 불가 -->
+    <button type="button" data-anchor="phone" id="phoneBtn" disabled aria-label="빨간 회전식 전화기">
+      <canvas id="phoneCanvas" width="192" height="160" aria-hidden="true"></canvas>
+    </button>
+
+    <!-- 잉크 표시 — 작업대 바로 위 고정 자리 (라운드 003에서 오른쪽 줄에서 옮겨 왔다).
+         칸·리터는 내부 계산용이고, 플레이어에게는 완성 기준 퍼센트로만 말한다. -->
+    <div data-anchor="ink-panel" id="inkPanel" data-out="false" aria-label="잉크 상태">
+      <div class="ink-head">
+        <span class="ink-name">잉크</span>
+        <b id="inkView">현재 잉크 50%</b>
+        <span class="ink-need" id="inkNeed">완성 필요 100%</span>
+      </div>
+      <div class="ink-track"><span class="ink-fill" id="inkFill"></span></div>
+      <p class="ink-state" id="inkState"></p>
+    </div>
+
+    <!-- 문 옆 잉크 카트리지 (2026-08-15 B 확정 · 승인 시안 A) —
+         최대 2×2 작업대 전체 틀의 왼쪽에 고정된 세로형 설비다. 상단 배관 → 둥근 사각
+         유리통(액체는 아래에 고이고 소비하면 윗면이 내려간다) → 아래 수치판이
+         하나의 덩어리로 이어진다. 작업대가 1개든 4개든 위치·크기 관계를 그대로 지키며,
+         작품·작업대·왼쪽 준비 패널·오른쪽 확률표·작품별 결과 연출을 가리지 않는다.
+         수치판은 「현재 잔량」과 「다음 한 번의 입력 비용」을 함께 글자로 보여 주고,
+         가능한 입력이 2회 이하이면 색과 남은 횟수 문구를 함께 쓰는 주의 상태가 된다.
+         최종 용량·가격·업그레이드 수치는 미정이라 이 화면에 숫자로 만들지 않는다. -->
+    <div data-anchor="ink-cartridge" id="inkCartridge" data-state="idle" aria-label="잉크 카트리지">
+      <span class="ink-pipe" aria-hidden="true"></span>
+      <div class="ink-tank" aria-hidden="true">
+        <span class="ink-liquid" id="inkLiquid"></span>
+      </div>
+      <div class="ink-readout">
+        <b id="inkNowView">대기</b>
+        <small id="inkNextView">도화지 없음</small>
+        <span id="inkCartridgeState" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <!-- 작업대 — 유리창 알바와 인쇄가 모두 여기서 벌어진다.
+         data-slots는 칸 수(1~4)다. 2026-08-15 C 확정: 2×2 예약 틀은 어떤 칸 수에서도
+         같은 자리·같은 크기이고, 그 안에서 1은 가운데, 2는 한 줄 중앙, 3은 오른쪽 아래를
+         비운 2×2, 4는 2×2 중앙으로 놓인다. 작품 표시 크기는 1~4가 CSS 공통 변수 하나를
+         함께 쓰며, 작업대가 늘었다는 이유로 작품을 줄이지 않는다.
+         휠 입력을 받는 곳은 이 상자 하나다.
+         2026-08-12 계약 11·12: 같은 규격 작업대가 각자 나무 상판·받침을 세우고,
+         그 위를 지나는 것은 공통 수동 목재 밀대 하나뿐이다 — 자동 설비는 넣지 않는다.
+         정확한 픽셀 좌표와 작품 사이 간격은 아직 미정이라 후속 비교 시안에서 정한다. -->
+    <div data-anchor="workbench" id="workbench" data-slots="1" tabindex="0" role="application"
+      aria-label="작업대 — 휠을 아래로 굴리거나 아래 화살표 키로 밀대를 밉니다">
+      <!-- 2026-08-19: 위쪽 공통 목재 밀대는 폐기됐다. v6 시안 D처럼 밀대를 도화지 그림
+           안에 직접 그리면서 도화지마다 자기 밀대를 하나씩 갖게 됐고, 시작 위치도 저절로
+           도화지 맨 위가 됐다(옛 막대는 별도 좌표 top 118px에서 시작해 4분의 1 지점처럼
+           보였다). 공동 막대까지 남기면 밀대가 두 개로 보여 함께 없앴다. -->
+      <!-- 작업대 한 대 = 칸 하나. 구매한 칸 수만큼 서고, 그 위에 도화지가 올라갔는지는
+           별개다 — 빈 작업대도 같은 자리에 같은 규격으로 그대로 보인다 (계약 11). -->
+      <div class="bench-unit" id="benchUnitA" data-filled="false">
+        <canvas id="benchCanvas" width="48" height="48" hidden></canvas>
+        <p class="bench-empty" id="benchEmpty"></p>
+        <!-- 유리 파손 균열 층 — 2026-08-27 v1 · 유리 A「충격점 거미줄」 승인 이식.
+             (승인 근거: comparison-0827-glass-presentation-2026-08-27-v1 ·
+              실제 데모 룩 검토판 demo-look-a-glass-review-2026-08-27-v2)
+             한 번 세게 찍힌 중심에서 금이 사방으로 번지는 그림이다. 조각·선 모두
+             축에 맞춘 픽셀 계단(shape-rendering: crispEdges)이고 data-step이 1→4로
+             오를 때마다 다음 묶음이 드러난다.
+             켜고 끄는 판단은 화면이 하지 않는다 — State.glassBreakFx(결과 키)가
+             파손일 때만 계획을 돌려주므로 성공·대성공에서는 한 줄도 켜지지 않는다.
+             바깥 workbench가 아니라 실제 유리 한 장인 이 bench-unit 안에 산다 —
+             모바일에서 여러 작업대가 서도 균열이 유리 한 장에 정확히 얹힌다.
+             자리를 차지하지 않는 덮개층이라 작업대·작품 좌표를 한 픽셀도 밀지 않는다. -->
+        <div id="glassCrackFx" data-open="false" data-step="0" aria-hidden="true">
+          <svg class="impact-web-crack" viewBox="0 0 400 400" preserveAspectRatio="none"
+            shape-rendering="crispEdges" aria-label="중앙 충격점에서 사방으로 번지는 거미줄 균열">
+            <g class="crack-shadow">
+              <path d="M210 184 154 126 112 62M204 190 254 127 294 80M215 194 318 176 374 142M212 202 282 248 354 292M202 204 166 284 126 354M194 197 104 220 42 268M198 188 162 166 74 164"/>
+            </g>
+            <g class="crack-core crack-step-1">
+              <path d="M204 195 154 166M204 195 254 176M204 195 228 222M204 195 184 224"/>
+              <rect x="197" y="188" width="14" height="14"/>
+            </g>
+            <g class="crack-core crack-step-2"><path d="M154 166 154 126 132 144 104 112M254 176 318 176 344 204 386 207M228 222 282 248 270 290 308 342M184 224 166 284 118 271 76 314"/></g>
+            <g class="crack-core crack-step-3"><path d="M154 126 112 62M154 126 174 116 150 76M254 176 254 127 294 80M254 127 285 136 326 102M318 176 374 142M282 248 354 292M166 284 126 354M184 224 104 220 78 194 24 188"/></g>
+            <g class="crack-chips crack-step-4"><path d="m185 176 15-25 15 28-15 10zM220 207l28 9-19 21-15-12zM174 210l-26 18 5-31 24-1z"/></g>
+          </svg>
+          <span class="impact-point" aria-hidden="true"></span>
+        </div>
+      </div>
+      <div class="bench-unit" id="benchUnitB" data-filled="false" hidden>
+        <canvas id="benchCanvasB" width="48" height="48" hidden></canvas>
+        <p class="bench-empty" id="benchEmptyB"></p>
+      </div>
+      <div class="bench-unit" id="benchUnitC" data-filled="false" hidden>
+        <canvas id="benchCanvasC" width="48" height="48" hidden></canvas>
+        <p class="bench-empty" id="benchEmptyC"></p>
+      </div>
+      <div class="bench-unit" id="benchUnitD" data-filled="false" hidden>
+        <canvas id="benchCanvasD" width="48" height="48" hidden></canvas>
+        <p class="bench-empty" id="benchEmptyD"></p>
+      </div>
+      <div id="gradeBanner" aria-live="polite"></div>
+      <div id="windowPayFloat" aria-hidden="true"></div>
+      <div id="jackpotFloat" aria-hidden="true"></div>
+    </div>
+    <!-- 작업대 아래 설명 글(benchCaption)은 2026-08-20 형 확정으로 제거됐다.
+         3·4대에서 도화지를 덮었고(라운드 005 문제 A), 싣던 정보(인쇄 회차·잉크 바닥·
+         유리창 조작)는 전부 왼쪽 일감 카드(workshopHint)와 오른쪽 기록 상자(recEvent)에
+         이미 중복돼 있음을 확인했다. 유리창 조작법만 아이콘 팝업(scrollHelpBox)으로 남긴다. -->
+
+    <!-- 마감 알림 — 작품을 어떻게 마감할지 물어야 할 때만 켜지는 고정 자리다.
+         2026-08-12 계약 2: 잉크가 바닥나는 순간에는 이 자리를 거치지 않는다. 그때는
+         1.6초짜리 중간 상자도 「지금 결과 보기」 버튼도 없이 곧바로 미완성 결과판이
+         열리고, 70원 판매는 결과판에서 플레이어가 직접 누른다.
+         이 자리는 그 밖의 마감 선택(잉크가 남았을 때의 마감 등)을 위해 그대로 남는다. -->
+    <div data-anchor="finish-choice" id="finishChoice" data-open="false" role="group"
+      aria-label="작품 마감 알림">
+      <p class="finish-line" id="finishLine"></p>
+      <div class="finish-buttons">
+        <button type="button" id="sellNowBtn">이대로 마감하기</button>
+      </div>
+    </div>
+
+    <!-- 결과판 — 자리는 처음부터 예약되고 보이기만 켜고 끈다 (좌표 불변).
+         실제로 산 도화지를 다 찍으면 자동 판매 없이 여기서 작품마다 처리 방법을 고른다.
+         판매+판매도, 판매+전시도, 전시+판매도 모두 유효하다. 전시를 막는 것은
+         규칙이 아니라 남은 무료 전시 칸(1개)뿐이다.
+         한 장만 산 묶음에서는 오른쪽 칸 카드가 자리만 지키고 보이지 않는다.
+         라운드 001: 첫 미완성 작품도 여기서 직접 팔고, 판 직후에는 같은 자리에서
+         손실 세 줄과 「확인」이 뜬다. 2026-08-25 계약 3으로 그 값이
+         「도화지 100원 / 판매 75원 / 손실 25원」이 됐다 (옛 70·30 대체). -->
+    <div data-anchor="result-board" id="resultBoard" data-open="false"
+      role="group" aria-label="결과판">
+      <p class="board-title" id="boardTitle"></p>
+      <!-- 2026-08-25 계약 6 — 결과 안내에도 경매가 아직 열리지 않았음을 밝혀 둔다. -->
+      <p class="board-pending" id="boardAuctionNote">경매 연결 예정 · 세부 규칙 미정</p>
+      <!-- 첫 판매 손실 결과 — 확인을 누르기 전에는 다음 진행이 열리지 않는다. -->
+      <div class="board-loss" id="lossBox" hidden>
+        <div class="loss-lines">
+          <span class="loss-line"><b id="lossPaper"></b><span>참가비</span></span>
+          <span class="loss-line"><b id="lossSale"></b><span>판매</span></span>
+          <span class="loss-line loss-diff"><b id="lossDiff"></b><span>손실</span></span>
+        </div>
+        <button type="button" id="lossConfirmBtn">확인</button>
+      </div>
+      <div class="board-works" id="boardWorks">
+        <div class="board-work" id="boardWorkA">
+          <b class="work-name">왼쪽 칸</b>
+          <span class="work-grade" id="workGradeA"></span>
+          <span class="work-buttons">
+            <button type="button" id="sellWorkA">복제품으로 판매</button>
+            <button type="button" id="displayWorkA">갤러리에 전시</button>
+          </span>
+        </div>
+        <div class="board-work" id="boardWorkB">
+          <b class="work-name">오른쪽 위 칸</b>
+          <span class="work-grade" id="workGradeB"></span>
+          <span class="work-buttons">
+            <button type="button" id="sellWorkB">복제품으로 판매</button>
+            <button type="button" id="displayWorkB">갤러리에 전시</button>
+          </span>
+        </div>
+        <!-- 3·4번째 칸은 검수 전환으로 작업대를 3~4개로 열었을 때만 보인다. -->
+        <div class="board-work" id="boardWorkC" hidden>
+          <b class="work-name">왼쪽 아래 칸</b>
+          <span class="work-grade" id="workGradeC"></span>
+          <span class="work-buttons">
+            <button type="button" id="sellWorkC">복제품으로 판매</button>
+            <button type="button" id="displayWorkC">갤러리에 전시</button>
+          </span>
+        </div>
+        <div class="board-work" id="boardWorkD" hidden>
+          <b class="work-name">오른쪽 아래 칸</b>
+          <span class="work-grade" id="workGradeD"></span>
+          <span class="work-buttons">
+            <button type="button" id="sellWorkD">복제품으로 판매</button>
+            <button type="button" id="displayWorkD">갤러리에 전시</button>
+          </span>
+        </div>
+      </div>
+      <p class="board-note" id="boardNote"></p>
+    </div>
+
+    <!-- 모작 등급 확률 — 2026-08-19: 작업대 「바로 위」 가로 띠로 옮겼다.
+         옛 자리(오른쪽 고정 좌표 left 812)는 작업대가 2·3·4개로 커지면 두 번째
+         작업대를 가렸고, 도화지 위에 얹는 안은 그림을 가려 폐기됐다(동현).
+         원작 카드와 전화기 사이의 빈 구간(폭 638px)은 어느 칸수에서도 비어 있어
+         도화지도 다른 UI도 침범하지 않으면서 그림 바로 위라 눈이 곧장 간다.
+         세로 다섯 줄을 가로 다섯 칸으로 눕혀 높이를 78px 안에 넣는다. -->
+    <!-- 2026-08-26 v1 계약 4항: 제목은 가운데, 등급마다 고유 색, 발문(「가격은 레벨 N
+         기준」)은 제거. 표가 말하는 것은 등급·확률·가격 세 줄뿐이다. -->
+    <!-- 2026-10-06 두 방 데모 B-1: 작업대 확장을 뺐으므로(9/9 · 9/16 · 10/6 형님) 9/30 결정대로
+         그림 바로 오른쪽 세로표로 옮겼다 — 클로드판(claude-look-20260930-v1 · 체험판)과 같은 모양·자리.
+         그림 위에 마우스가 있을 때만 뜨고, 작은 설명 글은 넣지 않는다. -->
+    <div id="probPanel" role="status" aria-label="모작 등급 확률" hidden>
+      <h2>모작 등급 확률</h2>
+      <table class="prob-table">
+        <thead><tr><th scope="col">등급</th><th scope="col" class="num">확률</th><th scope="col" class="num">가격</th></tr></thead>
+        <tbody id="probRows"></tbody>
+      </table>
+    </div>
+
+    <!-- 유리창 등급 확률 — 「표의 등장방식과 위치는 모작 등급확률표와 똑같이,
+         안의 내용만 유리창에 맞게」(0817 피드백 3번). 그래서 자리도 CSS로
+         모작 확률표와 같은 좌표에 고정하고, 닦고 있는 유리창 위에 포인터가
+         실제로 올라가 있는 동안에만 뜬다. 대성공(잭팟)은 숨은 확률이라 여기
+         실리지 않는다 — 성공 90% 한 줄에 합쳐 보인다. -->
+    <div id="windowProbPanel" role="status" aria-label="유리창 보수 확률" hidden>
+      <!-- 라운드 005 문제 F: 옛 세로표(고정 좌표)를 모작 확률표와 같은 가로 띠로 통일.
+           0817 피드백 3번의 「위치·등장방식 동일」이 이제 실물에서도 지켜진다. -->
+      <!-- 2026-10-06 두 방 데모 B-1 (형님 2-A): 모작 표와 함께 유리창 오른쪽 세로표로 옮겼다. -->
+      <h2>유리창 보수 확률 <span class="prob-badge" id="windowProbLevel">레벨 0</span></h2>
+      <table class="prob-table">
+        <thead><tr><th scope="col">결과</th><th scope="col" class="num">확률</th><th scope="col" class="num">보수</th></tr></thead>
+        <tbody id="windowProbRows"></tbody>
+      </table>
+    </div>
+
+    <!-- 카탈로그 물건 — 흰 도화지가 놓인 뒤 위에서 프레임인해 작업대에 떨어진다 -->
+    <button type="button" id="catalogItem" hidden aria-label="떨어진 카탈로그 — 눌러서 열기">
+      <canvas id="catalogCanvas" width="128" height="128" aria-hidden="true"></canvas>
+    </button>
+    <div id="unlockFlash" aria-hidden="true"><span>카탈로그 해금</span></div>
+
+    <!-- D키 디버그 창 (2026-08-19 · 0817 피드백 4번).
+         이번 라운드는 동현이 명시한 유리창 3항목만 담는다. 나머지 항목과 최종 UI
+         방식은 시안을 고른 뒤 다음 라운드에서 붙인다.
+         전화·결과판과 달리 게임을 멈추지 않는다 — 열어 둔 채로 계속 밀면서
+         수치가 어떻게 달라지는지 보라고 만든 도구다. -->
+    <div id="debugPanel" role="dialog" aria-label="디버그 창" aria-modal="false" hidden>
+      <div class="debug-head">
+        <h2>디버그</h2>
+        <button type="button" id="debugCloseBtn" aria-label="디버그 창 닫기">닫기 (D)</button>
+      </div>
+      <div class="debug-row">
+        <!-- 2026-08-26 확정: 부모의 6겹 회의 시험값을 4겹으로 되돌렸다. 기본값과 설명이
+             모두 「완주 4회 = 창문 한 장 · 레벨 0 네 장이면 16회」라는 새 규칙을 말한다. -->
+        <div class="debug-label">유리창 겹 수<small>기본 4겹 — 완주 4번이 창문 한 장 (네 장이면 16번)</small></div>
+        <div class="debug-ctl" role="group" aria-label="유리창 겹 수">
+          <button type="button" class="debug-pick" data-debug-key="windowLayers" data-debug-value="4">4겹</button>
+          <button type="button" class="debug-pick" data-debug-key="windowLayers" data-debug-value="5">5겹</button>
+          <button type="button" class="debug-pick" data-debug-key="windowLayers" data-debug-value="6">6겹</button>
+        </div>
+      </div>
+      <!-- 2026-08-25 계약 2 — 밑그림 표현 A/B 비교.
+           A 단색 윤곽(기본): 채우지 않은 한 색 윤곽선이라 미완성임이 바로 읽힌다.
+           B 옅은 원색: 원작 색을 쓰되 완성품으로 보이지 않을 만큼 낮은 불투명도다.
+           진행도·잉크·돈·등급은 하나도 바뀌지 않는다. -->
+      <div class="debug-row">
+        <div class="debug-label">밑그림 표현<small>제작 중인 모든 작품에 즉시 반영된다</small></div>
+        <div class="debug-ctl" role="group" aria-label="밑그림 표현">
+          <button type="button" class="debug-pick" aria-pressed="true" data-debug-key="underdrawing" data-debug-value="0">단색 윤곽</button>
+          <button type="button" class="debug-pick" aria-pressed="false" data-debug-key="underdrawing" data-debug-value="1">옅은 원색</button>
+        </div>
+      </div>
+      <!-- 2026-08-27 v1 · 유리 A 승인 — 결과별 자동 마감을 켜고 끄며 조작 리듬을 비교한다.
+           확률·보수·해금은 어느 쪽에서도 달라지지 않는다. -->
+      <div class="debug-row">
+        <div class="debug-label">자동 마감<small>끄면 80% 뒤에도 끝까지 직접 밀어야 한다</small></div>
+        <div class="debug-ctl" role="group" aria-label="자동 마감">
+          <button type="button" class="debug-pick" data-debug-key="windowAutoFinish" data-debug-value="1">켬</button>
+          <button type="button" class="debug-pick" data-debug-key="windowAutoFinish" data-debug-value="0">끔</button>
+        </div>
+      </div>
+      <div class="debug-row">
+        <div class="debug-label">밀대 속도<small>유리창 밀대가 굴러가는 빠르기</small></div>
+        <div class="debug-ctl" role="group" aria-label="밀대 속도">
+          <button type="button" class="debug-pick" data-debug-key="windowScrollSpeed" data-debug-value="0.5">0.5배</button>
+          <button type="button" class="debug-pick" data-debug-key="windowScrollSpeed" data-debug-value="1">1배</button>
+          <button type="button" class="debug-pick" data-debug-key="windowScrollSpeed" data-debug-value="2">2배</button>
+          <button type="button" class="debug-pick" data-debug-key="windowScrollSpeed" data-debug-value="4">4배</button>
+        </div>
+      </div>
+      <div class="debug-row">
+        <div class="debug-label">완성 보수<small>레벨 0에서 한 장 끝낼 때 받는 총보수 (선투자 1$은 따로 나간다)</small></div>
+        <div class="debug-ctl" role="group" aria-label="완성 보수">
+          <button type="button" class="debug-pick" data-debug-key="windowPay" data-debug-value="1">1$</button>
+          <button type="button" class="debug-pick" data-debug-key="windowPay" data-debug-value="2">2$</button>
+          <button type="button" class="debug-pick" data-debug-key="windowPay" data-debug-value="3">3$</button>
+          <button type="button" class="debug-pick" data-debug-key="windowPay" data-debug-value="5">5$</button>
+        </div>
+      </div>
+      <!-- 잉크 둑 커서 — 밀대 앞에 물감(유리창은 밀린 때)이 뭉쳐 굴러가는 연출.
+           동현 요청으로 유리창과 그림판을 각각 껐다 켤 수 있게 나눠 뒀다. -->
+      <div class="debug-row">
+        <div class="debug-label">유리창 잉크 둑<small>밀대 앞에 밀린 때가 쌓이는 연출</small></div>
+        <div class="debug-ctl" role="group" aria-label="유리창 잉크 둑">
+          <button type="button" class="debug-pick" data-debug-key="windowInkDam" data-debug-value="1">켬</button>
+          <button type="button" class="debug-pick" data-debug-key="windowInkDam" data-debug-value="0">끔</button>
+        </div>
+      </div>
+      <div class="debug-row">
+        <div class="debug-label">그림판 잉크 둑<small>밀대 앞에 물감이 뭉쳐 굴러가는 연출</small></div>
+        <div class="debug-ctl" role="group" aria-label="그림판 잉크 둑">
+          <button type="button" class="debug-pick" data-debug-key="printInkDam" data-debug-value="1">켬</button>
+          <button type="button" class="debug-pick" data-debug-key="printInkDam" data-debug-value="0">끔</button>
+        </div>
+      </div>
+      <!-- ── 2026-08-19 확장 10개 (값 4 + 즉시 실행 6) ──────────────
+           조사안의 39개 후보 중 「검수가 실제로 막히는 것」부터 골랐다. -->
+      <div class="debug-row">
+        <div class="debug-label">다음 작품 최종 등급<small>세 회차의 최고 등급만 고정 · 닿는 회차는 자연 확률대로 (다이아는 0.1%라 강제하지 않으면 못 본다)</small></div>
+        <div class="debug-ctl" role="group" aria-label="다음 작품 등급">
+          <button type="button" class="debug-pick" data-debug-key="forceGrade" data-debug-value="-1">무작위</button>
+          <button type="button" class="debug-pick" data-debug-key="forceGrade" data-debug-value="0">브론즈</button>
+          <button type="button" class="debug-pick" data-debug-key="forceGrade" data-debug-value="1">실버</button>
+          <button type="button" class="debug-pick" data-debug-key="forceGrade" data-debug-value="2">골드</button>
+          <button type="button" class="debug-pick" data-debug-key="forceGrade" data-debug-value="3">플래티넘</button>
+          <button type="button" class="debug-pick" data-debug-key="forceGrade" data-debug-value="4">다이아</button>
+        </div>
+      </div>
+      <div class="debug-row">
+        <div class="debug-label">모작 확률 표기<small>2026-10-06 두 방 데모 A · 표의 확률 칸 글자만 바뀐다</small></div>
+        <div class="debug-ctl" role="group" aria-label="모작 확률 표기">
+          <button type="button" class="prob-mode-pick" data-prob-mode="final" data-on="true" aria-pressed="true">최종 결과 확률 (세 회차 최고 등급)</button>
+          <button type="button" class="prob-mode-pick" data-prob-mode="round" data-on="false" aria-pressed="false">회차별 추첨 확률</button>
+        </div>
+      </div>
+      <div class="debug-row">
+        <div class="debug-label">시간 배속<small>전화·자동 마감을 기다리는 시간을 줄인다</small></div>
+        <div class="debug-ctl" role="group" aria-label="시간 배속">
+          <button type="button" class="debug-pick" data-debug-key="timeScale" data-debug-value="1">1배</button>
+          <button type="button" class="debug-pick" data-debug-key="timeScale" data-debug-value="3">3배</button>
+          <button type="button" class="debug-pick" data-debug-key="timeScale" data-debug-value="10">10배</button>
+        </div>
+      </div>
+      <div class="debug-row">
+        <div class="debug-label">최초 물감량<small>몇 %에서 미완성이 되는지 바꿔 본다</small></div>
+        <div class="debug-ctl" role="group" aria-label="최초 물감량">
+          <button type="button" class="debug-pick" data-debug-key="firstInkPercent" data-debug-value="0">기본</button>
+          <button type="button" class="debug-pick" data-debug-key="firstInkPercent" data-debug-value="50">50%</button>
+          <button type="button" class="debug-pick" data-debug-key="firstInkPercent" data-debug-value="67">67%</button>
+          <button type="button" class="debug-pick" data-debug-key="firstInkPercent" data-debug-value="83">83%</button>
+        </div>
+      </div>
+      <div class="debug-row">
+        <div class="debug-label">레벨 1 유리창 보수<small>유리창과 그림의 벌이를 나란히 맞춰 본다</small></div>
+        <div class="debug-ctl" role="group" aria-label="레벨 1 유리창 보수">
+          <button type="button" class="debug-pick" data-debug-key="windowPayLv1" data-debug-value="0">기본</button>
+          <button type="button" class="debug-pick" data-debug-key="windowPayLv1" data-debug-value="2">2$</button>
+          <button type="button" class="debug-pick" data-debug-key="windowPayLv1" data-debug-value="3">3$</button>
+          <button type="button" class="debug-pick" data-debug-key="windowPayLv1" data-debug-value="5">5$</button>
+        </div>
+      </div>
+      <div class="debug-row">
+        <div class="debug-label">즉시 실행<small>누르는 순간 한 번 일어난다</small></div>
+        <div class="debug-ctl debug-actions" role="group" aria-label="즉시 실행">
+          <button type="button" class="debug-do" data-debug-action="fillInk">잉크 가득</button>
+          <button type="button" class="debug-do" data-debug-action="emptyInk">잉크 비움</button>
+          <!-- 라운드 005 문제 D: 「전부」는 배치 비교용, 「한 칸」은 등장 연출 검수용. -->
+          <button type="button" class="debug-do" data-debug-action="revealShop">상점 전부</button>
+          <button type="button" class="debug-do" data-debug-action="revealShopNext">상점 한 칸</button>
+          <button type="button" class="debug-do" data-debug-action="unlockGallery">갤러리 열기</button>
+          <!-- 2026-10-08 3단계: 「자동화 조건」 · 「레벨 +1」 대신 — 지금 구간을 채워 다음 해금을 바로 본다. -->
+          <button type="button" class="debug-do" data-debug-action="clearSegment">구간 채우기</button>
+          <!-- 2026-08-25 계약 5: 파손은 레벨 1의 10%라 자연 플레이로는 회의 자리에서
+               못 볼 수 있다. 이 버튼은 「다음 한 장」의 결과만 파손으로 못박고,
+               쓰이는 순간 스스로 꺼져 이후 확률은 원래대로 돌아간다. -->
+          <button type="button" class="debug-do" data-debug-action="breakNextWindow">다음 유리창 파손</button>
+        </div>
+      </div>
+      <p class="debug-foot" id="debugFoot"></p>
+    </div>
+
+    <!-- ── 0827 승인 · 대출 A 「스크래치 충실형」의 세 자리 ────────────────────
+         ① #loanDrop  — 상단에서 내려와 가볍게 떠 있는 작은 종이 계약서 (클릭 대상)
+         ② #loanFlyer — 서명 직후 중앙 종이가 접혀 우상단으로 날아가는 한 조각
+         ③ #loanSlot  — 우상단에 접혀 정착한 계약 카드 (상환금액 · 디버프 · 상환 진입)
+         셋 다 중앙 작업공간 좌표계 위의 덮개층이라 원작 카드·전화기·확률 띠·작업대
+         좌표를 한 픽셀도 밀지 않는다. A안은 안내 장치를 더 얹지 않는다 —
+         점선 목적지도, 비행 경로도, 스포트라이트도, 말풍선도 없다. -->
+    <button type="button" id="loanDrop" data-open="false" aria-hidden="true" tabindex="-1"
+      aria-label="내려온 대출 계약서 — 눌러서 열기">
+      <span class="ld-title">LOAN</span>
+      <span class="ld-sub">계약서</span>
+      <span class="ld-rule" aria-hidden="true"></span>
+    </button>
+    <div id="loanFlyer" data-open="false" aria-hidden="true">LOAN</div>
+    <button type="button" id="loanSlot" data-open="false" data-hidden="false" aria-hidden="true"
+      tabindex="-1" aria-label="대출 계약 — 눌러 상세 보기">
+      <span class="ls-name">대출 계약</span>
+      <span class="ls-repay"><span>상환</span><b id="loanSlotRepay">200$</b></span>
+      <span class="ls-debuff" id="loanSlotDebuff"></span>
+    </button>
+  </section>
+
+  <!-- 유리창 대성공 오버레이 — 무대 안에 절대 배치되어 화면 전체를 잠깐 어둡게 덮는다.
+       좌·중·우 구역의 크기와 위치를 밀지 않고, 클릭도 가로채지 않는다.
+       보상은 이미 한 번만 지급됐고 여기서는 그 결과를 크게 보여 주기만 한다. -->
+  <div id="jackpotOverlay" data-open="false" aria-hidden="true">
+    <div class="jackpot-box">
+      <p class="jackpot-title" id="jackpotTitle"></p>
+      <p class="jackpot-pay" id="jackpotPay"></p>
+      <p class="jackpot-sub">잠시 뒤 그대로 이어집니다</p>
+    </div>
+  </div>
+
+  <!-- 2026-10-08 두 방 데모 3단계: 「1막 끝」 화면 자리(10/6 4-A). 마지막 구간을 넘는 순간 뜨고,
+       「계속 하기」로 닫으면 그대로 이어서 논다. 초기화·다시 시작은 재현이형 합의 뒤라 없다.
+       떠 있는 동안 게임 시계와 입력이 멈춘다(엔진이 전화와 같은 정지를 건다). -->
+  <div id="act1Overlay" data-open="false" role="dialog" aria-modal="true" aria-labelledby="act1Title" hidden>
+    <div class="act1-box">
+      <h2 id="act1Title">1막 끝</h2>
+      <p class="act1-sub">열한 구간을 모두 넘었습니다</p>
+      <button type="button" id="act1ContinueBtn">계속 하기</button>
+    </div>
+  </div>
+
+  <!-- 오른쪽 세로줄 — 구간 목표·공방 기록. 전부 처음부터 자리를 차지한다.
+       (잉크 표시는 라운드 003에서 작업대 바로 위로 옮겼다.) -->
+  <aside data-anchor="right-rail" aria-label="오른쪽 세로줄 — 공방 상태와 기록">
+
+    <!-- 2026-10-20 v9 · 오른쪽 맨 위 「업그레이드」 세 칸(그릴미 기둥 2-7 · 2-8 · 시안 2판).
+         순서 = 모작 운 → 스퀴지 종류(다음 재질) → 스퀴지 속도(형님 10/19 12번). 구간 목표 칸은 왼쪽 위로 옮겼다.
+         잠긴 칸은 자물쇠 · 「잠김」 · 「구간 n」만. 스퀴지 두 칸은 그리는 동안(결과판 전) 흐리게 — 못 산다. -->
+    <div class="upg3" id="upg3" role="group" aria-label="업그레이드 세 칸">
+      <div class="rail-title">업그레이드</div>
+      <button type="button" class="work-card" id="upgLuck" data-state="locked">
+        <canvas id="upgLuckIcon" width="48" height="48" aria-hidden="true"></canvas>
+        <span class="wc-body">
+          <span class="wc-top"><span class="wc-name"></span><span class="wc-money"></span></span>
+          <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+        </span>
+      </button>
+      <button type="button" class="work-card" id="upgMaterial" data-state="locked">
+        <canvas id="upgMaterialIcon" width="48" height="48" aria-hidden="true"></canvas>
+        <span class="wc-body">
+          <span class="wc-top"><span class="wc-name"></span><span class="wc-money"></span></span>
+          <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+        </span>
+      </button>
+      <button type="button" class="work-card" id="upgSpeed" data-state="locked">
+        <canvas id="upgSpeedIcon" width="48" height="48" aria-hidden="true"></canvas>
+        <span class="wc-body">
+          <span class="wc-top"><span class="wc-name"></span><span class="wc-money"></span></span>
+          <span class="wc-bottom"><span class="wc-level"></span><span class="wc-track" aria-hidden="true"><span class="wc-fill"></span></span></span>
+        </span>
+      </button>
+    </div>
+
+    <!-- 경매장 문 위 칸 = 다음 새 원작 예고 — 실루엣 + 예상가 + 한 장 참가비(시안 2판 · 기둥 2-1).
+         v9: 처음부터 보인다(사는 것은 구간 2부터 · 그 원작의 구간 전엔 「구간 n」 표). 아래 칸(레벨업)은 v8처럼 구간 2부터.
+         돈이 예상가에 닿으면 느낌표 + 금빛 테두리, 누르면 그 원작을 예상가로 바로 얻는다(임시 — 진짜 경매는 다음 단계). -->
+    <button type="button" data-anchor="auction-door" id="auctionDoorBtn" data-open="true" data-ready="false"
+      disabled aria-label="경매장 — 다음 원작 예고">
+      <canvas id="lotSilhouette" width="48" height="48" aria-hidden="true"></canvas>
+      <span class="door-text">
+        <span class="door-name" id="lotName">경매장</span>
+        <b class="door-state" id="lotInfo"></b>
+        <span class="door-fee" id="lotFee"></span>
+      </span>
+      <span class="door-tags">
+        <span class="door-chip lock-chip" id="lotLock" hidden></span>
+        <span class="door-bang" id="lotBang" aria-hidden="true" hidden>!</span>
+      </span>
+    </button>
+    <!-- 2026-10-12 v5(형님 27-A) · v8 5-A: 아래 칸 = 지금 그리는(마지막으로 고른) 원작 레벨업. -->
+    <button type="button" data-anchor="auction-level" id="auctionLevelBtn" data-open="false" data-ready="false"
+      disabled aria-hidden="true" tabindex="-1" aria-label="경매장 레벨업 칸 — 준비 중">
+      <canvas id="levelLotArt" width="48" height="48" aria-hidden="true"></canvas>
+      <span class="door-text">
+        <span class="door-name" id="levelLotName">레벨업</span>
+        <b class="door-state" id="levelLotInfo">준비 중</b>
+      </span>
+      <span class="door-tags">
+        <span class="door-bang" id="levelLotBang" aria-hidden="true" hidden>!</span>
+      </span>
+    </button>
+
+    <div class="rail-title">공방 기록</div>
+    <div class="record-box">
+      <!-- 2026-08-19 동현 확정: 대성공(잭팟)은 플레이어에게 숨은 확률이다.
+           여기 「대성공 N회」가 남아 있으면 아직 한 번도 못 터뜨린 사람도 그런 것이
+           있다는 사실을 알아 버린다. 확률표·알바 카드와 같은 이유로 기록 칸에서도 뺀다.
+           센 횟수 자체는 엔진에 그대로 살아 있어(state.jackpots) 나중에 다시 붙일 수 있다. -->
+      <p>닦은 창문 <b id="recWindows">0</b>장</p>
+      <p>판매한 그림 <b id="recArtworks">0</b>점</p>
+    </div>
+
+    <!-- 갤러리 — 작품을 2점 이상 판 뒤 정상 작품을 팔면 무료 전시 칸 1개가 열린다. 자리는 처음부터 예약한다.
+         전시는 주기적으로 현금을 뿜지 않는다. 가치 상승 속도·상한, 추가 칸, 버프 수치는
+         정본에서 미정이라 숫자로 만들지 않고 락인 문구만 짧게 보여 준다. -->
+    <div data-anchor="gallery-panel" id="galleryPanel" data-unlocked="false"
+      aria-label="갤러리 — 무료 전시 칸">
+      <div class="panel-head">
+        <span class="panel-name">갤러리</span>
+        <b id="galleryCount">0 / 1</b>
+      </div>
+      <div class="gallery-slot" id="gallerySlot">
+        <canvas id="galleryCanvas" width="64" height="64" aria-hidden="true"></canvas>
+        <span class="gallery-text">
+          <b id="galleryItem">빈 전시 칸</b>
+        </span>
+      </div>
+      <!-- 2026-10-20 v9(시안 2판 · 형님 「작은 설명 글 금지」): 칸 안내 글 · 아래 설명 두 줄을 뺐다(높이 210 → 146px). -->
+    </div>
+
+    <p class="rail-note" id="recEvent"></p>
+  </aside>
+
+  <!-- 원작 선택 카탈로그 오버레이 -->
+  <div id="dexOverlay" role="dialog" aria-modal="true" aria-label="원작 선택 카탈로그" hidden>
+    <div class="dex-panel">
+      <h2>원작 카탈로그</h2>
+      <p id="dexMode" data-selection-mode="current"></p>
+      <div id="dexList"></div>
+      <div class="dex-foot">
+        <span id="dexNextInfo">다음 작품 예약 없음</span>
+        <button type="button" id="dexCloseBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 전화 오버레이 — 최상위 고정 계층, 전체 scrim + 하단 대화상자 + 큰 빨간 수화기 -->
+  <div id="phoneOverlay" role="dialog" aria-modal="true" aria-label="전화 안내" hidden>
+    <div class="phone-dialog">
+      <div class="phone-text">
+        <p id="phoneLine"></p>
+        <div class="phone-controls">
+          <span id="phonePageNo" aria-hidden="true"></span>
+          <button type="button" id="phonePrevBtn">이전</button>
+          <button type="button" id="phoneNextBtn">다음</button>
+          <!-- 2026-08-27 v1 · 대출 A 승인: 위기 통화의 마지막 장에 남는 버튼은 하나뿐이다.
+               「거절할게요」는 승인 계약(거절 선택지 없이 반드시 진행)으로 사라졌고,
+               남은 한 버튼은 고르는 것이 아니라 안내를 확인하고 계약서로 넘어가는 문이다.
+               그 전에는 자리만 지키고 보이지 않으므로 대화상자 높이가 흔들리지 않는다. -->
+          <button type="button" id="phoneAcceptBtn" hidden>확인</button>
+        </div>
+        <!-- 2026-08-27 2차 피드백 ㉰: 여기 있던 하단 안내 줄(#phoneOnlyNote)은 빠졌다.
+             그 줄 때문에 대출 통화창만 다른 전화보다 높았다. -->
+      </div>
+      <canvas id="receiverCanvas" width="176" height="56" aria-hidden="true"></canvas>
+    </div>
+  </div>
+
+  <!-- ── 스크래치식 대출 계약서 (2026-08-26 v1 · 이 자식 판) ────────────────
+       상시 클릭 진입점이 아니다. 위기 전화에서 「받을게요」를 누른 뒤에만 열리고,
+       체결 뒤에는 우상단 계약 카드(#loanSlot)로만 다시 열린다
+       (2026-08-27 2차 피드백 ㉱로 왼쪽 경제 카드의 계약서 버튼은 사라졌다).
+       닫으면 흔적 없이 사라져 작업대·작품 자리를 한 픽셀도 차지하지 않는다.
+       서명 전에는 대출금만 크게 말한다 — 이자율과 총상환액은 서명 「직후」 반전으로 나온다. -->
+  <div id="loanContractOverlay" class="loan-contract-overlay" hidden>
+    <div class="loan-contract-dialog" id="loanContractDialog" role="dialog" aria-modal="true"
+      aria-labelledby="loanContractHeading" data-mode="sign">
+      <p class="loan-build">2026-10-20 · 두 방 데모 9판</p>
+      <h2 id="loanContractHeading">대출 계약서</h2>
+
+      <!-- ── 서명 전 (data-mode="sign") ─────────────────────────────────
+           A안 관찰 그대로 정보 밀도가 매우 낮다: 큰 LOAN 제목, 지금 받는 돈,
+           서명선과 파란 서명, 노란 서명 버튼 하나. 거절 버튼은 어디에도 없다.
+           이자율과 총상환액은 여전히 서명 직후의 반전이라 여기서 말하지 않는다. -->
+      <div class="loan-sign-body" id="loanSignBody">
+        <p class="loan-amount"><span>지금 받는 돈</span><b id="loanPrincipal">100$</b></p>
+        <p class="loan-total" id="loanTotalNote">서명하면 바로 지급됩니다 · 상환 조건은 서명 뒤 공개</p>
+        <div class="loan-sign-line" aria-hidden="true">
+          <span class="loan-sign-label">서명</span>
+          <span class="loan-sign-rule"><span class="loan-sign-name">Mewna</span></span>
+        </div>
+        <button type="button" id="loanSignBtn">서명하기</button>
+      </div>
+
+      <!-- 서명 직후의 반전 — 숨겨 뒀던 이자 100%와 총상환 200원이 여기서 밝혀진다.
+           반전을 읽고 나면 계약서는 아래 상세(detail) 모습으로 바뀐다. -->
+      <div class="loan-reveal" id="loanReveal" data-open="false" aria-live="polite">
+        <b class="loan-reveal-head">계약서 뒷면</b>
+        <ul class="loan-reveal-lines" id="loanRevealLines"></ul>
+      </div>
+
+      <!-- ── 체결 뒤 (data-mode="detail") ───────────────────────────────
+           0827 승인: 계약 완료 뒤 대출 UI에는 상환금액 · 디버프 정보 · 상환버튼만 남는다.
+           이자율·계약서 뒷면·남은 대출 줄은 이 자리에서 빠졌다. -->
+      <div class="loan-detail-body" id="loanDetailBody">
+        <p class="loan-detail-no" id="loanDetailNo">LOAN #001</p>
+        <div class="loan-detail-row">
+          <span>상환금액</span><b id="loanDetailRepayAmount">200$</b>
+        </div>
+        <p class="loan-detail-debuff" id="loanDetailPenalty"></p>
+        <button type="button" id="loanRepayBtn">200$ 전액 상환</button>
+      </div>
+
+      <p class="loan-note" id="loanNote" aria-live="polite"></p>
+      <div class="loan-actions">
+        <button type="button" id="loanContractClose">뒤로</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2026-10-08 3단계 별도 검수: 오른쪽 위에 떠 있던 작은 토스트(옛 레벨업 알림 자리)는 지웠다.
+       구간 목표 칸 테두리와 겹쳤기 때문이다(형님 「UI 겹침 금지」). 「구간 n 달성」은 이제
+       구간 목표 칸의 「다음: …」 줄이 2.4초 동안 바뀌어 알린다 — 떠 있는 상자가 없으니 겹칠 수 없다. -->
+
+  <!-- ── 상점 최초 해금 아이콘 팝업 (2026-08-26 v1 · 계약 6항) ─────────────
+       새 장비가 「처음」 열릴 때만 뜨는 작은 픽셀 아이콘 알림이다. 화면을 덮지 않고
+       왼쪽 상점 탭 옆 구석에 앉으며, 같은 카드의 다음 단계에서는 뜨지 않는다. -->
+  <div id="shopUnlockPopup" class="shop-unlock-popup" data-open="false" role="status" aria-live="polite">
+    <canvas id="shopUnlockIcon" width="32" height="32" aria-hidden="true"></canvas>
+    <span class="sup-text">
+      <b id="shopUnlockName"></b>
+      <span class="sup-new">NEW</span>
+    </span>
+  </div>
+
+  <!-- 첫 진입 시작 게이트 — 소리 재생 허용을 위한 첫 클릭 -->
+  <div id="startGate">
+    <button type="button" id="startBtn">화면을 눌러 시작</button>
+  </div>
+
+</div>
+<script src="grade-logic.js"></script>
+<script src="state.js"></script>
+<script src="art.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
