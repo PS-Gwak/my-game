@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>뮤노폴리 짧은 인트로 시안</title>
+<style>
+  :root { --bg: #121214; --fg: #f0f0f0; --sub: #aaaab0; --acc: #ffc83d; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p { color: var(--sub); margin: 0 0 18px; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr 1fr; } }
+  .grid.two { grid-template-columns: 1fr; }
+  @media (min-width: 700px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+  details { margin-top: 24px; } summary { cursor: pointer; font-weight: 700; color: var(--sub); }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--acc); }
+  h2 { font-size: 18px; margin: 22px 0 10px; color: var(--acc); }
+  figure { margin: 0; }
+  video { width: 100%; image-rendering: pixelated; background: #000; display: block; }
+  figcaption { color: var(--acc); font-weight: 700; margin-top: 8px; }
+  button { margin-top: 16px; padding: 10px 18px; font-size: 15px; border: 0; border-radius: 8px; background: var(--acc); color: #000; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <h1>① 5초 주사위 눈 — 움직이는 시안</h1>
+  <p>2-1안 · 3-1안(눈동자 없음). 맨 위가 최신(7차 — 눈을 감지 않고 뜬 채로 서서히 사라짐) — 눈을 윤곽선 · 채운 것 두 가지로. 아래를 누르면 6차 · 4차와 1~3차도 볼 수 있습니다.</p>
+  <h2>7차 — 눈을 뜬 채로 서서히 사라짐(7초 · 나머지는 6차 그대로)</h2>
+  <div class="grid two">
+    <figure><video id="o" src="A2-21g-line.mp4" autoplay muted loop playsinline controls></video><figcaption>2-1안 · 윤곽선 눈</figcaption></figure>
+    <figure><video id="p" src="A2-21g-fill.mp4" autoplay muted loop playsinline controls></video><figcaption>2-1안 · 채운 눈</figcaption></figure>
+    <figure><video id="q" src="A2-31g-line.mp4" autoplay muted loop playsinline controls></video><figcaption>3-1안 · 윤곽선 눈</figcaption></figure>
+    <figure><video id="r" src="A2-31g-fill.mp4" autoplay muted loop playsinline controls></video><figcaption>3-1안 · 채운 눈</figcaption></figure>
+  </div>
+  <details>
+    <summary>6차 보기(눈이 감김)</summary>
+  <h3>6차 — 윤곽만 따서 실제 첫 장면으로 디졸브</h3>
+  <div class="grid two">
+    <figure><video id="k" src="A2-21f-line.mp4" autoplay muted loop playsinline controls></video><figcaption>2-1안 · 윤곽선 눈</figcaption></figure>
+    <figure><video id="l" src="A2-21f-fill.mp4" autoplay muted loop playsinline controls></video><figcaption>2-1안 · 채운 눈</figcaption></figure>
+    <figure><video id="m" src="A2-31f-line.mp4" autoplay muted loop playsinline controls></video><figcaption>3-1안 · 윤곽선 눈</figcaption></figure>
+    <figure><video id="n" src="A2-31f-fill.mp4" autoplay muted loop playsinline controls></video><figcaption>3-1안 · 채운 눈</figcaption></figure>
+  </div>
+  </details>
+  <details>
+    <summary>4차 보기</summary>
+  <h3>4차 — 주사위 오른쪽 위 · 0층 · 염소 천천히(6초)</h2>
+  <div class="grid two">
+    <figure><video id="g" src="A2-21d-line.mp4" autoplay muted loop playsinline controls></video><figcaption>2-1안 · 윤곽선 눈</figcaption></figure>
+    <figure><video id="h" src="A2-21d-fill.mp4" autoplay muted loop playsinline controls></video><figcaption>2-1안 · 채운 눈</figcaption></figure>
+    <figure><video id="i" src="A2-31d-line.mp4" autoplay muted loop playsinline controls></video><figcaption>3-1안 · 윤곽선 눈</figcaption></figure>
+    <figure><video id="j" src="A2-31d-fill.mp4" autoplay muted loop playsinline controls></video><figcaption>3-1안 · 채운 눈</figcaption></figure>
+  </div>
+  </details>
+  <details>
+    <summary>지난 판(1차 지직 · 2차 쿵 · 3차 벡터) 보기</summary>
+  <h3>2-1안 「위」</h3>
+  <div class="grid">
+    <figure><video id="a" src="A2-21.mp4" autoplay muted loop playsinline controls></video><figcaption>1차 · 지직</figcaption></figure>
+    <figure><video id="c" src="A2-21b.mp4" autoplay muted loop playsinline controls></video><figcaption>2차 · 쿵</figcaption></figure>
+    <figure><video id="e" src="A2-21c.mp4" autoplay muted loop playsinline controls></video><figcaption>3차 · 벡터(윤곽선 눈 · 선 빛 · 잔상 · 게임 화면 비율)</figcaption></figure>
+  </div>
+  <h3>3-1안 「화면보다 큰 눈」</h3>
+  <div class="grid">
+    <figure><video id="b" src="A2-31.mp4" autoplay muted loop playsinline controls></video><figcaption>1차 · 지직</figcaption></figure>
+    <figure><video id="d" src="A2-31b.mp4" autoplay muted loop playsinline controls></video><figcaption>2차 · 쿵</figcaption></figure>
+    <figure><video id="f" src="A2-31c.mp4" autoplay muted loop playsinline controls></video><figcaption>3차 · 벡터(윤곽선 눈 · 선 빛 · 잔상 · 게임 화면 비율)</figcaption></figure>
+  </div>
+  </details>
+  <button id="sync">처음부터 같이</button>
+</main>
+<script>
+  document.getElementById('sync').addEventListener('click', () => {
+    for (const id of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r']) { const v = document.getElementById(id); v.currentTime = 0; v.play(); }
+  });
+</script>
+</body>
+</html>
