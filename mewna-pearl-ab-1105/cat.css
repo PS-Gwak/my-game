@@ -1,0 +1,208 @@
+/* 뮤나리자 두 방 데모 10판 — 자동화 고양이 · 숫자 안내 · 처음 해금 큰 알림 · 처음 안내 · 유리창 금액 버튼 (2026-10-22)
+   styles.css(9판)는 고치지 않고 이 파일에서 덧칠만 한다. 모양은 기능 시안(cat-automation-mockup-2026-10-22-v1)의
+   cat.css · func.css를 그대로 옮겼다 — 좌표는 가운데 작업공간(1110×988) 안쪽 기준.
+   손 작업대(x 315~795 · y 250~730) · 잉크통(x 233~280) · 확률표(x 812~1092) · 전화기(위 오른쪽) · 결과판(y 742~982)과
+   겹치지 않게 자리를 잡는다(형님 「UI 겹침 방지」). */
+
+/* ── 자동화 고양이 자리 ① 작업대 왼쪽(형님 10/21) — 작은 작업대가 손 작업대와 아래 끝(y 730)을 맞춘다 ──
+   x 16~222 · y 250~730. 잉크통(x 233)보다 왼쪽, 결과판(y 742)보다 위. */
+[data-anchor="cat-seat"] {
+  position: absolute; z-index: 20;
+  left: 16px; top: 250px; width: 206px; height: 480px;
+  display: grid; gap: 10px;
+  grid-template-areas: "fig" "side" "bench"; grid-template-rows: auto auto 1fr;
+  background: #241c14; border: 2px solid #6a563a; border-radius: 10px;
+  padding: 10px; box-sizing: border-box;
+  --cat-fig: 72px; --cat-frame: 160px; --cat-thumb: 44px;
+}
+/* 구간 3 달성 전 — 자리만 지키고 보이지 않는다(열려도 다른 칸이 밀리지 않는다) */
+#catSeat[data-locked="true"] { visibility: hidden; }
+.cat-figure { grid-area: fig; display: flex; align-items: center; justify-content: center; }
+.cat-figure canvas {
+  width: var(--cat-fig); height: var(--cat-fig); display: block;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+}
+.cat-bench { grid-area: bench; display: flex; align-items: flex-end; justify-content: center; gap: 6px; }
+/* 고양이 잉크 — 손 잉크와 따로 쓴다(기둥 2-5). 손 잉크통과 같은 색 문법을 작게. */
+.cat-ink {
+  position: relative; flex: 0 0 auto; width: 12px; height: var(--cat-frame); align-self: flex-end;
+  border: 2px solid #806849; border-radius: 5px; background: #130d16; overflow: hidden; box-sizing: border-box;
+}
+.cat-ink-fill {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 0;
+  background: linear-gradient(90deg, #3f6b8a, #62b6d8 55%, #3f6b8a);
+  transition: height 0.25s ease;
+}
+/* 작은 작업대 — 손 작업대와 같은 나무 틀을 작게(테두리 8 · 받침 그림자). 그림은 안쪽의 90%. */
+.cat-frame {
+  position: relative; flex: 0 0 auto;
+  width: var(--cat-frame); height: var(--cat-frame); box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  background: #14100c; border: 8px solid #5b432c; border-radius: 5px;
+  box-shadow: 0 4px 0 #4a3826, 0 7px 0 #2b2016;
+}
+.cat-frame canvas {
+  width: calc((var(--cat-frame) - 16px) * 0.9); height: calc((var(--cat-frame) - 16px) * 0.9);
+  display: block; image-rendering: pixelated; image-rendering: crisp-edges;
+}
+.cat-empty {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  text-align: center; white-space: pre-line; line-height: 1.4; padding: 6px; margin: 0;
+  font-size: 14px; font-weight: 800; color: #e08a7a; text-shadow: 0 1px 0 #14100c, 0 0 4px #14100c;
+}
+.cat-empty:empty { display: none; }
+#catSeat[data-state="idle"] .cat-ink { filter: saturate(0.15) brightness(0.6); }
+#catSeat[data-state="wait-money"] .cat-frame canvas,
+#catSeat[data-state="wait-ink"] .cat-frame canvas { opacity: 0.35; }
+
+.cat-side { grid-area: side; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+/* 장 수 지시 — 쉬고 있을 때만 누른다(지시분을 다 그리면 다시 고른다). 모작량 강화로 4~6장이 되면 둘째 줄로 */
+.cat-order { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.cat-order-btn {
+  min-width: 0;
+  background: #3a2f22; color: #e8dcc4; border: 1px solid #6a563a; border-radius: 6px;
+  padding: 7px 0; font-size: 15px; font-weight: 800; cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.cat-order-btn:hover:not(:disabled) { border-color: #d8b978; }
+.cat-order-btn:disabled { opacity: 0.35; cursor: default; }
+/* 지시한 장 수 — 다 그린 장 ● · 지금 그리는 장(금빛 ○) · 남은 장 ○ (손의 인쇄 점과 같은 문법) */
+.cat-dots { display: flex; gap: 6px; height: 22px; line-height: 22px; font-size: 19px; color: #f3e7c8; }
+.cat-dots span::before { content: "○"; }
+.cat-dots span.on::before { content: "●"; }
+.cat-dots span.cur { color: #f1d37e; }
+/* 판매 대기 — 완성 순서대로 왼쪽부터. 칸 셋 + 넘치면 「+n」. 테두리 = 등급색 */
+.cat-queue { display: flex; align-items: center; gap: 6px; height: var(--cat-thumb); }
+.cat-queue .q-slot {
+  position: relative; flex: 0 0 auto; width: var(--cat-thumb); height: var(--cat-thumb); box-sizing: border-box;
+  border: 2px dashed #57452c; border-radius: 5px; background: #1c1610;
+}
+.cat-queue .q-slot[data-filled="true"] { border-style: solid; border-color: var(--q-color, #57452c); background: #f4efe2; }
+.cat-queue .q-slot canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.cat-queue .q-more { font-size: 16px; font-weight: 900; color: #d8b978; white-space: nowrap; }
+/* 판매 — 버튼에 값이 적혀 있다(메모 7a). 맨 앞(먼저 완성된) 한 장을 판다. */
+.cat-sell {
+  flex: 0 0 auto;
+  background: #4a3a22; color: #f4dc9a; border: 1px solid #d8b046; border-radius: 8px;
+  padding: 8px 10px; font-size: 15px; font-weight: 800; cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.cat-sell:hover:not(:disabled) { border-color: #f4dc9a; }
+.cat-sell:disabled { opacity: 0.4; cursor: default; background: #3a2f22; color: #c9b891; border-color: #6a563a; }
+.cat-sell.mk-bought { animation: mk-bought 0.6s ease-out; }
+
+/* ── 효과 표기(메모 5a · 형님 10/22 3-A) — 숫자 강화 카드에 「지금 → 다음」 한 줄. 카드 높이 88 → 104 ── */
+.work-card.has-effect { height: 104px; }
+.work-card.has-effect .wc-body { gap: 6px; }
+.work-card .wc-effect {
+  font-size: 14px; font-weight: 800; line-height: 18px; min-height: 18px; color: #f4dc9a;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums;
+}
+.work-card[data-state="locked"] .wc-effect { visibility: hidden; }
+.work-card[data-state="owned"] .wc-effect,
+.upg3 .work-card[data-state="max"] .wc-effect { color: #9fc37a; }
+
+/* ── 돈 부족(메모 3) — 원작 · 상점 · 업그레이드 카드 모두 값 붉게 + 살짝 흐리게. 경매장 두 칸은 값 글자만 붉게 ── */
+.work-card[data-short="true"] { opacity: 0.78; }
+.work-card[data-short="true"] .wc-money { color: #e08a7a; }
+[data-anchor="auction-door"][data-short="true"] #lotInfo,
+[data-anchor="auction-level"][data-short="true"] #levelLotInfo { color: #e08a7a; }
+
+/* ── 경매장 레벨업 칸 — 「평균 판매가 지금 → 다음」 한 줄(메모 1). 위 칸처럼 세 줄이라 높이 72 → 92 ── */
+[data-anchor="auction-level"] { height: 92px; }
+[data-anchor="auction-level"] .door-fee { font-size: 14px; font-weight: 800; color: #f4dc9a; white-space: nowrap; }
+
+/* ── 그리는 중 고른 「다음」 원작(형님 10/22 1-A) — 점선 금빛 테두리 + 「다음」 표 ── */
+#catalogList .work-card { position: relative; }
+.work-card[data-pending="true"] { border-style: dashed; border-color: #f1d37e; opacity: 1; }
+.work-card[data-pending="true"]::after {
+  content: "다음"; position: absolute; right: 12px; bottom: 11px;
+  background: #f1d37e; color: #241c14; font-size: 13px; font-weight: 900; line-height: 18px;
+  padding: 1px 9px; border-radius: 6px;
+}
+.work-card[data-pending="true"] .wc-track,
+.work-card[data-pending="true"] .wc-profit { visibility: hidden; }
+/* 9판의 「그리는 동안 다른 카드는 흐리게」(14-A)는 10판에서 「다음」으로 고를 수 있어 흐리게 하지 않는다 */
+#catalogList .work-card[data-busy="true"] { opacity: 1; cursor: pointer; }
+
+/* ── 이익 비교 A(형님 10/22 1-A) — 원작 카드 둘째 줄 끝에 「1분 +n$」 ── */
+#catalogList .wc-bottom { grid-template-columns: var(--wc-lv-col, max-content) minmax(0, 1fr) auto; }
+#catalogList .wc-profit {
+  display: block; font-size: 13.5px; font-weight: 800; color: #9fc37a; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+#catalogList .wc-profit[data-negative="true"] { color: #e08a7a; }
+#catalogList .work-card[data-state="preview"] .wc-profit,
+#catalogList .work-card[data-state="locked"] .wc-profit { visibility: hidden; }
+
+/* ── 처음 해금 큰 알림(기둥 2-8) — 무대 가운데 ── */
+#unlockNotice {
+  position: absolute; left: 50%; top: 46%; z-index: 90; width: 600px; box-sizing: border-box;
+  transform: translate(-50%, -50%) scale(0.9); opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: 22px; align-items: center;
+  background: #241c14; border: 3px solid #f1d37e; border-radius: 16px; padding: 24px 30px;
+  box-shadow: 0 0 0 8px rgba(241, 211, 126, 0.16), 0 24px 70px rgba(0, 0, 0, 0.65);
+  cursor: pointer;
+}
+#unlockNotice[data-open="true"] { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+#unlockNotice canvas {
+  grid-row: 1 / 4; width: 112px; height: 112px; image-rendering: pixelated; image-rendering: crisp-edges;
+  background: #14100c; border: 2px solid #6a563a; border-radius: 10px;
+}
+#noticeWhere { font-size: 16px; font-weight: 800; color: #d8b978; margin: 0; }
+#noticeName { font-size: 36px; font-weight: 900; color: #f4dc9a; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#noticeLine { font-size: 19px; color: #f0e3c2; line-height: 1.4; margin: 0; }
+
+/* ── 처음 안내(메모 12) — 손가락은 유리창 카드 옆에서 콕콕, 휠 아이콘은 작업대 가운데에서 아래로 ── */
+.guide { position: absolute; z-index: 80; pointer-events: none; }
+.guide[hidden], #guideWheel[hidden] { display: none; } /* #guideWheel의 display: flex가 hidden을 덮지 않게 */
+.guide canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+#guideFinger { animation: guide-poke 0.9s ease-in-out infinite; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45)); }
+#guideFinger canvas { transform: rotate(-90deg); }
+@keyframes guide-poke { 0%, 100% { translate: 0 0; } 50% { translate: -12px 0; } }
+#guideWheel {
+  width: 112px; height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: rgba(20, 15, 10, 0.78); border: 2px solid #d8b978; border-radius: 14px;
+}
+.guide-arrow { font-size: 30px; line-height: 1; color: #f4dc9a; animation: guide-down 0.8s ease-in-out infinite; }
+@keyframes guide-down { 0%, 100% { translate: 0 -4px; } 50% { translate: 0 6px; } }
+
+/* ── 유리창 알바 자리(기능 시안 그대로 — 시안 README 🤖) — 작업대 크기 그대로(480), 겉만 흰 창틀(9판 규칙 그대로).
+   9판처럼 698로 키우면 고양이 자리(x 16~222)와 결과판(y 742~)에 겹친다. 닦기 판정(줄 · 겹 · 확률 · 보수 · 균열)은 그대로다. ── */
+@media (min-width: 701px) {
+  [data-anchor="workbench"][data-bench="window"] {
+    left: 315px; top: 250px; width: 480px; height: 480px;
+    --bench-size: 480px; --bench-art-size: 432px;
+  }
+}
+
+/* ── 유리창 금액 버튼(메모 7b) — 결과판 자리에 한 장짜리 카드 ── */
+#boardWindow[hidden] { display: none; }
+#windowCollectBtn {
+  font-size: 18px; font-weight: 900; padding: 10px 18px;
+  background: #4a3a22; color: #f4dc9a; border: 1px solid #d8b046;
+}
+#windowCollectBtn[data-result="fail"] { color: #e08a7a; border-color: #8a4a3a; background: #3a2420; }
+
+/* ── 결과판 판매 버튼에 값(메모 7a) ── */
+.board-work .work-buttons button[data-priced="true"] { font-weight: 900; color: #f4dc9a; }
+
+/* ── 모바일(700px 이하) — 고양이 자리도 한 열 흐름 안으로(뮤나리자는 PC 우선 · 휴대폰은 기술 확인만) ── */
+@media (max-width: 700px) {
+  [data-anchor="cat-seat"] {
+    position: static; left: auto; top: auto; width: 100%; max-width: 100%; height: auto;
+    grid-template-areas: "fig side" "bench bench"; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto;
+  }
+  #catSeat[data-locked="true"] { display: none; }
+  #unlockNotice { width: calc(100% - 24px); grid-template-columns: 64px minmax(0, 1fr); padding: 14px 16px; }
+  #unlockNotice canvas { width: 64px; height: 64px; }
+  #noticeName { font-size: 24px; }
+}
+
+/* ── 2026-10-23 진주 위험 시안 — 버리기 · 한 번 더 · 여기서 마감 · 배상 (데모 룩 그대로: 마감 알림 · 유리창 배상 버튼과 같은 모양) ── */
+#riskDiscardBtn { color: #e08a7a; border-color: #8a4a3a; background: #3a2420; font-weight: 800; }
+#riskCloseBtn { background: #d8b978; color: #221c16; border-color: #d8b978; font-weight: 800; }
+#riskMoreBtn { color: #e08a7a; border-color: #8a4a3a; background: #3a2420; font-weight: 800; }
+#riskPayBtn {
+  font-size: 18px; font-weight: 900; padding: 10px 18px;
+  color: #e08a7a; border: 1px solid #8a4a3a; background: #3a2420;
+}
+[data-anchor="finish-choice"][data-risk="discard"] { border-color: #6a5a2c; }
