@@ -1,0 +1,2342 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui}[hidden]{display:none!important}</style></head><body><title>오래 버티기 5종</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root { color-scheme: dark; }
+/* 원버튼 5종 공통 화면: 점수 하나를 크게, 나머지는 차분하게 */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; overscroll-behavior: none; }
+body {
+  background: #17151c;
+  color: #f4efe6;
+  font-family: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+.hg {
+  height: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding-block: 8px 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  justify-items: center;
+  gap: 4px;
+}
+.hg-top { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.hg-top h1 { margin: 0; font-size: 18px; font-weight: 700; white-space: nowrap; }
+.hg-back {
+  justify-self: start;
+  color: #b9b2c4;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 2px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.hg-hud { width: 100%; max-width: 760px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; min-height: 58px; }
+.hg-stat { display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.hg-stat span { font-size: 14px; color: #b9b2c4; }
+.hg-stat b { font-size: 26px; font-weight: 800; color: #f4efe6; white-space: nowrap; }
+.hg-stat-side { align-items: flex-end; text-align: right; }
+.hg-stat-side b { color: #ff8a80; font-size: 34px; }
+.hg-score { font-variant-numeric: tabular-nums; line-height: 1; display: flex; align-items: baseline; justify-content: center; gap: 6px; white-space: nowrap; }
+.hg-score b { font-size: 50px; font-weight: 800; color: #ffd166; }
+.hg-score span { font-size: 18px; color: #d8d2e0; }
+.hg-stage { min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.hg-stage canvas {
+  display: block;
+  flex: none;
+  image-rendering: pixelated;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.hg-msg { margin: 2px 0 0; font-size: 20px; font-weight: 700; text-align: center; min-height: 28px; font-variant-numeric: tabular-nums; }
+.hg-msg .new { color: #ffd166; margin-left: 6px; }
+.hg-foot { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: center; }
+.hg-rules { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.hg-rules button {
+  font: inherit;
+  font-size: 15px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  border: 1px solid #5a5468;
+  background: #24212c;
+  color: #d8d2e0;
+  cursor: pointer;
+}
+.hg-rules button[aria-pressed="true"] { background: #ffd166; border-color: #ffd166; color: #201c12; font-weight: 700; }
+.hg-rules button:disabled { opacity: .55; cursor: default; }
+.hg-pad { display: none; }
+.hg-debug { position: fixed; left: 8px; bottom: 8px; margin: 0; padding: 6px 8px; font: 12px/1.4 ui-monospace, Menlo, monospace; background: rgba(0,0,0,.75); color: #9ff; pointer-events: none; }
+@media (max-width: 520px) {
+  .hg-rules button { font-size: 13px; padding: 8px 9px; }
+  .hg-score b { font-size: 36px; }
+  .hg-score span { font-size: 15px; }
+  .hg-stat span { font-size: 12px; }
+  .hg-stat b { font-size: 18px; }
+  .hg-stat-side b { font-size: 24px; }
+  .hg-msg { font-size: 16px; }
+}
+/* 폰 세로 화면: 위에서부터 점수판, 그림, 안내, 규칙, 맨 아래 큰 버튼. 어디를 눌러도 되지만 엄지가 그림을 가리지 않게 버튼을 보여 준다 */
+@media (orientation: portrait) and (max-width: 700px) {
+  .hg { grid-template-rows: auto auto auto auto auto minmax(72px, 1fr); gap: 8px; padding-block: 8px 16px; }
+  .hg-stage { height: auto; aspect-ratio: 4 / 3; }
+  .hg-msg { min-height: 2.7em; line-height: 1.35; margin: 0; }
+  .hg-foot { width: 100%; }
+  .hg-rules { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
+  .hg-rules button { min-height: 44px; padding: 6px 4px; line-height: 1.2; word-break: keep-all; }
+  .hg-pad {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: calc(100% - 6px);
+    max-height: 220px;
+    align-self: end;
+    margin-bottom: 6px;
+    border: 1px solid #5a5468;
+    border-radius: 16px;
+    background: #24212c;
+    box-shadow: 0 6px 0 #5a5468;
+    color: #f4efe6;
+    font-size: 24px;
+    font-weight: 800;
+  }
+  .hg-pad.is-down { background: #ffd166; color: #201c12; transform: translateY(4px); box-shadow: 0 2px 0 #5a5468; }
+}
+
+body.hl-list { overflow: auto; touch-action: auto; user-select: auto; -webkit-user-select: auto; }
+.hl { max-width: 640px; margin: 0 auto; padding-block: 20px 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 10px; }
+.hl h1 { margin: 0 0 6px; font-size: 26px; }
+.hl button { display: block; width: 100%; padding: 15px 16px; border: 1px solid #4a4556; border-radius: 10px; background: #24212c; color: #f4efe6; font: inherit; text-align: left; cursor: pointer; }
+.hl button:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+.hl b { display: block; font-size: 19px; margin-bottom: 4px; }
+.hl span { color: #d8d2e0; font-size: 15px; line-height: 1.45; }
+</style>
+<main class="hl">
+  <h1>오래 버티기 5종</h1>
+  <button type="button" data-entry="cat-1a"><b>물리기 전까지 · 손 1a</b><span>꾹 눌러 고양이를 쓰다듬습니다. 소매와 손가락이 보이는 손입니다.</span></button>
+  <button type="button" data-entry="cat-1b"><b>물리기 전까지 · 손 1b</b><span>같은 고양이에 속이 빈 선으로 그린 손입니다.</span></button>
+  <button type="button" data-entry="rubber-band"><b>따악</b><span>고무줄을 당겨 앞자리 친구 뒤통수를 맞힙니다. 끊어지면 내 손등입니다.</span></button>
+  <button type="button" data-entry="bubble-gum"><b>풍선껌</b><span>껌이 커질수록 몸이 떠서 동네, 구름, 우주로 올라갑니다.</span></button>
+  <button type="button" data-entry="full-glass"><b>찰랑</b><span>부장님 잔에 술을 따릅니다. 잔 위로 볼록 솟다가 넘치면 끝입니다.</span></button>
+  <button type="button" data-entry="red-light"><b>무궁화꽃이 피었습니다</b><span>꾹 누르면 걷고 떼면 멈춥니다. 끝까지 가면 술래 등을 치고 도망갑니다.</span></button>
+</main>
+<script>
+// 게임이 시작할 때 본문을 통째로 새로 쓴다. 본문 안에 있는 스타일이 같이 지워지지 않게 머리로 옮겨 둔다
+document.head.append(...document.body.querySelectorAll('style'));
+document.body.classList.add('hl-list');
+</script>
+<script>
+/* 원버튼 5종 공통 틀.
+   비유: 놀이기구의 "버튼과 점수판"은 여기서 한 벌로 만들고, 놀이기구 모양(그림 · 소리 · 위험 곡선)만 게임마다 끼운다.
+   규칙 세 가지를 버튼으로 바꿔 가며 비교하고, 기록은 게임 · 규칙별로 브라우저에 따로 남는다.
+   주소에 ?debug=1을 붙이면 위험값이 보이고, K를 누르면 바로 실패한다. ?rate=2처럼 오르는 속도도 바꿀 수 있다.
+   효과음은 꺼 두었다. 다시 들어 보려면 주소에 ?sound=1을 붙인다. */
+(function () {
+  'use strict';
+
+  const query = new URLSearchParams(location.search);
+  const DEBUG = query.get('debug') === '1';
+  const RULE_LABEL = { death: '죽는 순간이 기록', stop: '죽기 전에 떼야 기록', streak: '100연승 규칙' };
+  // 100연승 규칙: 한 번 누를 때마다 판정한다. n연승이면 성공 확률 100-n%, 실패하면 0부터, 최고 기록은 남는다.
+  // 10연승과 20연승부터 5연승마다, 99연승에서는 정해진 횟수만큼 연타해야 판정한다.
+  const STREAK = { goal: 100, resolve: 1, afterMash: 1.6, afterFail: 2.8 };
+  const requiredTaps = (n) => (n === 99 ? 100 : n === 10 || (n >= 20 && n < 100 && n % 5 === 0) ? n : 1);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, k) => a + (b - a) * k;
+
+  // 브라우저 저장소가 막혀 있어도 게임은 돈다. 이때 기록은 페이지를 닫기 전까지만 메모리에 남는다
+  const memory = new Map();
+  const store = {
+    get(key) {
+      try {
+        const value = localStorage.getItem(key);
+        if (value !== null) return value;
+      } catch (e) { /* 메모리에서 읽는다 */ }
+      return memory.has(key) ? memory.get(key) : null;
+    },
+    set(key, value) {
+      memory.set(key, value);
+      try { localStorage.setItem(key, value); } catch (e) { /* 메모리에만 남긴다 */ }
+    },
+  };
+
+  /* ---------- 그림 도구: 부드러운 가장자리 없이 칸칸이 찍는다 ---------- */
+  function rect(g, x, y, w, h, color) {
+    g.fillStyle = color;
+    g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  }
+  function disc(g, cx, cy, rx, ry, color) {
+    g.fillStyle = color;
+    const top = Math.round(cy - ry), bottom = Math.round(cy + ry);
+    for (let y = top; y <= bottom; y += 1) {
+      const k = (y - cy) / ry;
+      const half = rx * Math.sqrt(Math.max(0, 1 - k * k));
+      g.fillRect(Math.round(cx - half), y, Math.max(1, Math.round(half * 2)), 1);
+    }
+  }
+  function tri(g, x1, y1, x2, y2, x3, y3, color) {
+    const p = [[x1, y1], [x2, y2], [x3, y3]].sort((a, b) => a[1] - b[1]);
+    g.fillStyle = color;
+    // 끝점 밖으로 넘어가면 긴 줄이 튀어나오므로 0~1 안으로 묶는다
+    const cross = (a, b, y) => (a[1] === b[1] ? a[0] : a[0] + (b[0] - a[0]) * clamp((y - a[1]) / (b[1] - a[1]), 0, 1));
+    for (let y = Math.round(p[0][1]); y <= Math.round(p[2][1]); y += 1) {
+      const xa = cross(p[0], p[2], y);
+      const xb = y < p[1][1] ? cross(p[0], p[1], y) : cross(p[1], p[2], y);
+      g.fillRect(Math.round(Math.min(xa, xb)), y, Math.max(1, Math.round(Math.abs(xb - xa))), 1);
+    }
+  }
+  function line(g, x1, y1, x2, y2, width, color) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1)));
+    g.fillStyle = color;
+    for (let i = 0; i <= steps; i += 1) {
+      const k = i / steps;
+      g.fillRect(Math.round(lerp(x1, x2, k) - width / 2), Math.round(lerp(y1, y2, k) - width / 2), Math.ceil(width), Math.ceil(width));
+    }
+  }
+  // 「덥석!」 같은 큰 글자: 테두리를 둘러 어떤 배경에서도 읽히게 한다
+  function bang(g, text, x, y, size, color, edge) {
+    g.save();
+    g.font = `900 ${size}px "Apple SD Gothic Neo","Malgun Gothic",sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    g.lineWidth = Math.max(3, size / 5);
+    g.strokeStyle = edge || '#1a1014';
+    g.strokeText(text, x, y);
+    g.fillStyle = color;
+    g.fillText(text, x, y);
+    g.restore();
+  }
+
+  /* ---------- 소리: 파일 없이 브라우저에서 직접 만든다 ---------- */
+  const Snd = (() => {
+    let ctx = null, master = null, noiseBuffer = null;
+    let muted = store.get('hold-on:muted') === '1';
+
+    const wake = () => { // 거절돼도 게임은 계속되므로 오류로 남기지 않는다
+      const pending = ctx.resume();
+      if (pending && pending.catch) pending.catch(() => {});
+    };
+    function unlock() {
+      if (query.get('sound') !== '1') return; // 효과음은 꺼 둔 상태가 기본이다
+      if (ctx) { if (ctx.state !== 'running') wake(); return; }
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) return;
+      ctx = new AudioCtor();
+      master = ctx.createGain();
+      master.gain.value = muted ? 0 : 0.9;
+      master.connect(ctx.destination);
+      noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+      if (ctx.state !== 'running') wake();
+    }
+    function tone(freq, dur, opt) {
+      if (!ctx) return;
+      const o = opt || {};
+      const osc = ctx.createOscillator(), gain = ctx.createGain(), now = ctx.currentTime;
+      osc.type = o.type || 'square';
+      osc.frequency.setValueAtTime(freq, now);
+      if (o.slide) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.slide), now + dur);
+      gain.gain.setValueAtTime(o.vol || 0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+      osc.connect(gain); gain.connect(master);
+      osc.start(now); osc.stop(now + dur + 0.02);
+    }
+    function noise(dur, opt) {
+      if (!ctx) return;
+      const o = opt || {};
+      const src = ctx.createBufferSource(), gain = ctx.createGain(), filter = ctx.createBiquadFilter(), now = ctx.currentTime;
+      src.buffer = noiseBuffer;
+      filter.type = o.filter || 'lowpass';
+      filter.frequency.value = o.freq || 1500;
+      gain.gain.setValueAtTime(o.vol || 0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+      src.connect(filter); filter.connect(gain); gain.connect(master);
+      src.start(now); src.stop(now + dur + 0.02);
+    }
+    // 계속 나는 소리(골골, 으르렁, 따르는 소리). 게임이 매 순간 크기와 높이를 조절한다
+    function loop(opt) {
+      let parts = null;
+      function build() {
+        if (!ctx || parts) return;
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        let source;
+        if (opt.kind === 'noise') {
+          source = ctx.createBufferSource();
+          source.buffer = noiseBuffer;
+          source.loop = true;
+        } else {
+          source = ctx.createOscillator();
+          source.type = opt.kind || 'sawtooth';
+          source.frequency.value = opt.freq || 80;
+        }
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = opt.filter || 800;
+        source.connect(filter);
+        let am = null;
+        if (opt.am) { // 떨리는 소리를 만드는 작은 흔들개
+          const wobble = ctx.createGain();
+          wobble.gain.value = 0.6;
+          const lfo = ctx.createOscillator(), depth = ctx.createGain();
+          lfo.frequency.value = opt.am;
+          depth.gain.value = 0.4;
+          lfo.connect(depth); depth.connect(wobble.gain);
+          lfo.start();
+          filter.connect(wobble); wobble.connect(gain);
+          am = lfo;
+        } else {
+          filter.connect(gain);
+        }
+        gain.connect(master);
+        source.start();
+        parts = { gain, source, filter, am };
+      }
+      return {
+        set(volume, freq, cut) {
+          build();
+          if (!parts) return;
+          const now = ctx.currentTime;
+          parts.gain.gain.setTargetAtTime(volume, now, 0.03);
+          if (freq && parts.source.frequency) parts.source.frequency.setTargetAtTime(freq, now, 0.05);
+          if (cut) parts.filter.frequency.setTargetAtTime(cut, now, 0.05);
+        },
+        silence() { if (parts) parts.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.02); },
+      };
+    }
+    return {
+      unlock, tone, noise, loop,
+      get muted() { return muted; },
+      setMuted(value) {
+        muted = value;
+        store.set('hold-on:muted', value ? '1' : '0');
+        if (master) master.gain.value = value ? 0 : 0.9;
+      },
+      suspend() {
+        if (!ctx) return;
+        const pending = ctx.suspend();
+        if (pending && pending.catch) pending.catch(() => {});
+      },
+      resume() { if (ctx) wake(); },
+    };
+  })();
+
+  /* ---------- 공통 틀 ---------- */
+  function makeRng(seed) { // 시험에서 같은 판을 되풀이할 수 있게 씨앗을 받는다
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function start(cfg) {
+    const seedParam = query.get('seed');
+    const rng = makeRng(seedParam ? Number(seedParam) : (Date.now() ^ (Math.random() * 1e9)));
+    const rateParam = Number(query.get('rate'));
+    const rate = Number.isFinite(rateParam) && rateParam > 0 ? rateParam : (cfg.rate || 1);
+    const holdEndsRound = cfg.holdEndsRound !== false;
+    const hazardOn = cfg.hazard !== false;
+    const ruleKey = `hold-on:${cfg.id}:rule`;
+    // 점수 단위가 바뀐 게임은 bestVersion으로 새 칸을 써서 옛 기록과 섞이지 않게 한다
+    const bestKey = (rule) => `hold-on:${cfg.id}:best:${cfg.bestVersion ? `${cfg.bestVersion}:` : ''}${rule}`;
+
+    /* 화면 짜기 */
+    document.title = cfg.title;
+    document.body.innerHTML = `
+      <main class="hg">
+        <nav class="hg-top">
+          <a class="hg-back" href="../index.html">목록</a>
+          <h1>${cfg.title}</h1>
+          <span></span>
+        </nav>
+        <div class="hg-hud">
+          <div class="hg-stat hg-stat-best"><span>최고 기록</span><b id="hg-best"></b></div>
+          <div class="hg-score"><b id="hg-now">0</b><span id="hg-unit"></span></div>
+          <div class="hg-stat hg-stat-side"><span id="hg-side-label"></span><b id="hg-side-value"></b></div>
+        </div>
+        <div class="hg-stage"><canvas width="320" height="240" aria-label="${cfg.title} 화면"></canvas></div>
+        <p class="hg-msg" aria-live="polite"></p>
+        <div class="hg-foot">
+          <div class="hg-rules" role="group" aria-label="규칙 비교">
+            <button type="button" data-rule="death">${RULE_LABEL.death}</button>
+            <button type="button" data-rule="stop">${RULE_LABEL.stop}</button>
+            <button type="button" data-rule="streak">${RULE_LABEL.streak}</button>
+          </div>
+        </div>
+        <div class="hg-pad" aria-hidden="true"></div>
+      </main>`;
+    // 폰 한 장짜리(tools/build-phone.js)는 목록이 같은 페이지 안에 있어서, 목록 링크 대신 이 함수로 돌아간다
+    if (window.HOLD_ON_BACK) {
+      document.querySelector('.hg-back').addEventListener('click', (e) => {
+        e.preventDefault();
+        window.HOLD_ON_BACK();
+      });
+    }
+    const canvas = document.querySelector('canvas');
+    const g = canvas.getContext('2d');
+    // 작은 그림판(320x240)을 남는 자리에 꽉 차게 늘린다. 비율은 그대로
+    const stageEl = document.querySelector('.hg-stage');
+    const fitCanvas = () => {
+      const box = stageEl.getBoundingClientRect();
+      const k = Math.max(0.5, Math.min(box.width / 320, box.height / 240));
+      canvas.style.width = `${Math.floor(320 * k)}px`;
+      canvas.style.height = `${Math.floor(240 * k)}px`;
+    };
+    if (window.ResizeObserver) new ResizeObserver(fitCanvas).observe(stageEl);
+    window.addEventListener('resize', fitCanvas);
+    fitCanvas();
+    const el = {
+      now: document.getElementById('hg-now'),
+      unit: document.getElementById('hg-unit'),
+      msg: document.querySelector('.hg-msg'),
+      best: document.getElementById('hg-best'),
+      sideLabel: document.getElementById('hg-side-label'),
+      sideValue: document.getElementById('hg-side-value'),
+      rules: [...document.querySelectorAll('.hg-rules button')],
+      pad: document.querySelector('.hg-pad'), // 폰 세로 화면의 큰 버튼. 손가락이 그림을 가리지 않게 아래에 둔다
+      debug: null,
+    };
+    if (DEBUG) {
+      el.debug = document.createElement('pre');
+      el.debug.className = 'hg-debug';
+      document.body.appendChild(el.debug);
+    }
+
+    /* 상태 */
+    const storedRule = store.get(ruleKey);
+    const hasRules = cfg.rules !== false; // 규칙이 하나뿐인 게임은 버튼을 숨긴다
+    let rule = hasRules && (storedRule === 'death' || storedRule === 'streak') ? storedRule : 'stop';
+    let lockUntil = 0, clock = 0, last = 0, streakWait = 0;
+    // 100연승 규칙에서 n연승을 그림의 진행으로 옮긴다. 게임마다 위험값에 맞는 시간을 넘겨줄 수 있다
+    const tForRisk = cfg.tForRisk || ((r) => r / (rate || 1));
+    const s = {
+      phase: 'ready', // ready 기다림 · hold 진행 · won 무사히 끝 · dead 실패
+      t: 0, risk: 0, mood: 1, holding: false, frozen: false,
+      time: 0, phaseT: 0, endRisk: 0, endScore: 0, rng, rate,
+      streak: 0, taps: 0, resolving: false, pendingWin: false, streakNew: false,
+      get rule() { return rule; },
+    };
+
+    function pickMood() {
+      // 판마다 달라지는 배수는 쓰지 않는다. 보이는 확률이 곧 규칙이다
+      const range = cfg.mood || [1, 1];
+      return lerp(range[0], range[1], rng());
+    }
+    function resetRound() {
+      s.t = 0; s.risk = 0; s.mood = pickMood(); s.phaseT = 0; s.endRisk = 0; s.endScore = 0;
+      s.streak = 0; s.taps = 0; s.resolving = false; s.pendingWin = false; s.streakNew = false;
+      streakWait = 0;
+      if (cfg.reset) cfg.reset(s);
+    }
+    function scoreNow() {
+      if (rule === 'streak') return s.streak;
+      return cfg.score ? cfg.score(s) : s.t;
+    }
+    function format(value) {
+      if (rule === 'streak') return String(value);
+      return cfg.format ? cfg.format(value, rule) : value.toFixed(1);
+    }
+    function unit() {
+      if (rule === 'streak') return '연승';
+      return typeof cfg.unit === 'function' ? cfg.unit(rule) : (cfg.unit || '초');
+    }
+    function readBest(r) {
+      const raw = store.get(bestKey(r));
+      const value = raw === null ? null : Number(raw);
+      return value === null || Number.isNaN(value) ? null : value;
+    }
+    function bestText() {
+      const value = readBest(rule);
+      if (value === null) return '없음';
+      return cfg.formatBest ? cfg.formatBest(value, rule) : `${format(value)}${unit()}`;
+    }
+    // 오른쪽 칸: 대개 실패할 확률이고, 확률이 없는 게임은 다른 값을 넘겨 준다
+    function sideNow() {
+      if (cfg.side) return cfg.side(s);
+      return { label: cfg.riskLabel || '위험', value: `${Math.round(s.risk)}%` };
+    }
+    function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
+    function refreshSide() {
+      const side = sideNow();
+      setText(el.sideLabel, side.label);
+      setText(el.sideValue, side.value);
+    }
+    function holdLine() {
+      if (rule === 'streak') {
+        const target = s.streak + 1, chance = 100 - s.streak, need = requiredTaps(s.streak);
+        if (s.resolving) return `${target}연승 도전 · 결과 확인 중`;
+        if (need > 1) return `${target}연승 도전 · ${s.taps}/${need}회 연타 · 성공 확률 ${chance}%`;
+        return `${target}연승 도전 · 성공 확률 ${chance}%`;
+      }
+      if (cfg.line) return cfg.line(s, rule);
+      return rule === 'stop' ? '떼면 기록이 남습니다' : '실패해도 기록이 남습니다';
+    }
+    function refreshUi() {
+      el.rules.forEach((b) => {
+        b.setAttribute('aria-pressed', String(b.dataset.rule === rule));
+        b.disabled = s.phase === 'hold' && rule !== 'streak'; // 100연승 규칙은 누르고 있는 판이 아니라서 바로 바꿀 수 있다
+      });
+      el.best.textContent = bestText();
+      refreshSide();
+    }
+    function showReady() {
+      el.msg.textContent = rule === 'streak'
+        ? `한 번씩 눌러 도전 · 성공할 때마다 ${cfg.riskLabel || '실패 확률'} 1%씩 올라요`
+        : (cfg.hint || '꾹 누르기');
+      el.now.textContent = format(0);
+      el.unit.textContent = unit();
+      refreshUi();
+    }
+
+    function finish(kind) {
+      if (s.phase !== 'hold') return;
+      s.endRisk = s.risk;
+      // 그림은 진행 값(cm, m, ml)을 보고 끝 장면을 그린다. 연승 수는 아래 result로 따로 넘긴다
+      s.endScore = cfg.score ? cfg.score(s) : s.t;
+      s.phase = kind === 'win' ? 'won' : 'dead';
+      s.phaseT = 0;
+      s.holding = false;
+      lockUntil = clock + (rule === 'streak' ? (kind === 'dead' ? STREAK.afterFail : STREAK.afterMash) : (cfg.lock || 0.6));
+      // 이번 판 결과를 규칙에 맞게 정한다. value가 null이면 기록 없음
+      let result;
+      if (rule === 'streak') result = { value: s.streak };
+      else if (cfg.finalScore) result = cfg.finalScore(s, rule, kind);
+      else if (rule === 'stop' && kind === 'dead') result = { value: null };
+      else result = { value: s.endScore };
+      let isNew = rule === 'streak' && s.streakNew; // 100연승 규칙은 이길 때마다 바로 저장해 둔다
+      // 누르자마자 뗀 것은 기록으로 치지 않는다. 100연승 규칙은 한 번도 못 이긴 판을 뺀다
+      const tooShort = rule === 'streak' ? s.streak === 0 : holdEndsRound && kind === 'win' && s.t < 0.1;
+      if (result.value !== null && !tooShort) {
+        const old = readBest(rule);
+        const lowerWins = cfg.lowerIsBetter ? cfg.lowerIsBetter(rule) : false;
+        if (old === null || (lowerWins ? result.value < old : result.value > old)) {
+          store.set(bestKey(rule), String(result.value));
+          isNew = true;
+        }
+      }
+      s.result = result;
+      const shown = result.value === null ? format(0) : format(result.value);
+      el.now.textContent = result.value === null ? '기록 없음' : shown;
+      el.unit.textContent = result.value === null ? '' : (result.unit || unit());
+      const word = rule === 'streak'
+        ? (kind === 'win' ? '100연승 달성!' : `${s.streak}연승에서 실패`)
+        : (kind === 'win' ? (cfg.wonWord || '무사히 멈춤') : (cfg.deadWord || '실패'));
+      el.msg.innerHTML = '';
+      el.msg.append(document.createTextNode(`${word}  ·  ${rule === 'streak' ? '다시 누르기' : '다시 꾹'}`));
+      if (isNew) {
+        const mark = document.createElement('span');
+        mark.className = 'new';
+        mark.textContent = '신기록!';
+        el.msg.append(mark);
+      }
+      if (cfg.onEnd) cfg.onEnd(kind, s);
+      refreshUi();
+    }
+
+    function press() {
+      Snd.unlock();
+      if (s.holding) return;
+      if (s.phase === 'ready' || ((s.phase === 'won' || s.phase === 'dead') && clock >= lockUntil)) {
+        resetRound();
+        s.phase = 'hold';
+        s.phaseT = 0;
+        s.holding = true;
+        setText(el.msg, holdLine());
+        refreshUi();
+        if (cfg.onStart) cfg.onStart(s);
+      } else if (s.phase === 'hold' && rule === 'streak') {
+        if (!s.resolving && clock >= streakWait) s.holding = true; // 결과를 기다리는 동안은 누름을 받지 않는다
+      } else if (s.phase === 'hold' && !holdEndsRound) {
+        s.holding = true;
+        if (cfg.onPress) cfg.onPress(s);
+      }
+    }
+    function winStreak() {
+      s.streak += 1;
+      s.taps = 0;
+      const best = readBest('streak');
+      if (best === null || s.streak > best) {
+        store.set(bestKey('streak'), String(s.streak));
+        s.streakNew = true;
+      }
+      s.risk = s.streak;
+      s.t = tForRisk(s.streak);
+      if (s.streak >= STREAK.goal) finish('win');
+      else refreshUi();
+    }
+    function tapStreak() { // 손을 뗄 때 판정한다
+      const need = requiredTaps(s.streak);
+      const won = () => s.rng() < (100 - s.streak) / 100;
+      if (need > 1) {
+        s.taps += 1;
+        if (s.taps < need) return;
+        s.pendingWin = won();
+        s.resolving = true;
+        streakWait = clock + STREAK.resolve;
+        return;
+      }
+      if (won()) winStreak();
+      else finish('dead');
+    }
+    function release() {
+      if (!s.holding) return;
+      s.holding = false;
+      if (s.phase !== 'hold') return;
+      if (rule === 'streak') tapStreak();
+      else if (holdEndsRound) finish('win');
+      else if (cfg.onRelease) cfg.onRelease(s);
+    }
+    // 창을 벗어나 손이 끊긴 경우: 누르는 규칙은 뗀 것과 같고, 100연승 규칙은 판정 없이 취소한다
+    function letGo() {
+      if (rule === 'streak') s.holding = false;
+      else release();
+    }
+
+    /* 입력: 버튼과 링크 말고 어디를 눌러도 된다. 마우스 · 터치 · 스페이스 모두 받는다.
+       판을 시작한 손가락 하나만 따라간다. 다른 손가락이 닿았다 떨어져도 판은 그대로다.
+       100연승 규칙만 예외: 두 손가락으로 번갈아 연타하면 새로 누를 때마다 앞 손가락을 뗀 것으로 친다 */
+    let activePointer = null;
+    window.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button, a')) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (activePointer !== null && s.holding) {
+        if (rule !== 'streak') return;
+        release();
+      }
+      e.preventDefault();
+      activePointer = e.pointerId;
+      // 누른 채 창 밖으로 나갔다가 떼도 떼었다고 알 수 있게 붙잡아 둔다
+      try { document.documentElement.setPointerCapture(e.pointerId); } catch (err) { /* 안 되는 브라우저는 창 안에서만 */ }
+      press();
+    });
+    const pointerEnd = (e) => {
+      Snd.unlock(); // 터치 기기는 손을 뗄 때부터 소리를 허락한다
+      if (e.pointerId !== activePointer) return;
+      activePointer = null;
+      if (e.type === 'pointercancel') letGo();
+      else release();
+    };
+    window.addEventListener('pointerup', pointerEnd);
+    window.addEventListener('pointercancel', pointerEnd);
+    window.addEventListener('touchend', () => Snd.unlock());
+    // 폰에서 오래 누르거나 연타할 때 화면이 끌리거나, 확대되거나, 글자 선택 메뉴가 뜨지 않게 막는다. 버튼과 링크는 그대로 눌린다
+    window.addEventListener('touchstart', (e) => {
+      if (!(e.target.closest && e.target.closest('button, a'))) e.preventDefault();
+    }, { passive: false });
+    window.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    window.addEventListener('blur', () => { activePointer = null; letGo(); });
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !e.repeat) {
+        if (e.target.closest && e.target.closest('button, a')) return;
+        e.preventDefault();
+        press();
+      }
+      if (DEBUG && (e.key || '').toLowerCase() === 'k') finish('dead');
+    });
+    window.addEventListener('keyup', (e) => { if (e.code === 'Space') release(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { letGo(); Snd.suspend(); } else { Snd.resume(); }
+    });
+    el.rules.forEach((b) => b.addEventListener('click', () => {
+      if (s.phase === 'hold' && rule !== 'streak') return;
+      rule = b.dataset.rule;
+      store.set(ruleKey, rule);
+      s.holding = false;
+      s.phase = 'ready';
+      resetRound();
+      showReady();
+      b.blur();
+    }));
+
+    const api = { die: () => finish('dead'), win: () => finish('win') };
+
+    function step(dt) {
+      clock += dt;
+      s.time += dt;
+      s.phaseT += dt;
+      if (s.phase === 'hold' && !s.frozen && rule === 'streak') {
+        if (s.resolving && clock >= streakWait) { // 연타 결과가 나오는 순간
+          s.resolving = false;
+          if (s.pendingWin) {
+            winStreak();
+            streakWait = clock + STREAK.afterMash;
+          } else {
+            finish('dead');
+          }
+        }
+      } else if (s.phase === 'hold' && !s.frozen) {
+        if (holdEndsRound || s.holding) s.t += dt;
+        s.risk = cfg.risk ? cfg.risk(s) : clamp(s.rate * s.mood * s.t, 0, 100);
+        if (hazardOn && rng() < 1 - Math.pow(1 - Math.min(s.risk, 100) / 100, dt)) finish('dead');
+      }
+      if (cfg.tick) cfg.tick(s, dt, api);
+      if (s.phase === 'hold') {
+        setText(el.now, format(scoreNow()));
+        refreshSide();
+        setText(el.msg, holdLine());
+      }
+      if (cfg.sound) cfg.sound(s, dt);
+      el.pad.classList.toggle('is-down', s.holding);
+      setText(el.pad, rule === 'streak' ? '누르기' : '꾹 누르기');
+    }
+    function render() {
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      cfg.draw(g, s);
+      if (el.debug) {
+        el.debug.textContent = `규칙 ${rule} · ${s.phase}\nt ${s.t.toFixed(2)}  위험 ${s.risk.toFixed(1)}%  기분 x${s.mood.toFixed(2)}  오름 ${s.rate}%/초`;
+      }
+    }
+    function frame(ts) {
+      // 다음 장면부터 예약한다. 그림 시안 하나에 문제가 있어도 게임이 얼어붙지 않게
+      requestAnimationFrame(frame);
+      const dt = last ? Math.min(0.05, (ts - last) / 1000) : 0;
+      last = ts;
+      step(dt);
+      render();
+    }
+
+    if (!hasRules) document.querySelector('.hg-rules').hidden = true;
+    resetRound();
+    showReady();
+    requestAnimationFrame(frame);
+
+    // 자동 검사용 손잡이: 게임 규칙에는 영향이 없다
+    window.__hold = {
+      s, cfg, press, release, step, render, requiredTaps,
+      tap() { press(); release(); },
+      setStreak(n) { s.streak = n; s.risk = n; s.t = tForRisk(n); s.taps = 0; s.resolving = false; streakWait = 0; },
+      die: api.die,
+      win: api.win,
+      setMood(v) { s.mood = v; },
+      setRule(r) { rule = hasRules ? r : 'stop'; store.set(ruleKey, rule); s.holding = false; s.phase = 'ready'; resetRound(); showReady(); },
+      best: readBest,
+      freeze(t) {
+        s.frozen = true; s.phase = 'hold'; s.holding = true; s.mood = 1; s.t = t;
+        s.risk = cfg.risk ? cfg.risk(s) : clamp(s.rate * t, 0, 100);
+        if (cfg.onFreeze) cfg.onFreeze(s, t);
+        el.now.textContent = format(scoreNow());
+      },
+      unfreeze() { s.frozen = false; },
+      unlockNow() { lockUntil = 0; },
+      msg: () => el.msg.textContent,
+      shownScore: () => el.now.textContent,
+    };
+  }
+
+  window.HoldGame = { start, Snd, debug: DEBUG, rect, disc, tri, line, bang, clamp, lerp };
+})();
+
+</script>
+<script>
+/* 고양이 표정 계산: 위험값 하나를 "눈, 귀, 고개, 입" 같은 부위별 값(0~1)으로 나눈다.
+   그림 시안들은 이 값만 받아 그리므로, 어느 시안이든 같은 시점에 같은 반응을 한다.
+   시점표(위험값 기준, 시험값)
+     눈 3~12% 서서히 뜸 · 동공 20~30% 커짐 · 귀 8~25% 납작 · 고개 15~22% 손 쪽으로
+     입 10% 일자, 23% 벌어짐, 26% 이빨 · 앞발 30~38% 듦 · 털 30~60% 곤두섬 */
+(function () {
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // 지금 얼마나 화났는가: 끝난 뒤에는 서서히 풀리거나(무사) 고정(물림)
+  function anger(phase, risk, endRisk, phaseT) {
+    if (phase === 'hold') return risk;
+    if (phase === 'won') return Math.max(0, endRisk - phaseT * 30);
+    if (phase === 'dead') return Math.max(endRisk, 30);
+    return 0;
+  }
+
+  function compute({ phase, risk, endRisk, phaseT, time, tailPhase }) {
+    const a = anger(phase, risk, endRisk, phaseT);
+    const turn = phase === 'won'
+      ? clamp(1 - phaseT * 2.5, 0, 1) * clamp((endRisk - 15) / 7, 0, 1)
+      : clamp((a - 15) / 7, 0, 1);
+    const pawShown = phase === 'dead' ? endRisk >= 30 : a >= 30;
+    return {
+      phase, phaseT, time, a,
+      open: clamp((a - 3) / 9, 0, 1), // 눈 뜬 정도
+      pupil: clamp((a - 20) / 10, 0, 1), // 동공 커짐
+      brow: clamp((a - 14) / 16, 0, 1), // 찡그림
+      flat: clamp((a - 8) / 17, 0, 1), // 귀 납작
+      turn, // 고개가 손 쪽으로
+      mouth: a < 10 ? 0 : a < 23 ? 1 : a < 26 ? 2 : 3, // 0 웃음, 1 일자, 2 벌림, 3 이빨
+      gap: clamp((a - 23) / 12, 0, 1), // 입 벌린 정도
+      belly: clamp(1 - a / 12, 0, 1), // 배 드러낸 정도
+      pawShown,
+      pawUp: pawShown ? clamp((a - 30) / 8, 0, 1) : 0, // 앞발 든 정도
+      claws: a > 40 || (phase === 'dead' && endRisk >= 30), // 발톱
+      puff: clamp((a - 30) / 30, 0, 1), // 털 곤두섬, 몸 부풀기
+      rare: a > 30, // 100판에 1판 보는 구간
+      tremble: a < 6 ? 0 : Math.min(3.5, (a - 6) * 0.08 + Math.max(0, a - 30) * 0.12), // 몸 떨림(칸)
+      tailPhase: tailPhase || 0,
+      tailSwing: Math.min(1, (2 + a * 0.6) / 24), // 꼬리 흔드는 폭
+      fear: clamp(a / 25, 0, 1), // 손이 떨리고 쓰다듬는 폭이 줄어드는 정도
+      room: clamp((a - 12) / 45, 0, 0.5) * 2, // 방이 어두워지는 정도(0~1)
+    };
+  }
+
+  // 꼬리 속도: 쌓아 가며 계산해야 페이지를 오래 열어 둬도 튀지 않는다
+  const tailSpeed = (a) => Math.min(22, 1.6 + a * 0.55);
+
+  window.CatView = { anger, compute, tailSpeed, clamp };
+})();
+
+</script>
+<script>
+/* 픽셀 시안 공통 도구: 160x120짜리 작은 판에 그린 뒤 그대로 2배로 키운다.
+   부드러운 가장자리와 반투명 없이 칸칸이 찍어야 진짜 도트 느낌이 난다. */
+(function () {
+  window.CAT_ARTS = window.CAT_ARTS || {};
+  window.CatArtKit = {
+    layer(w = 160, h = 120) {
+      const cv = document.createElement('canvas');
+      cv.width = w;
+      cv.height = h;
+      const c = cv.getContext('2d');
+      return {
+        c,
+        blit(g) {
+          g.imageSmoothingEnabled = false;
+          g.drawImage(cv, 0, 0, 320, 240);
+        },
+      };
+    },
+    // 두 색 · 큰 칸 시안(11/7)에 쓰는 색 두 가지
+    LCD: { bg: '#051310', ink: '#ccf4e4' },
+    // 글자 그림으로 칸을 찍는다. # 밝은 색, o 어두운 색(앞 그림을 지움), 그 밖의 글자는 건너뜀. flip이면 좌우를 뒤집는다
+    sprite(c, x, y, rows, flip = false) {
+      const { bg, ink } = window.CatArtKit.LCD;
+      rows.forEach((row, j) => {
+        for (let i = 0; i < row.length; i += 1) {
+          const ch = flip ? row[row.length - 1 - i] : row[i];
+          if (ch !== '#' && ch !== 'o') continue;
+          c.fillStyle = ch === '#' ? ink : bg;
+          c.fillRect(x + i, y + j, 1, 1);
+        }
+      });
+    },
+    // 두 색을 바둑판처럼 섞어 중간 밝기를 낸다. level: 0 없음, 1 성김, 2 바둑판, 3 빽빽
+    dither(c, x, y, w, h, base, dot, level) {
+      c.fillStyle = base;
+      c.fillRect(x, y, w, h);
+      if (level <= 0) return;
+      c.fillStyle = dot;
+      for (let py = y; py < y + h; py += 1) {
+        for (let px = x; px < x + w; px += 1) {
+          const on = level === 1 ? (px % 4 === 0 && py % 2 === 0 && (px + py) % 4 === 0)
+            : level === 2 ? (px + py) % 2 === 0
+              : !((px % 2 === 0) && (py % 2 === 0));
+          if (on) c.fillRect(px, py, 1, 1);
+        }
+      }
+    },
+  };
+})();
+
+</script>
+<script>
+/* 두 색 · 큰 칸 시안(11/7). 판 32×24칸, 고양이 가로 16칸.
+   칸을 글자 그림으로 직접 적었다. # 밝은 색, o 어두운 색(앞 그림을 지움), . 건너뜀.
+   표정은 몇 단계뿐이라, 꼬리 · 손 떨림 · 머리 위 김이 조금씩 달라지는 일을 맡는다. */
+(function () {
+  const { sprite, LCD, layer } = window.CatArtKit;
+  const CAT_X = 8, CAT_Y = 5; // 고양이 왼쪽 위 칸
+
+  const HEAD = [
+    '.##############.',
+    '################',
+    '################',
+    '################',
+    '################',
+    '################',
+    '################',
+    '################',
+    '.##############.',
+    '...##########...',
+  ];
+  const BODY = [
+    '...##########...',
+    '...##########...',
+    '...##########...',
+    '...##########...',
+    '...###.##.###...',
+    '..####.##.####..',
+  ];
+  const EARS = [ // 쫑긋 → 눕는 중 → 납작. 머리 바로 위 세 줄
+    ['.##..........##.', '.###........###.', '.####......####.'],
+    ['................', '###..........###', '.####......####.'],
+    ['................', '................', '###..........###'],
+  ];
+  const EYES = [ // 왼쪽 눈 기준. 오른쪽은 뒤집어 찍는다
+    ['.oo.', 'o..o', '....'], // 편하게 감음
+    ['....', 'oooo', '....'], // 실눈
+    ['.oo.', '.oo.', '....'], // 뜸
+    ['.oo.', '.oo.', '.oo.'], // 똑바로 쳐다봄
+    ['o...', '.oo.', '.oo.'], // 눈썹이 내려옴
+    ['oo..', '.ooo', '..oo'], // 찡그림
+  ];
+  const NOSE = ['oo'];
+  const MOUTHS = [
+    ['o..oo..o', '.oo..oo.'], // 웃는 입
+    ['...oo...'], // 다문 입
+    ['..oooo..'], // 일자
+    ['.oooooo.', '.oooooo.'], // 벌림
+    ['oooooooo', 'o#oooo#o', '.oooooo.'], // 이빨
+    ['oooooooo', 'o#oooo#o', 'oooooooo', '.oooooo.'], // 크게 벌림
+  ];
+  const HANDS = [ // 쓰다듬을 때 손가락이 번갈아 움직인다
+    ['ooooooo', 'o#####o', 'o#####o', 'o#o#o#o', 'ooooooo'],
+    ['ooooooo', 'o#####o', 'o#####o', 'oo#o#oo', 'ooooooo'],
+  ];
+  const BITE_MOUTH = ['oooooooooo', 'o##oooo##o', 'oooooooooo', 'oooooooooo', '.oooooooo.'];
+  const TAILS = [ // 몸 오른쪽에 붙는 꼬리. 앞 둘은 편할 때, 뒤 둘은 화날 때 크게 흔든다
+    ['....##', '....##', '...##.', '..##..', '###...', '##....'],
+    ['......', '.....#', '....##', '...##.', '####..', '##....'],
+    ['.##...', '.##...', '..##..', '..##..', '###...', '##....'],
+    ['......', '.....#', '.....#', '....##', '#####.', '###...'],
+  ];
+  const PAW = ['.##.', '####', '####', '.##.', '.##.'];
+  const CLAWS = ['#.#.'];
+  const BANG = ['#', '#', '#', '.', '#'];
+  const RAYS = [[28, 11, 3], [28, 19, 3], [2, 12, 3], [2, 18, 3]]; // x, y, 길이
+
+  // 11/7 디벨롭 1a: 소매와 손가락이 보이는 손. 오른쪽 위에서 내려온다
+  const HANDS_1A = [
+    ['.......#######', '......#######.', '.....ooooooooo', '...oo########o', 'oo.o#########o', 'o#oo#########o', 'o###o##o##o##o', 'oo##o##o##o#oo', '.oooo##o##oo..', '....oooooo....'],
+    ['.......#######', '......#######.', '.....ooooooooo', '...oo########o', 'oo.o#########o', 'o#oo#########o', 'o###o##o##o##o', 'oo##o##o##o##o', '.oooo##o##o#oo', '....ooooooooo.'],
+  ];
+  // 물린 순간의 입: 턱까지 크게 벌린다. 윗니 · 아랫니가 손가락을 위아래에서 문다. 얼굴 왼쪽 위(ox, oy+9)에 맞춘다
+  const BITE_JAW = [
+    '###oooooooooooo#',
+    '###ooo#ooo#ooooo',
+    '##oooooooooooooo',
+    '##oooooooooooooo',
+    '.#oooooooooooooo',
+    '.#ooo#ooo#oooooo',
+    '.##oooooooooooo.',
+    '..############..',
+  ];
+  // 물린 손 1a: 오른쪽에서 들어온 옆모습. 손가락 둘이 입 안에, 엄지는 위로, 손목 뒤에 소매가 있다
+  const BITE_HAND_1A = [
+    '.......ooooooo.....',
+    '.......o#####o.####',
+    '.......#######o####',
+    '##############o####',
+    'ooooooo#######o####',
+    '##############o####',
+    '.......#######o####',
+    '.......oooooooo####',
+  ];
+  // 11/7 디벨롭 1b: 속이 빈 선으로 그린 손
+  const HAND_1B = ['..........#ooo', '.........#oooo', '........#oooo#', '....#####ooo#.', '..##ooooooo#..', '.#oooooooo#...', '..######oo#...', '........##....'];
+  // 물린 손 1b: 같은 자세를 속이 빈 선으로. 손목은 두 줄로 판 밖까지 간다
+  const BITE_HAND_1B = [
+    '.......oooooooo....',
+    '.......o######oo...',
+    '.......#oooooo#####',
+    '########ooooooooooo',
+    '#oooooooooooooooooo',
+    '########ooooooooooo',
+    '.......#oooooo#####',
+    '.......o######oo...',
+    '.......oooooooo....',
+  ];
+
+  const stage = layer(32, 24);
+
+  const eyeIndex = (a) => (a < 3 ? 0 : a < 6 ? 1 : a < 12 ? 2 : a < 18 ? 3 : a < 24 ? 4 : 5);
+  const mouthIndex = (a) => (a < 6 ? 0 : a < 10 ? 1 : a < 23 ? 2 : a < 26 ? 3 : a < 31 ? 4 : 5);
+
+  function fill(c, x, y, w, h, color) {
+    c.fillStyle = color;
+    c.fillRect(x, y, w, h);
+  }
+
+  function drawTail(c, v, ox, oy) {
+    // 화날수록 빠르게(tailPhase) 크게(뒤쪽 그림) 흔든다
+    const wide = v.tailSwing > 0.55;
+    const flip = Math.sin(v.tailPhase) > 0;
+    sprite(c, ox + 13, oy + 13, TAILS[(wide ? 2 : 0) + (flip ? 1 : 0)]);
+  }
+
+  function drawFace(c, v, ox, oy) {
+    const a = v.a;
+    const look = v.phase === 'won' ? -1 : (v.turn >= 0.5 ? 1 : 0); // 고개 돌림은 얼굴만 한 칸 민다
+    const eye = EYES[eyeIndex(a)];
+    const biting = v.phase === 'dead';
+    const eyeY = biting ? oy + 5 : oy + 6; // 물었을 땐 입이 커서 눈이 한 칸 올라간다
+    sprite(c, ox + 2 + look, eyeY, eye);
+    sprite(c, ox + 10 + look, eyeY, eye, true);
+    if (!biting) {
+      sprite(c, ox + 7 + look, oy + 9, NOSE);
+      sprite(c, ox + 4 + look, oy + 10, MOUTHS[mouthIndex(a)]);
+    }
+    // 수염: 편할 땐 곧게, 화나면 뒤로 젖힌다
+    const tense = a >= 15 ? 1 : 0;
+    [[-3, 6], [-3, 9]].forEach(([dx, y], i) => {
+      const lift = tense ? (i === 0 ? -1 : 1) : 0;
+      fill(c, ox + dx, oy + y + lift, 2, 1, LCD.ink);
+      fill(c, ox + 17, oy + y + lift, 2, 1, LCD.ink);
+    });
+  }
+
+  function drawSteam(c, v, ox, oy) { // 머리 옆에서 김이 오른다. 위험값 따라 개수와 속도가 는다
+    const a = v.a;
+    if (a < 8 || v.phase === 'won' || v.phase === 'dead') return;
+    const speed = 0.5 + a * 0.05;
+    [[ox - 2, 0, 8], [ox + 18, 0.5, 16]].forEach(([x, offset, from]) => {
+      if (a < from) return;
+      const k = ((v.time * speed + offset) % 1);
+      const y = oy + 3 - Math.floor(k * 5);
+      if (k < 0.5) fill(c, x, y, 2, 1, LCD.ink);
+      else fill(c, x + (k > 0.75 ? 1 : 0), y, 1, 1, LCD.ink);
+    });
+  }
+
+  function drawHand(c, v, ox, oy) {
+    let hx, hy, finger = 0;
+    if (v.phase === 'hold') {
+      const reach = Math.round(2 - v.fear); // 무서워질수록 쓰다듬는 폭이 줄어든다
+      hx = ox + 5 + Math.round(Math.sin(v.time * 3.6) * reach);
+      hy = oy;
+      finger = Math.floor(v.time * 5) % 2;
+      if (v.fear > 0.4 && Math.floor(v.time * 14) % 3 === 0) hx += Math.floor(v.time * 28) % 2 ? 1 : -1; // 손 떨림
+    } else if (v.phase === 'won') { // 슬그머니 뺀다
+      const out = Math.floor(v.phaseT * 12);
+      hx = ox + 5 + out;
+      hy = oy - out;
+    } else { // 기다림
+      hx = 22;
+      hy = 0;
+    }
+    // 팔은 손등에서 오른쪽 위로 판 밖까지 간다
+    for (let i = 0; i < 12; i += 1) {
+      const y = hy - 1 - i;
+      if (y < 0) break;
+      fill(c, hx + 3 + i, y, 4, 1, LCD.bg);
+      fill(c, hx + 4 + i, y, 2, 1, LCD.ink);
+    }
+    sprite(c, hx, hy, HANDS[finger]);
+  }
+
+  function drawBite(c, v, ox, oy) {
+    // 크게 벌린 입에 손이 오른쪽에서 물려 있다. 눈은 가리지 않는다
+    const y = oy + 8;
+    sprite(c, ox + 3, y, BITE_MOUTH);
+    fill(c, ox + 13, y + 1, 19, 4, LCD.bg); // 볼 위로 지나가는 팔 둘레를 어둡게
+    fill(c, ox + 5, y + 2, 27, 2, LCD.ink); // 팔과 손
+    fill(c, ox + 6, y + 3, 1, 1, LCD.bg); // 손가락 사이
+    fill(c, ox + 8, y + 3, 1, 1, LCD.bg);
+    if (Math.floor(v.phaseT * 8) % 2 === 0) RAYS.forEach(([x, ry, len]) => fill(c, x, ry, len, 1, LCD.ink));
+  }
+
+  function drawHand1A(c, v, ox) {
+    let hx, hy, finger = 0;
+    if (v.phase === 'hold') {
+      const reach = Math.round(2 - v.fear); // 무서워질수록 쓰다듬는 폭이 줄어든다
+      hx = ox + 2 + Math.round(Math.sin(v.time * 3.6) * reach);
+      hy = 0;
+      finger = Math.floor(v.time * 5) % 2;
+      if (v.fear > 0.4 && Math.floor(v.time * 14) % 3 === 0) hx += Math.floor(v.time * 28) % 2 ? 1 : -1; // 손 떨림
+    } else if (v.phase === 'won') { // 슬그머니 뺀다
+      const out = Math.floor(v.phaseT * 12);
+      hx = ox + 2 + out;
+      hy = -out;
+    } else { // 기다림
+      hx = 21;
+      hy = -3;
+    }
+    sprite(c, hx, hy, HANDS_1A[finger]);
+  }
+
+  function drawRays(c, v) {
+    if (Math.floor(v.phaseT * 8) % 2 === 0) RAYS.forEach(([x, ry, len]) => fill(c, x, ry, len, 1, LCD.ink));
+  }
+
+  function drawBite1A(c, v, ox, oy) {
+    sprite(c, ox, oy + 9, BITE_JAW);
+    sprite(c, ox + 5, oy + 8, BITE_HAND_1A);
+    drawRays(c, v);
+  }
+
+  function drawHand1B(c, v) {
+    if (v.phase === 'won') {
+      const retreat = Math.min(16, Math.floor(v.phaseT * 5));
+      sprite(c, 18 + retreat, -retreat, HAND_1B);
+    } else if (v.phase === 'hold') {
+      const stroke = [0, -1, -2, -1][Math.floor(v.time * 5) % 4];
+      const flinch = v.fear > 0.7 ? Math.floor(v.time * 13) % 2 : 0;
+      sprite(c, 18 + stroke + flinch, 0, HAND_1B);
+    } else {
+      sprite(c, 19, -3, HAND_1B);
+    }
+  }
+
+  function drawBite1B(c, v, ox, oy) {
+    sprite(c, ox, oy + 9, BITE_JAW);
+    sprite(c, ox + 5, oy + 8, BITE_HAND_1B);
+    drawRays(c, v);
+  }
+
+  // 손만 바꿔 끼운다. 고양이와 표정은 같다
+  const STYLES = {
+    base: { hand: drawHand, bite: drawBite },
+    '1a': { hand: drawHand1A, bite: drawBite1A },
+    '1b': { hand: drawHand1B, bite: drawBite1B },
+  };
+
+  function draw(g, v, style) {
+    const c = stage.c;
+    const a = v.a;
+    fill(c, 0, 0, 32, 24, LCD.bg);
+
+    let ox = CAT_X;
+    const oy = CAT_Y;
+    // 몸 떨림은 칸이 커서 가끔만 한 칸 흔든다. 화날수록 잦아진다
+    if (v.phase === 'hold' && v.tremble > 0.8) {
+      const gap = Math.max(2, 9 - Math.round(v.tremble * 2));
+      if (Math.floor(v.time * 18) % gap === 0) ox += Math.floor(v.time * 36) % 2 ? 1 : -1;
+    }
+
+    drawTail(c, v, ox, oy);
+    sprite(c, ox, oy + 13, BODY);
+    sprite(c, ox, oy, EARS[v.flat < 0.34 ? 0 : v.flat < 0.67 ? 1 : 2]);
+    sprite(c, ox, oy + 3, HEAD);
+    if (v.puff > 0) { // 드물게 보는 구간: 털이 곤두선다
+      [[ox - 1, oy + 5], [ox - 1, oy + 9], [ox + 16, oy + 5], [ox + 16, oy + 9]].forEach(([x, y]) => fill(c, x, y, 1, 2, LCD.ink));
+    }
+    drawFace(c, v, ox, oy);
+    drawSteam(c, v, ox, oy);
+
+    if (v.pawShown) { // 앞발을 든다
+      const py = oy + 13 - Math.round(v.pawUp * 6);
+      sprite(c, ox + 17, py, PAW);
+      if (v.claws) sprite(c, ox + 17, py - 1, CLAWS);
+    }
+
+    // 느낌표: 15%에 하나, 24%에 둘, 그 위로는 깜빡인다
+    if (a >= 15 && v.phase !== 'won') {
+      if (a < 28 || Math.floor(v.time * 5) % 2 === 0) {
+        sprite(c, 1, 1, BANG);
+        if (a >= 24) sprite(c, 3, 1, BANG);
+      }
+    }
+
+    if (v.phase === 'dead') {
+      style.bite(c, v, ox, oy);
+      if (v.phaseT < 0.08) fill(c, 0, 0, 32, 24, LCD.ink); // 물린 순간 화면 전체가 번쩍
+    } else {
+      style.hand(c, v, ox, oy);
+    }
+    if (v.phase === 'won' && v.phaseT > 0.3) { // 시치미
+      [3, 5, 7].forEach((x) => fill(c, x, 4, 1, 1, LCD.ink));
+    }
+    stage.blit(g);
+  }
+
+  window.CAT_ARTS['opus-lcd'] = { name: '두 색 · 큰 칸', noBang: true, draw: (g, v) => draw(g, v, STYLES.base) };
+  window.CAT_ARTS['opus-lcd-1a'] = { name: '손 1a · 소매와 손가락', noBang: true, draw: (g, v) => draw(g, v, STYLES['1a']) };
+  window.CAT_ARTS['opus-lcd-1b'] = { name: '손 1b · 속 빈 선', noBang: true, draw: (g, v) => draw(g, v, STYLES['1b']) };
+})();
+
+</script>
+<script>
+const HOLD_ON_GAMES = {
+"cat": function () {
+/* 물리기 전까지: 꾹 누르는 동안 고양이를 쓰다듬는다.
+   위험값이 1초에 1%씩 오르고 화면에 물릴 확률로 보인다.
+   대부분의 판이 30% 전에 끝나므로 볼거리는 5~30%에 몰고, 30% 위는 드물게 보는 과장 장면으로 쓴다.
+   시점표(위험값 기준, 시험값)
+     눈: 3~12% 서서히 뜸, 20%부터 동공 커짐
+     귀: 8~25% 서서히 납작
+     고개: 15~22% 손 쪽으로 돌아 눈 마주침
+     소리: 18% 골골 뚝, 23%부터 으르렁
+     입: 10% 일자, 23% 벌어짐, 26% 이빨 / 앞발: 30%
+     1%마다 연속으로 변함: 골골 크기, 꼬리 속도, 몸 떨림, 방 어두워짐 */
+(function () {
+  const { start, Snd, rect, disc, tri, line, bang, clamp, lerp } = HoldGame;
+  const fur = '#f0a35c', furDark = '#cf7f3a', cream = '#fde6c4', pink = '#e77a84', ink = '#2a2230';
+  const skin = '#f7cda6', skinDark = '#dfa77e', sleeve = '#5a7fb8';
+  const purr = Snd.loop({ kind: 'noise', filter: 340, am: 25 });
+  const growl = Snd.loop({ kind: 'sawtooth', freq: 70, filter: 420, am: 31 });
+  let thump = 0;
+
+  // 지금 얼마나 화났는가: 끝난 뒤에는 서서히 풀리거나(무사) 최대로 고정(물림)
+  function angerOf(s) {
+    if (s.phase === 'hold') return s.risk;
+    if (s.phase === 'won') return Math.max(0, s.endRisk - s.phaseT * 30);
+    if (s.phase === 'dead') return Math.max(s.endRisk, 30);
+    return 0;
+  }
+
+  // 꼬리 속도와 폭: 위험값 따라 37%까지 조금씩 커진다
+  const tailSpeed = (a) => Math.min(22, 1.6 + a * 0.55);
+  const tailSwing = (a) => Math.min(24, 2 + a * 0.6);
+
+  function drawRoom(g, a) {
+    rect(g, -8, -8, 336, 256, '#efdfc6');
+    rect(g, 22, 18, 74, 60, '#fff6e2');
+    rect(g, 26, 22, 66, 52, '#a9d6ea');
+    rect(g, 58, 22, 3, 52, '#fff6e2');
+    rect(g, 26, 46, 66, 3, '#fff6e2');
+    rect(g, -8, 176, 336, 72, '#c9a27a');
+    for (let i = 0; i < 6; i += 1) rect(g, 0, 182 + i * 11, 320, 1, '#b48d66');
+    disc(g, 160, 202, 112, 26, '#c95f6b');
+    disc(g, 160, 198, 104, 22, '#de7681');
+  }
+
+  function drawTail(g, s, a, puff) {
+    const swing = tailSwing(a);
+    const thick = 7 + puff * 5;
+    for (let i = 0; i < 11; i += 1) {
+      const k = i / 10;
+      const x = 226 + i * 5.4;
+      const y = 190 - i * 2.2 + Math.sin(s.tailPhase - i * 0.55) * swing * k;
+      rect(g, x, y, thick, thick, i % 3 === 2 ? furDark : fur);
+    }
+  }
+
+  function drawBody(g, s, a, puff, tremble) {
+    const rx = 72 * (1 + puff * 0.22), ry = 40 * (1 + puff * 0.22);
+    disc(g, 164, 176 + tremble, rx, ry, fur);
+    for (let i = 0; i < 4; i += 1) rect(g, 190 + i * 11, 145 + i * 2 + tremble, 5, 16, furDark);
+    // 배: 처음엔 드러내고 있다가 8%쯤부터 말아서 감춘다
+    const bellyW = 50 * clamp(1 - a / 12, 0, 1);
+    if (bellyW > 2) disc(g, 150, 188 + tremble, bellyW, 19, cream);
+    // 앞발은 평소 둥글게 놓여 있다. 30%에 든 앞발은 따로 그린다
+    const pawRaised = s.phase === 'dead' ? s.endRisk >= 30 : a >= 30;
+    if (!pawRaised) {
+      disc(g, 118, 208 + tremble, 15, 8, fur);
+      disc(g, 198, 210 + tremble, 15, 8, fur);
+    }
+  }
+
+  function drawEar(g, x, y, dir, flat) {
+    const tipX = x + dir * (8 + flat * 26), tipY = y - 28 + flat * 25;
+    tri(g, x - 15, y + 6, x + 15, y + 6, tipX, tipY, fur);
+    tri(g, x - 8, y + 5, x + 8, y + 5, tipX, tipY + 9 + flat * 2, pink);
+  }
+
+  function drawFace(g, s, a, turn, cx, cy) {
+    const faceX = cx + turn * 9; // 얼굴 쪽 그림만 손 방향으로 밀어 고개 돌림을 보여 준다
+    const open = clamp((a - 3) / 9, 0, 1);
+    const eyeH = 2 + open * 15;
+    const lookX = turn * 4, lookY = -turn * 3;
+    [-20, 20].forEach((dx) => {
+      const ex = faceX + dx;
+      if (open <= 0.02) { // 편하게 감은 눈(웃는 곡선)
+        line(g, ex - 8, cy - 4, ex, cy - 9, 2, ink);
+        line(g, ex, cy - 9, ex + 8, cy - 4, 2, ink);
+        return;
+      }
+      disc(g, ex, cy - 6, 10, eyeH / 2 + 1, a > 40 ? '#ffe45e' : '#e6ea8c');
+      const pupilW = a < 20 ? lerp(3, 4, open) : lerp(4, 9, clamp((a - 20) / 10, 0, 1));
+      const pupilH = Math.min(eyeH / 2, a < 20 ? 7 : lerp(7, 9.5, clamp((a - 20) / 10, 0, 1)));
+      disc(g, ex + lookX, cy - 6 + lookY, pupilW, pupilH, ink);
+      if (a > 30) { // 드물게 보는 구간: 눈에 핏줄이 선다
+        rect(g, ex - 9, cy - 6, 3, 1, '#d33');
+        rect(g, ex + 6, cy - 7, 3, 1, '#d33');
+      }
+      // 눈꺼풀이 위에서 눌러 찡그린 눈이 된다
+      const lid = clamp((a - 14) / 16, 0, 1);
+      if (lid > 0) line(g, ex - 11 * Math.sign(dx) * -1, cy - 15 - 3 + lid * 2, ex + 11 * Math.sign(dx) * -1, cy - 14 + lid * 6, 3, furDark);
+    });
+    tri(g, faceX - 4, cy + 7, faceX + 4, cy + 7, faceX, cy + 12, pink);
+    drawMouth(g, s, a, faceX, cy);
+    const droop = clamp(a / 25, 0, 1);
+    [[-1, -5], [-1, 2], [1, -5], [1, 2]].forEach(([side, off]) => {
+      const baseX = faceX + side * 15, baseY = cy + 10 + off / 2;
+      line(g, baseX, baseY, baseX + side * 26, baseY + off - droop * 7, 1, '#fff7ea');
+    });
+  }
+
+  function drawMouth(g, s, a, x, cy) {
+    const y = cy + 13;
+    if (a < 10) { // 편안한 ω
+      line(g, x - 8, y + 2, x - 4, y + 5, 2, ink);
+      line(g, x - 4, y + 5, x, y + 1, 2, ink);
+      line(g, x, y + 1, x + 4, y + 5, 2, ink);
+      line(g, x + 4, y + 5, x + 8, y + 2, 2, ink);
+      return;
+    }
+    if (a < 23) { // 일자로 굳는다
+      line(g, x - 8 - (a - 10) * 0.25, y + 3, x + 8 + (a - 10) * 0.25, y + 3, 2, ink);
+      return;
+    }
+    const gap = Math.min(16, 2 + (a - 23) * 1.2);
+    const half = 12 + Math.min(8, (a - 23) * 0.6);
+    rect(g, x - half, y, half * 2, gap, '#5e1f2d');
+    rect(g, x - half, y, half * 2, 2, ink);
+    if (a >= 26) { // 이빨이 보이기 시작한다
+      tri(g, x - half + 2, y, x - half + 9, y, x - half + 5, y + Math.min(gap, 7), '#fffdf4');
+      tri(g, x + half - 9, y, x + half - 2, y, x + half - 5, y + Math.min(gap, 7), '#fffdf4');
+    }
+  }
+
+  function drawSpikes(g, cx, cy, length) { // 30% 위: 털이 곤두선다
+    if (length <= 0) return;
+    for (let i = 0; i < 16; i += 1) {
+      const ang = (i / 16) * Math.PI * 2;
+      const x = cx + Math.cos(ang) * 50, y = cy + Math.sin(ang) * 40;
+      const dx = Math.cos(ang + 1.57) * 6, dy = Math.sin(ang + 1.57) * 6;
+      tri(g, x - dx, y - dy, x + dx, y + dy, x + Math.cos(ang) * (length + 6), y + Math.sin(ang) * (length + 6), fur);
+    }
+  }
+
+  function drawHand(g, s, a, cx, cy) {
+    let hx, hy;
+    if (s.phase === 'hold') { // 쓰다듬는 동안: 무서워질수록 손이 떨리고 쓰다듬는 폭이 줄어든다
+      const width = lerp(24, 9, clamp(a / 25, 0, 1));
+      hx = cx + 16 + Math.sin(s.time * 3.6) * width + (Math.random() - 0.5) * a * 0.14;
+      hy = cy - 52 + Math.abs(Math.cos(s.time * 3.6)) * 3 + (Math.random() - 0.5) * a * 0.1;
+    } else if (s.phase === 'won') { // 슬그머니 뺀다
+      hx = cx + 16 + s.phaseT * 80;
+      hy = cy - 52 - s.phaseT * 64;
+    } else if (s.phase === 'dead') { // 입에 물린 손
+      hx = cx + 24;
+      hy = cy + 18;
+    } else {
+      hx = 266; hy = 44;
+    }
+    // 물린 손은 옆에서 들어와 얼굴을 가리지 않게 한다
+    const startX = 334, startY = s.phase === 'dead' ? cy + 26 : -14;
+    line(g, startX, startY, hx + 18, hy - 2, 20, sleeve);
+    disc(g, hx, hy, 19, 13, skin);
+    for (let i = 0; i < 4; i += 1) rect(g, hx - 21 + i * 9, hy + 5 + (i === 0 || i === 3 ? -1 : 2), 7, 12, skin);
+    for (let i = 1; i < 4; i += 1) rect(g, hx - 21 + i * 9 - 2, hy + 7, 1, 8, skinDark);
+    if (s.phase === 'dead') {
+      for (let i = 0; i < 3; i += 1) rect(g, hx - 14 + i * 13, hy + 13, 3, 6 + i, '#c21f35');
+    }
+  }
+
+  function drawPaw(g, s, a, cx, cy) { // 30%에 앞발을 든다
+    if (a < 30 || (s.phase === 'dead' && s.endRisk < 30)) return;
+    const up = clamp((a - 30) / 8, 0, 1);
+    const x = cx + 62, y = lerp(200, 128, up) + Math.sin(s.time * 40) * Math.min(3, (a - 30) * 0.25);
+    line(g, 196, 210, x, y + 14, 15, fur);
+    disc(g, x, y, 15, 13, fur);
+    disc(g, x, y + 2, 7, 6, pink);
+    if (a > 40 || s.phase === 'dead') {
+      for (let i = -1; i <= 1; i += 1) tri(g, x + i * 8 - 2, y - 10, x + i * 8 + 2, y - 10, x + i * 8, y - 20, '#fffdf4');
+    }
+  }
+
+  // ?art=이름 이면 픽셀 시안으로 그린다. 게임 규칙은 같다. 폰 한 장짜리는 주소 대신 HOLD_ON_ART로 넘긴다
+  const artName = window.HOLD_ON_ART || new URLSearchParams(location.search).get('art');
+  const artFound = artName && window.CAT_ARTS && Object.prototype.hasOwnProperty.call(window.CAT_ARTS, artName);
+  const pixelArt = artFound && typeof window.CAT_ARTS[artName].draw === 'function' ? window.CAT_ARTS[artName] : null;
+
+  function drawPixel(g, s) {
+    const a = angerOf(s);
+    let shakeX = 0, shakeY = 0;
+    if (s.phase === 'dead') {
+      const power = 7 * Math.exp(-s.phaseT * 3.5);
+      shakeX = (Math.random() - 0.5) * power * 2;
+      shakeY = (Math.random() - 0.5) * power * 2;
+    } else if (s.phase === 'hold' && a > 30) {
+      shakeX = (Math.random() - 0.5) * Math.min(5, (a - 30) * 0.25);
+      shakeY = (Math.random() - 0.5) * Math.min(5, (a - 30) * 0.25);
+    }
+    g.fillStyle = pixelArt.noBang ? CatArtKit.LCD.bg : '#000';
+    g.fillRect(0, 0, 320, 240);
+    g.save();
+    g.translate(Math.round(shakeX), Math.round(shakeY));
+    pixelArt.draw(g, CatView.compute({
+      phase: s.phase, risk: s.risk, endRisk: s.endRisk, phaseT: s.phaseT, time: s.time, tailPhase: s.tailPhase,
+    }));
+    if (!pixelArt.noBang) { // 글자 없이 그림으로만 보여 주는 시안은 큰 글자를 얹지 않는다
+      const [ink, edge] = pixelArt.bang || ['#ffffff', '#000000'];
+      if (s.phase === 'dead') bang(g, '덥석!', 160, 34, 40, ink, edge);
+      if (s.phase === 'won' && s.phaseT > 0.3) bang(g, '…', 96, 52, 30, ink, edge);
+    }
+    g.restore();
+  }
+
+  function draw(g, s) {
+    if (pixelArt) { drawPixel(g, s); return; }
+    const a = angerOf(s);
+    const puff = clamp((a - 30) / 30, 0, 1);
+    const turn = s.phase === 'won' ? clamp(1 - s.phaseT * 2.5, 0, 1) * clamp((s.endRisk - 15) / 7, 0, 1) : clamp((a - 15) / 7, 0, 1);
+    // 몸 떨림은 위험값 따라 조금씩 커진다
+    const trembleAmount = a < 6 ? 0 : Math.min(3.5, (a - 6) * 0.08 + Math.max(0, a - 30) * 0.12);
+    const tremble = s.phase === 'hold' ? (Math.random() - 0.5) * trembleAmount : 0;
+    let shakeX = 0, shakeY = 0;
+    if (s.phase === 'dead') {
+      const power = 7 * Math.exp(-s.phaseT * 3.5);
+      shakeX = (Math.random() - 0.5) * power * 2;
+      shakeY = (Math.random() - 0.5) * power * 2;
+    } else if (s.phase === 'hold' && a > 30) {
+      shakeX = (Math.random() - 0.5) * Math.min(5, (a - 30) * 0.25);
+      shakeY = (Math.random() - 0.5) * Math.min(5, (a - 30) * 0.25);
+    }
+    g.save();
+    g.translate(Math.round(shakeX), Math.round(shakeY));
+    drawRoom(g, a);
+    drawTail(g, s, a, puff);
+    drawBody(g, s, a, puff, tremble);
+    let cx = 158, cy = 116 - turn * 2;
+    if (s.phase === 'won') cx -= clamp(s.phaseT * 2, 0, 1) * 10; // 시치미: 고개를 살짝 돌린다
+    const headR = 46 * (1 + puff * 0.1);
+    drawSpikes(g, cx, cy + tremble, puff * 14);
+    const flat = clamp((a - 8) / 17, 0, 1);
+    drawEar(g, cx - 28, cy - 28 + tremble, -1, flat);
+    drawEar(g, cx + 28, cy - 28 + tremble, 1, flat);
+    disc(g, cx, cy + tremble, headR, headR * 0.82, fur);
+    for (let i = -1; i <= 1; i += 1) rect(g, cx + i * 11 - 2, cy - 36 + tremble, 4, 12 - Math.abs(i) * 3, furDark);
+    disc(g, cx + turn * 9, cy + 16 + tremble, 20, 12, cream);
+    drawFace(g, s, a, turn, cx, cy + tremble);
+    drawPaw(g, s, a, cx, cy);
+    drawHand(g, s, a, cx, cy);
+    // 방은 위험값 따라 천천히 어두워진다
+    const dim = clamp((a - 12) / 45, 0, 0.5);
+    if (dim > 0 && s.phase !== 'won') { g.fillStyle = `rgba(60,8,12,${dim})`; g.fillRect(-8, -8, 336, 256); }
+    if (s.phase === 'dead') {
+      if (s.phaseT < 0.12) { g.fillStyle = 'rgba(255,60,60,.55)'; g.fillRect(-8, -8, 336, 256); }
+      bang(g, '덥석!', 160, 44, 46, '#ff5a5f');
+    }
+    if (s.phase === 'won' && s.phaseT > 0.3) bang(g, '…', cx - 60, 62, 30, '#fff7ea');
+    g.restore();
+  }
+
+  function sound(s, dt) {
+    const a = s.phase === 'hold' ? s.risk : 0;
+    if (s.phase !== 'hold') { purr.silence(); growl.silence(); return; }
+    // 골골: 시작할 때 가장 크고 18%에 뚝 끊긴다. 그 뒤 정적, 23%부터 으르렁
+    purr.set(a < 18 ? 0.62 * (1 - a / 26) : 0);
+    growl.set(a < 23 ? 0 : Math.min(0.5, 0.06 + (a - 23) * 0.022), 62 + a * 0.5, 320 + a * 8);
+    // 꼬리가 바닥을 치는 소리: 8%부터 점점 잦아진다
+    if (a >= 8) {
+      thump -= dt;
+      if (thump <= 0) {
+        Snd.tone(70, 0.07, { type: 'sine', vol: Math.min(0.5, 0.1 + a * 0.012) });
+        thump = Math.max(0.12, 0.9 - a * 0.03);
+      }
+    } else {
+      thump = 0;
+    }
+  }
+
+  start({
+    id: 'cat',
+    title: '물리기 전까지',
+    hint: '꾹 눌러서 쓰다듬기 · 1초마다 물릴 확률 1%씩 올라요',
+    rate: 1,
+    riskLabel: '물릴 확률',
+    line: (s) => `${Math.floor(s.t) + 1}초째 쓰다듬는 중 · 물릴 확률 ${Math.round(s.risk)}%`,
+    unit: '초',
+    wonWord: '무사히 손 뺐음',
+    deadWord: '물렸다',
+    draw,
+    sound,
+    // 꼬리 움직임은 쌓아 가며 계산한다. 페이지를 오래 열어 둬도 흔들림이 튀지 않는다
+    tick(s, dt) { s.tailPhase = (s.tailPhase || 0) + dt * tailSpeed(angerOf(s)); },
+    onEnd(kind) {
+      purr.silence();
+      growl.silence();
+      if (kind === 'dead') {
+        Snd.noise(0.35, { freq: 2600, vol: 0.6 });
+        Snd.tone(620, 0.3, { type: 'sawtooth', slide: 140, vol: 0.35 });
+      } else {
+        Snd.tone(520, 0.12, { type: 'sine', vol: 0.15, slide: 420 });
+      }
+    },
+  });
+})();
+
+},
+"rubber-band": function () {
+/* 따악: 꾹 누르는 동안 고무줄을 당긴다. 오래 당길수록 세지만, 끊어지면 내 손등을 때린다.
+   위험값은 1초에 3%씩 오른다(시험값). 고무줄은 눈금이 곧 위험: 가늘어지고 하얘지고 실밥이 일어난다.
+   떼면 고무줄이 날아가 앞자리 친구 뒤통수를 맞힌다. 세기에 따라 친구 반응이 세 단계로 달라진다. */
+(function () {
+  const { start, Snd, rect, disc, tri, line, bang, clamp, lerp } = HoldGame;
+  const ANCHOR = { x: 160, y: 122 };
+  const skin = '#f5c9a2', skinDark = '#d9a57c', hair = '#262033', shirt = '#37507d';
+  const squeak = Snd.loop({ kind: 'triangle', freq: 260, filter: 1800 });
+  const score = (s) => s.t * 4; // 당긴 길이(cm). 그림은 늘어나다 멈춰도 숫자는 계속 오른다
+  const pullLength = (t) => 8 + 88 * (1 - Math.exp(-t / 4.2)); // 처음엔 쭉쭉, 나중엔 조금씩
+
+  function drawRoom(g) {
+    rect(g, -8, -8, 336, 256, '#d7dfc8');
+    rect(g, 34, 6, 252, 46, '#2f5d50');
+    rect(g, 30, 2, 260, 4, '#8a6a46');
+    rect(g, 30, 52, 260, 4, '#8a6a46');
+    rect(g, 56, 18, 56, 2, '#e8efe4');
+    rect(g, 56, 28, 90, 2, '#e8efe4');
+    rect(g, 196, 22, 62, 2, '#e8efe4');
+  }
+
+  // 내 책상: 친구 앞에 그려서 고무줄이 밝은 바탕 위에 잘 보이게 한다
+  function drawDesk(g) {
+    rect(g, -8, 118, 336, 130, '#d9b07c');
+    rect(g, -8, 118, 336, 4, '#94683c');
+    for (let i = 0; i < 5; i += 1) rect(g, 14 + i * 66, 140 + (i % 2) * 58, 40, 2, '#c49a66');
+  }
+
+  // 앞자리 친구. reaction: 0 뒷모습, 1 긁적, 2 혹 나고 돌아봄, 3 별 보며 휘청
+  function drawFriend(g, s, reaction, hitT) {
+    const wob = reaction === 3 ? Math.sin(hitT * 18) * 6 * Math.exp(-hitT * 1.2) : 0;
+    const jump = reaction >= 2 ? Math.max(0, 10 - hitT * 40) : 0;
+    const x = 160 + wob, y = 56 - jump;
+    disc(g, x, y + 66, 62, 32, shirt);
+    rect(g, x - 11, y + 26, 22, 18, skin);
+    if (reaction >= 2 && hitT > 0.18) { // 돌아본 얼굴
+      disc(g, x, y, 36, 34, skin);
+      disc(g, x, y - 14, 37, 22, hair);
+      rect(g, x - 36, y - 16, 72, 6, hair);
+      disc(g, x - 13, y + 2, 5, reaction === 3 ? 6 : 4, '#1d1a26');
+      disc(g, x + 13, y + 2, 5, reaction === 3 ? 6 : 4, '#1d1a26');
+      if (reaction === 3) {
+        rect(g, x - 16, y + 9, 3, 12, '#7cc6f0');
+        rect(g, x + 13, y + 9, 3, 12, '#7cc6f0');
+        disc(g, x, y + 18, 9, 7, '#6b2a35');
+      } else {
+        line(g, x - 7, y + 18, x + 7, y + 15, 2, '#6b2a35');
+      }
+    } else { // 뒤통수
+      rect(g, x - 41, y - 6, 6, 12, skin);
+      rect(g, x + 35, y - 6, 6, 12, skin);
+      disc(g, x, y, 37, 36, hair);
+      disc(g, x - 8, y - 16, 12, 7, '#3a3350');
+    }
+    if (reaction >= 1 && hitT < 2.5) { // 맞은 자리
+      disc(g, x + 2, y - 16 - reaction * 2, 5 + reaction * 3, 4 + reaction * 3, '#e7686f');
+      disc(g, x + 2, y - 18 - reaction * 2, 2 + reaction, 2 + reaction, '#f6a0a4');
+    }
+    if (reaction === 1 && hitT > 0.2) { // 긁적
+      const k = Math.sin(hitT * 22) * 3;
+      disc(g, x + 18 + k, y - 34, 10, 8, skin);
+      line(g, x + 58, y + 60, x + 20 + k, y - 28, 12, shirt);
+    }
+    if (reaction === 3) { // 머리 위로 도는 별
+      for (let i = 0; i < 5; i += 1) {
+        const ang = hitT * 5 + i * 1.26;
+        const sx = x + Math.cos(ang) * 44, sy = y - 44 + Math.sin(ang) * 10;
+        rect(g, sx - 3, sy - 1, 7, 3, '#ffd24a');
+        rect(g, sx - 1, sy - 3, 3, 7, '#ffd24a');
+      }
+    }
+  }
+
+  function drawFingerHand(g, shake) { // 왼손: 고무줄을 건 검지
+    const x = ANCHOR.x + shake, y = ANCHOR.y;
+    rect(g, x - 5, y - 6, 10, 26, skin);
+    rect(g, x - 5, y - 6, 2, 26, skinDark);
+    disc(g, x - 2, y + 30, 19, 16, skin);
+    for (let i = 0; i < 3; i += 1) rect(g, x - 16 + i * 9, y + 18, 7, 11, skinDark);
+    line(g, x - 22, y + 44, x - 58, y + 110, 18, shirt);
+  }
+
+  function drawPullHand(g, x, y, swollen) { // 오른손: 고무줄을 잡아당기는 주먹
+    const color = swollen ? '#f07f78' : skin;
+    disc(g, x, y + 8, swollen ? 24 : 18, swollen ? 20 : 14, color);
+    for (let i = 0; i < 4; i += 1) rect(g, x - 15 + i * 8, y - 3, 7, 9, swollen ? '#e36a64' : skinDark);
+    line(g, x + 16, y + 18, x + 76, y + 90, 18, shirt);
+    if (swollen) {
+      rect(g, x - 12, y + 7, 26, 3, '#b3323a');
+      rect(g, x - 8, y + 12, 20, 3, '#b3323a');
+    }
+  }
+
+  function drawBand(g, s) {
+    const a = s.risk;
+    const len = pullLength(s.t);
+    const shake = (Math.random() - 0.5) * Math.min(4, a * 0.11);
+    const handX = ANCHOR.x + 6 + shake, handY = ANCHOR.y + len + shake;
+    const thick = Math.max(1.5, 4 - a * 0.07);
+    const k = clamp(a / 40, 0, 1);
+    const color = `rgb(${Math.round(lerp(207, 255, k))},${Math.round(lerp(56, 226, k))},${Math.round(lerp(60, 216, k))})`;
+    line(g, ANCHOR.x - 2 + shake, ANCHOR.y, handX - 5, handY, thick + 2, '#7a2630');
+    line(g, ANCHOR.x + 3 + shake, ANCHOR.y, handX + 5, handY, thick + 2, '#7a2630');
+    line(g, ANCHOR.x - 2 + shake, ANCHOR.y, handX - 5, handY, thick, color);
+    line(g, ANCHOR.x + 3 + shake, ANCHOR.y, handX + 5, handY, thick, color);
+    // 위험이 오를수록 실밥이 일어난다
+    const threads = Math.floor(a / 5);
+    for (let i = 0; i < threads; i += 1) {
+      const t = ((i * 37) % 97) / 97;
+      const fx = lerp(ANCHOR.x, handX, t) + (i % 2 ? 7 : -7) + (Math.random() - 0.5) * 2;
+      const fy = lerp(ANCHOR.y, handY, t) + (i % 3) * 2;
+      rect(g, fx, fy, 4, 1, '#7a2630');
+    }
+    drawFingerHand(g, shake * 0.6);
+    drawPullHand(g, handX, handY, false);
+  }
+
+  function draw(g, s) {
+    const dead = s.phase === 'dead', won = s.phase === 'won';
+    let shakeX = 0, shakeY = 0;
+    if (dead) {
+      const power = 8 * Math.exp(-s.phaseT * 4);
+      shakeX = (Math.random() - 0.5) * power * 2;
+      shakeY = (Math.random() - 0.5) * power * 2;
+    }
+    g.save();
+    g.translate(Math.round(shakeX), Math.round(shakeY));
+    drawRoom(g);
+    const flight = 0.14;
+    let reaction = 0;
+    if (won && s.phaseT >= flight) reaction = s.endScore < 12 ? 1 : s.endScore < 36 ? 2 : 3;
+    if (dead && s.phaseT > 0.5) { // 끊어지면 친구가 돌아보고 웃는다
+      drawFriend(g, s, 2, 1);
+      bang(g, 'ㅋ', 212, 34, 24, '#fff7ea');
+    } else {
+      drawFriend(g, s, reaction, s.phaseT - flight);
+    }
+    drawDesk(g);
+    if (s.phase === 'hold') {
+      drawBand(g, s);
+    } else if (won) {
+      drawFingerHand(g, 0);
+      drawPullHand(g, ANCHOR.x + 6, ANCHOR.y + pullLength(0.2), false);
+      if (s.phaseT < flight) { // 날아가는 고무줄
+        const k = s.phaseT / flight;
+        const y = lerp(ANCHOR.y, 42, k);
+        rect(g, ANCHOR.x - 6, y, 12, 3, '#cf383c');
+      } else if (s.phaseT < flight + 1) {
+        const size = lerp(24, 44, clamp(s.endScore / 48, 0, 1));
+        bang(g, '따악!', 160, 28, size, '#ffd24a');
+      }
+    } else if (dead) {
+      drawFingerHand(g, 0);
+      const flail = Math.sin(s.phaseT * 30) * 10 * Math.exp(-s.phaseT * 1.6);
+      drawPullHand(g, 196 + flail, 164, true);
+      line(g, ANCHOR.x, ANCHOR.y, 170, 146, 2, '#cf383c');
+      line(g, 200, 160, 182, 150, 2, '#cf383c');
+      if (s.phaseT < 0.1) { g.fillStyle = 'rgba(255,255,255,.6)'; g.fillRect(-8, -8, 336, 256); }
+      bang(g, '따악!', 232, 130, 42, '#ff5a5f');
+    } else {
+      drawFingerHand(g, 0);
+      line(g, ANCHOR.x - 2, ANCHOR.y, ANCHOR.x + 2, ANCHOR.y + 8, 3, '#cf383c');
+      line(g, ANCHOR.x + 3, ANCHOR.y, ANCHOR.x + 8, ANCHOR.y + 8, 3, '#cf383c');
+      drawPullHand(g, ANCHOR.x + 6, ANCHOR.y + 8, false);
+    }
+    g.restore();
+  }
+
+  start({
+    id: 'rubber-band',
+    title: '따악',
+    hint: '꾹 눌러서 고무줄 당기기 · 1초마다 끊어질 확률 3%씩 올라요',
+    rate: 3,
+    riskLabel: '끊어질 확률',
+    line: (s) => `${score(s).toFixed(0)}cm 당기는 중 · 끊어질 확률 ${Math.round(s.risk)}%`,
+    unit: 'cm',
+    bestVersion: 'cm',
+    score,
+    wonWord: '명중',
+    deadWord: '끊어졌다',
+    draw,
+    sound(s) {
+      if (s.phase !== 'hold') { squeak.silence(); return; }
+      squeak.set(0.03 + Math.min(0.2, s.risk * 0.005), 240 + s.risk * 18);
+    },
+    onEnd(kind, s) {
+      squeak.silence();
+      if (kind === 'dead') {
+        Snd.noise(0.2, { freq: 5000, vol: 0.7, filter: 'highpass' });
+        Snd.tone(900, 0.12, { type: 'square', slide: 200, vol: 0.3 });
+      } else {
+        Snd.tone(1100, 0.08, { type: 'square', slide: 400, vol: 0.18 });
+        const power = clamp(s.endScore / 48, 0.2, 1);
+        setTimeout(() => Snd.noise(0.1 + power * 0.1, { freq: 4000, vol: 0.2 + power * 0.5 }), 140);
+      }
+    },
+  });
+})();
+
+},
+"bubble-gum": function () {
+/* 풍선껌: 꾹 누르면 껌이 커지고 몸이 떠오른다. 얼마나 벌었는지가 풍경으로 보인다.
+   동네 → 구름 → 높은 하늘 → 우주. 높이 = 1.6 × 초²(m), 위험값은 1초에 2%씩 오른다(시험값).
+   떼면 껌이 줄며 사뿐 내려오고, 터지면 얼굴에 붙은 채 추락한다. */
+(function () {
+  const { start, Snd, rect, disc, tri, line, bang, clamp, lerp } = HoldGame;
+  const skin = '#f7cda6', shirt = '#e8574f', pants = '#3f5f96', hair = '#3a2a24';
+  const blow = Snd.loop({ kind: 'sine', freq: 180, filter: 1200 });
+  const fall = Snd.loop({ kind: 'noise', filter: 900 });
+  const height = (t) => 1.6 * t * t;
+  const bubbleR = (t) => 7 + 45 * (1 - Math.exp(-t / 5));
+
+  function mix(a, b, k) {
+    const pa = a.match(/\w\w/g).map((h) => parseInt(h, 16));
+    const pb = b.match(/\w\w/g).map((h) => parseInt(h, 16));
+    return `rgb(${pa.map((v, i) => Math.round(lerp(v, pb[i], k))).join(',')})`;
+  }
+  function skyColor(h) {
+    if (h < 120) return mix('#8fd3f0', '#6db7ea', h / 120);
+    if (h < 350) return mix('#6db7ea', '#27407e', (h - 120) / 230);
+    return mix('#27407e', '#0a0a22', clamp((h - 350) / 150, 0, 1));
+  }
+
+  // 풍경은 높이(h)에 따라 아래로 흘러간다. 높이마다 고정된 자리에 그려서 다시 봐도 같은 동네다
+  function drawWorld(g, h, time) {
+    rect(g, 0, 0, 320, 240, skyColor(h));
+    // 별
+    const starAlpha = clamp((h - 220) / 160, 0, 1);
+    if (starAlpha > 0) {
+      g.globalAlpha = starAlpha;
+      for (let i = 0; i < 46; i += 1) {
+        const sx = (i * 73) % 320;
+        const sy = ((i * 47 + h * 0.25) % 240 + 240) % 240;
+        rect(g, sx, sy, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1, '#fff7d8');
+      }
+      g.globalAlpha = 1;
+    }
+    // 땅과 동네: 높이 0m일 때 발밑
+    const ground = 204 + h * 6;
+    if (ground < 320) {
+      rect(g, 0, ground, 320, 90, '#7dbb62');
+      rect(g, 0, ground, 320, 4, '#649c4c');
+      [[8, 48, 58, '#d8866c'], [66, 40, 44, '#c7a06a'], [226, 42, 54, '#9ab0c4'], [274, 50, 70, '#d8866c']].forEach(([x, w, b, c]) => {
+        rect(g, x, ground - b, w, b, c);
+        tri(g, x - 4, ground - b, x + w + 4, ground - b, x + w / 2, ground - b - 18, '#7a4a3e');
+        rect(g, x + 8, ground - b + 12, 9, 10, '#fff2c0');
+        rect(g, x + w - 18, ground - b + 12, 9, 10, '#fff2c0');
+      });
+    }
+    // 전깃줄과 새 (10~60m)
+    const wireY = ground - 150;
+    if (wireY > -10 && wireY < 260) {
+      rect(g, 0, wireY, 320, 1, '#40505c');
+      rect(g, 0, wireY + 6, 320, 1, '#40505c');
+      rect(g, 60, wireY + 5, 7, 5, '#333');
+      rect(g, 232, wireY - 1, 7, 5, '#333');
+    }
+    // 구름 (40~240m)
+    const clouds = [[30, 45], [230, 80], [120, 125], [270, 170], [40, 215]];
+    clouds.forEach(([cx, atH]) => {
+      const y = 120 + (h - atH) * 1.8;
+      if (y > -30 && y < 270) {
+        disc(g, cx, y, 34, 11, '#ffffff');
+        disc(g, cx + 20, y - 7, 20, 10, '#ffffff');
+        disc(g, cx - 18, y - 4, 16, 8, '#f3f8ff');
+      }
+    });
+    // 비행기 (300m 근처)
+    const planeY = 110 + (h - 300) * 1.6;
+    if (planeY > -20 && planeY < 260) {
+      const px = ((time * 40) % 400) - 40;
+      rect(g, px, planeY, 40, 8, '#e8edf2');
+      tri(g, px + 40, planeY, px + 40, planeY + 8, px + 50, planeY + 5, '#e8edf2');
+      tri(g, px + 14, planeY + 3, px + 28, planeY + 3, px + 12, planeY + 16, '#b8c4d0');
+    }
+    // 달과 지구 (우주)
+    const moonY = -70 + (h - 500) * 0.8;
+    if (moonY > -60 && moonY < 300) {
+      disc(g, 252, moonY, 26, 26, '#f2eed9');
+      disc(g, 244, moonY - 8, 5, 5, '#d5d0b8');
+      disc(g, 262, moonY + 6, 7, 7, '#d5d0b8');
+    }
+    const earthAlpha = clamp((h - 380) / 200, 0, 1);
+    if (earthAlpha > 0) {
+      g.globalAlpha = earthAlpha;
+      disc(g, 160, 330, 190, 130, '#2f6fbe');
+      disc(g, 110, 232, 40, 12, '#5fa85a');
+      disc(g, 226, 244, 34, 14, '#5fa85a');
+      g.globalAlpha = 1;
+    }
+  }
+
+  function drawKid(g, x, y, swing, gumFace) {
+    const legA = Math.sin(swing) * 4;
+    rect(g, x - 8 + legA, y + 22, 6, 15, pants);
+    rect(g, x + 2 - legA, y + 22, 6, 15, pants);
+    rect(g, x - 10, y + 2, 20, 21, shirt);
+    line(g, x - 10, y + 6, x - 19, y + 16 + legA, 4, shirt);
+    line(g, x + 10, y + 6, x + 19, y + 16 - legA, 4, shirt);
+    disc(g, x, y - 10, 13, 13, skin);
+    disc(g, x, y - 16, 14, 9, hair);
+    if (gumFace) {
+      disc(g, x + 2, y - 9, 18, 15, '#f28cb5');
+      disc(g, x + 8, y - 13, 5, 4, '#f7b4cd');
+      rect(g, x - 18, y - 2, 6, 9, '#f28cb5');
+      rect(g, x + 14, y + 2, 5, 7, '#f28cb5');
+    } else {
+      // 위를 올려다보는 눈과 위로 내민 입
+      rect(g, x - 6, y - 14, 3, 3, '#2a2230');
+      rect(g, x + 4, y - 14, 3, 3, '#2a2230');
+      rect(g, x - 2, y - 18, 4, 3, '#c9605c');
+    }
+  }
+
+  function drawBubble(g, s, x, y, r, a) {
+    const fade = clamp(a / 35, 0, 1);
+    const color = mix('#f26fa5', '#fbd9e6', fade);
+    const wobble = Math.sin(s.wobblePhase || 0) * Math.min(4, a * 0.09);
+    disc(g, x, y, r + wobble, r - wobble, color);
+    disc(g, x - r * 0.38, y - r * 0.4, r * 0.2, r * 0.15, '#ffffff');
+    // 위험이 오르면 얇아진 무늬와 금이 보인다
+    const veins = Math.floor(a / 7);
+    for (let i = 0; i < veins; i += 1) {
+      const ang = i * 2.4 + 0.5;
+      const sx = x + Math.cos(ang) * r * 0.55, sy = y + Math.sin(ang) * r * 0.55;
+      line(g, sx, sy, sx + Math.cos(ang + 1) * 7, sy + Math.sin(ang + 1) * 7, 1, '#e8749f');
+    }
+  }
+
+  function draw(g, s) {
+    const dead = s.phase === 'dead', won = s.phase === 'won';
+    let h = s.phase === 'hold' ? height(s.t) : (s.phase === 'ready' ? 0 : s.endScore);
+    const kidX = 160;
+    let kidY = 152;
+    if (won) h = Math.max(0, s.endScore - s.phaseT * Math.max(40, s.endScore / 1.6));
+    if (dead) {
+      const left = Math.max(0, s.endScore - s.phaseT * s.phaseT * Math.max(180, s.endScore * 1.4));
+      h = left;
+      kidY += Math.sin(s.phaseT * 20) * 3;
+    }
+    drawWorld(g, h, s.time);
+    if (dead) {
+      if (h > 0) {
+        // 떨어지는 빠른 줄
+        for (let i = 0; i < 10; i += 1) rect(g, (i * 53 + 11) % 320, ((s.time * 900 + i * 71) % 260) - 10, 1, 18, 'rgba(255,255,255,.7)');
+        drawKid(g, kidX, kidY, s.time * 22, true);
+      } else {
+        drawKid(g, kidX, 174, 0, true);
+        disc(g, kidX, 206, 46, 7, '#a98a5c');
+        bang(g, '쿵', 232, 150, 40, '#fff2c0');
+      }
+      if (s.phaseT < 0.1) { g.fillStyle = 'rgba(255,255,255,.65)'; g.fillRect(0, 0, 320, 240); }
+      if (s.phaseT < 0.9) bang(g, '펑!', 160, 80, 44, '#f26fa5', '#fff');
+      return;
+    }
+    if (won) {
+      const landed = h <= 0;
+      const y = landed ? 167 : 152 + Math.sin(s.time * 4) * 2;
+      drawKid(g, kidX, y, s.time * 3, false);
+      if (!landed) { // 작게 남은 껌이 낙하산 대신이다
+        line(g, kidX - 16, y + 8, kidX - 26, y - 44, 1, '#fff');
+        line(g, kidX + 16, y + 8, kidX + 26, y - 44, 1, '#fff');
+        disc(g, kidX, y - 52, 34, 14, '#f26fa5');
+        rect(g, kidX - 34, y - 52, 68, 15, skyColor(h));
+      } else {
+        bang(g, '사뿐', 232, 140, 26, '#ffffff');
+      }
+      return;
+    }
+    const t = s.phase === 'hold' ? s.t : 0;
+    const a = s.phase === 'hold' ? s.risk : 0;
+    const r = bubbleR(t);
+    // 땅에서 떨어지기 전에는 살짝 까치발, 떠오른 뒤엔 다리가 대롱거린다
+    const lift = clamp(height(t) / 3, 0, 1);
+    kidY = lerp(167, 152, lift);
+    const tremble = a > 6 ? (Math.random() - 0.5) * Math.min(3, a * 0.07) : 0;
+    drawKid(g, kidX + tremble, kidY, lift ? s.time * 5 : 0, false);
+    // 머리 위로 분다: 입에서 위로 이어지는 껌 풍선
+    drawBubble(g, s, kidX + tremble, kidY - 22 - r * 0.86, r, a);
+  }
+
+  start({
+    id: 'bubble-gum',
+    title: '풍선껌',
+    hint: '꾹 눌러서 껌 불기 · 1초마다 터질 확률 2%씩 올라요',
+    rate: 2,
+    riskLabel: '터질 확률',
+    line: (s) => `${Math.round(height(s.t))}m 올라가는 중 · 터질 확률 ${Math.round(s.risk)}%`,
+    unit: 'm',
+    score: (s) => height(s.t),
+    format: (v) => (v < 100 ? v.toFixed(1) : String(Math.round(v))),
+    wonWord: '사뿐 착지',
+    deadWord: '터졌다',
+    draw,
+    // 껌 떨림은 쌓아 가며 계산한다. 페이지를 오래 열어 둬도 튀지 않는다
+    tick(s, dt) { s.wobblePhase = (s.wobblePhase || 0) + dt * (6 + s.risk * 0.6); },
+    sound(s) {
+      if (s.phase === 'hold') {
+        blow.set(0.1 + Math.min(0.18, s.risk * 0.005), 150 + s.t * 40 + Math.sin(s.time * 30) * s.risk * 0.5);
+        fall.silence();
+      } else {
+        blow.silence();
+        const falling = s.phase === 'dead' && s.phaseT * s.phaseT * Math.max(180, s.endScore * 1.4) < s.endScore;
+        if (falling) fall.set(0.22, null, 500 + s.phaseT * 600); else fall.silence();
+      }
+    },
+    onEnd(kind) {
+      blow.silence();
+      if (kind === 'dead') {
+        Snd.noise(0.2, { freq: 3200, vol: 0.8 });
+        Snd.tone(500, 0.6, { type: 'triangle', slide: 80, vol: 0.2 });
+      } else {
+        Snd.tone(300, 0.35, { type: 'sine', slide: 140, vol: 0.18 });
+      }
+    },
+  });
+})();
+
+},
+"full-glass": function () {
+/* 찰랑: 신입이 부장님 잔에 술을 따른다. 가득 찰수록 점수가 높고, 넘치면 끝.
+   술은 잔 끝을 넘어 볼록 솟는다(표면장력). 위험이 숫자 없이 눈에 보이는 게임이다.
+   잔이 약 65% 찰 때까지(2.6초)는 위험 0%, 그 뒤 1초에 5%씩 빠르게 오른다(시험값). */
+(function () {
+  const { start, Snd, rect, disc, tri, line, bang, clamp, lerp } = HoldGame;
+  const GLASS = { x: 118, w: 78, top: 96, bottom: 204 };
+  const skin = '#f5c9a2', amber = '#e9b23c', amberLight = '#f7d36f', suit = '#3a3d52';
+  const pour = Snd.loop({ kind: 'noise', filter: 1400 });
+  const FULL_AT = 4; // 4초면 잔 끝까지 찬다
+  const GLASS_ML = 360; // 잔 끝까지 찬 양. 화면에는 퍼센트 대신 ml로 보여 준다
+  const ml = (t) => (percent(t) / 100) * GLASS_ML;
+
+  function percent(t) {
+    if (t <= FULL_AT) return t * 25;
+    return 100 + 18 * (1 - Math.exp(-(t - FULL_AT) / 5));
+  }
+  function riskOf(s) {
+    return clamp(Math.max(0, s.t - 2.6) * s.rate * s.mood, 0, 100);
+  }
+
+  function drawRoom(g) {
+    rect(g, -8, -8, 336, 256, '#5b4034');
+    rect(g, 0, 0, 320, 8, '#46302a');
+    for (let i = 0; i < 5; i += 1) {
+      disc(g, 40 + i * 62, 34, 13, 10, '#f3c77b');
+      rect(g, 39 + i * 62, 6, 2, 18, '#2b1d18');
+    }
+    rect(g, -8, 204, 336, 44, '#8f5f38');
+    rect(g, -8, 204, 336, 4, '#a9744a');
+    disc(g, 44, 218, 26, 6, '#efe7d6');
+    disc(g, 44, 215, 15, 5, '#c9402f');
+    rect(g, 268, 180, 9, 26, '#dfe8d5');
+  }
+
+  // 부장님 얼굴: 위험값 따라 표정이 조금씩 굳는다
+  function drawBoss(g, s, a) {
+    const x = 248, y = 92;
+    disc(g, x, y + 66, 56, 44, suit);
+    tri(g, x - 12, y + 30, x + 12, y + 30, x, y + 56, '#f2f2f2');
+    rect(g, x - 3, y + 34, 6, 22, '#b13a3a');
+    const angry = s.phase === 'dead';
+    const red = angry ? 1 : clamp(a / 60, 0, 0.35);
+    const face = `rgb(${Math.round(lerp(245, 226, red))},${Math.round(lerp(201, 96, red))},${Math.round(lerp(162, 88, red))})`;
+    disc(g, x, y, 34, 36, face);
+    rect(g, x - 34, y - 16, 68, 8, '#2b2730');
+    disc(g, x, y - 26, 31, 11, '#2b2730');
+    const eyeR = 3 + clamp(a / 40, 0, 1) * 2 + (angry ? 1 : 0);
+    if (s.phase === 'won') { // 크으~ 눈웃음
+      line(g, x - 19, y, x - 12, y - 4, 2, '#2a2230');
+      line(g, x - 12, y - 4, x - 5, y, 2, '#2a2230');
+      line(g, x + 5, y, x + 12, y - 4, 2, '#2a2230');
+      line(g, x + 12, y - 4, x + 19, y, 2, '#2a2230');
+    } else {
+      disc(g, x - 12, y, 4, eyeR, '#2a2230');
+      disc(g, x + 12, y, 4, eyeR, '#2a2230');
+      const browTilt = angry ? 6 : clamp(a / 25, 0, 1) * 3;
+      line(g, x - 20, y - 9 - browTilt, x - 6, y - 8 + browTilt, 3, '#2b2730');
+      line(g, x + 6, y - 8 + browTilt, x + 20, y - 9 - browTilt, 3, '#2b2730');
+    }
+    if (s.phase === 'won') {
+      disc(g, x, y + 16, 11, 7, '#7a2a30');
+      rect(g, x - 9, y + 11, 18, 3, '#fff');
+    } else if (angry) {
+      line(g, x - 10, y + 19, x + 10, y + 17, 3, '#6b2a35');
+    } else if (a < 12) {
+      line(g, x - 9, y + 15, x, y + 19, 2, '#6b2a35');
+      line(g, x, y + 19, x + 9, y + 15, 2, '#6b2a35');
+    } else {
+      disc(g, x, y + 17, 3 + a * 0.12, 2 + a * 0.12, '#6b2a35');
+    }
+    if (a > 15 && s.phase === 'hold') { // 땀방울
+      const drip = (s.time * 18) % 22;
+      rect(g, x + 28, y - 14 + drip, 3, 5, '#9bd8f2');
+    }
+    // 잔을 받치고 있는 부장님 손
+    line(g, x - 30, y + 80, GLASS.x + GLASS.w + 6, GLASS.bottom - 16, 16, suit);
+    disc(g, GLASS.x + GLASS.w + 2, GLASS.bottom - 18, 13, 11, face);
+  }
+
+  function drawGlass(g, s, pct, a) {
+    const { x, w, top, bottom } = GLASS;
+    const H = bottom - top;
+    const level = clamp(pct, 0, 100) / 100;
+    const liquidTop = bottom - H * level;
+    const bulge = pct > 100 ? (pct - 100) * 1.0 : 0;
+    const wob = s.phase === 'hold' ? Math.sin(s.time * 14) * Math.min(1.5, a * 0.05) : 0;
+    rect(g, x + 3, liquidTop, w - 6, Math.max(0, bottom - liquidTop - 3), amber);
+    rect(g, x + 8, liquidTop + 4, 5, Math.max(0, bottom - liquidTop - 12), amberLight);
+    for (let i = 0; i < 5; i += 1) {
+      const by = bottom - 8 - ((s.time * 26 + i * 19) % Math.max(10, H * level - 4));
+      if (level > 0.05) rect(g, x + 16 + i * 12, by, 2, 2, amberLight);
+    }
+    if (bulge > 0) {
+      disc(g, x + w / 2, top + 1, w / 2 - 1 + wob, bulge + 1, amber);
+      rect(g, x + 3, top + 1, w - 6, 6, amber);
+      disc(g, x + 20, top - bulge * 0.45, 8, 1.5, amberLight);
+    }
+    // 잔 벽
+    g.fillStyle = 'rgba(255,255,255,.55)';
+    g.fillRect(x, top, 3, H);
+    g.fillRect(x + w - 3, top, 3, H);
+    g.fillRect(x, bottom - 3, w, 3);
+    return { liquidTop, bulge };
+  }
+
+  function drawBottle(g, s, a, pouring) {
+    const shake = pouring ? (Math.random() - 0.5) * Math.min(5, a * 0.16 + s.t * 0.15) : 0;
+    const tipX = GLASS.x + 40 + shake, tipY = pouring ? 66 + shake : 42;
+    const angle = pouring ? 0.7 : 1.15;
+    const dx = -Math.sin(angle), dy = -Math.cos(angle);
+    const neckX = tipX + dx * 20, neckY = tipY + dy * 20;
+    const bodyX = tipX + dx * 86, bodyY = tipY + dy * 86;
+    line(g, tipX, tipY, neckX, neckY, 8, '#2f7a4a');
+    line(g, neckX, neckY, bodyX, bodyY, 26, '#2f7a4a');
+    line(g, neckX + dx * 18 - 7, neckY + dy * 18 + 4, bodyX - 7, bodyY + 4, 3, '#5fbf80');
+    // 병을 쥔 신입의 손
+    const handX = lerp(neckX, bodyX, 0.55), handY = lerp(neckY, bodyY, 0.55);
+    disc(g, handX, handY, 16, 13, skin);
+    line(g, handX - 6, handY - 8, -8, 6, 16, '#d4d9e2');
+    return { tipX, tipY };
+  }
+
+  function draw(g, s) {
+    const dead = s.phase === 'dead', won = s.phase === 'won';
+    const a = s.phase === 'hold' ? s.risk : (dead ? 60 : 0);
+    const pct = s.phase === 'hold' ? percent(s.t) : (s.phase === 'ready' ? 0 : percent(s.frozenT || s.endT || 0));
+    let shakeX = 0;
+    if (dead) shakeX = (Math.random() - 0.5) * 8 * Math.exp(-s.phaseT * 3.5);
+    g.save();
+    g.translate(Math.round(shakeX), 0);
+    drawRoom(g);
+    drawBoss(g, s, a);
+    const { liquidTop } = drawGlass(g, s, pct, a);
+    const pouring = s.phase === 'hold';
+    const tip = drawBottle(g, s, a, pouring);
+    if (pouring) line(g, tip.tipX, tip.tipY + 2, GLASS.x + 40, liquidTop, 3, amber);
+    if (dead) { // 넘쳐 흐른다
+      const flow = clamp(s.phaseT * 1.6, 0, 1);
+      const spill = (GLASS.bottom - GLASS.top) * flow;
+      rect(g, GLASS.x - 4, GLASS.top - 2, 5, spill, amberLight);
+      rect(g, GLASS.x + GLASS.w - 1, GLASS.top - 2, 5, spill, amberLight);
+      rect(g, GLASS.x + 22, GLASS.top - 2, 4, spill, amberLight);
+      rect(g, GLASS.x + 50, GLASS.top - 2, 4, spill * 0.7, amberLight);
+      disc(g, GLASS.x + 39, 210, 62 * flow + 6, 6 * flow + 1, amber);
+      bang(g, '넘쳤다', 152, 62, 38, '#ff5a5f');
+      if (s.phaseT > 0.5) bang(g, '…', 248, 36, 28, '#fff7ea');
+    }
+    if (won && s.phaseT > 0.1) bang(g, '크으~', 182, 40, 32, '#ffd24a');
+    if (s.phase === 'ready' || (s.phase === 'hold' && s.t < 3)) { // 부장님 대사
+      rect(g, 176, 18, 128, 24, '#fff8e7');
+      tri(g, 240, 42, 254, 42, 248, 52, '#fff8e7');
+      g.font = '700 14px "Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillStyle = '#2a2230';
+      g.fillText('가득 따라 주게나', 240, 31);
+    }
+    g.restore();
+  }
+
+  start({
+    id: 'full-glass',
+    title: '찰랑',
+    hint: '꾹 눌러서 술 따르기 · 많이 따를수록 넘칠 확률이 올라요',
+    rate: 5,
+    riskLabel: '넘칠 확률',
+    line: (s) => `${Math.round(ml(s.t))}ml 따르는 중 · 넘칠 확률 ${Math.round(s.risk)}%`,
+    unit: 'ml',
+    bestVersion: 'ml',
+    risk: riskOf,
+    tForRisk: (r) => (r <= 0 ? 0 : 2.6 + r / 5), // 100연승 규칙: 위험이 오르기 시작하는 2.6초부터 찬다
+    score: (s) => ml(s.t),
+    format: (v) => v.toFixed(v >= GLASS_ML ? 1 : 0),
+    wonWord: '찰랑찰랑',
+    deadWord: '부장님 손에 넘쳤다',
+    draw,
+    sound(s) {
+      if (s.phase !== 'hold') { pour.silence(); return; }
+      const fullness = clamp(percent(s.t) / 100, 0, 1.2);
+      pour.set(0.1 + fullness * 0.1, null, 500 + fullness * 2200);
+    },
+    onEnd(kind, s) {
+      s.endT = s.t;
+      pour.silence();
+      if (kind === 'dead') {
+        Snd.noise(0.5, { freq: 900, vol: 0.4 });
+        Snd.tone(180, 0.4, { type: 'sawtooth', slide: 90, vol: 0.18 });
+      } else {
+        Snd.tone(1320, 0.14, { type: 'sine', vol: 0.18 });
+        setTimeout(() => Snd.tone(1760, 0.2, { type: 'sine', vol: 0.14 }), 70);
+      }
+    },
+    reset(s) { s.endT = 0; },
+  });
+})();
+
+},
+"red-light": function () {
+/* 무궁화꽃이 피었습니다: 꾹 누르면 내가 멀리서 다가오고, 떼면 멈춘다. 떼도 판은 끝나지 않는다.
+   술래가 돌아보는 순간 움직이고 있으면 잡힌다. 돌아보는 건 눈으로 피할 수 없게 빠르지만,
+   글자가 찍히는 속도를 보고 눈치로 미리 뗄 수 있다. 끝까지 가면 술래 등을 치고 도망간다.
+   확률이 없는 게임이라 규칙은 하나다: 최단 기록을 세운다. 위 숫자는 초이고, 잡히면 기록 없이 다시 0초부터.
+   거리 100m, 걷는 속도 초속 8m, 글자는 매번 빠르기가 달라지고 가까울수록 빨라진다(시험값). */
+(function () {
+  const { start, Snd, rect, disc, tri, line, bang, clamp, lerp } = HoldGame;
+  const WORDS = '무궁화꽃이피었습니다'.split('');
+  const GOAL = 100, SPEED = 8, GRACE = 0.09; // GRACE: 돌아보기 시작하고 잡힘 판정까지의 틈(초)
+  let stepTimer = 0;
+
+  function newChant(s) {
+    // 한 글자씩 찍히는 간격을 무작위로 만들고, 전체 길이는 거리에 따라 줄인다
+    const near = clamp(s.d / GOAL, 0, 1);
+    const total = lerp(1.2, 3.2, s.rng()) * lerp(1, 0.55, near);
+    const raw = WORDS.map(() => 0.4 + s.rng());
+    // 가끔은 앞에서 뜸을 들이고 뒤에서 몰아친다
+    if (s.rng() < 0.4) raw.forEach((_, i) => { raw[i] *= lerp(1.8, 0.5, i / (WORDS.length - 1)); });
+    const sum = raw.reduce((a, b) => a + b, 0);
+    s.gaps = raw.map((v) => (v / sum) * total);
+    s.letter = 0;
+    s.letterT = 0;
+    s.stage = 'chant';
+    s.stageT = 0;
+  }
+
+  function tick(s, dt, api) {
+    if (s.phase !== 'hold') return;
+    if (s.frozen) return;
+    s.clock += dt;
+    const moving = s.holding;
+    if (moving) {
+      s.d += SPEED * dt;
+      s.walk += dt * 9;
+    }
+    s.stageT += dt;
+    if (s.d >= GOAL) { s.d = GOAL; api.win(); return; }
+    if (s.stage === 'chant') {
+      s.letterT += dt;
+      while (s.letter < WORDS.length && s.letterT >= s.gaps[s.letter]) {
+        s.letterT -= s.gaps[s.letter];
+        s.letter += 1;
+        Snd.tone(lerp(330, 620, s.letter / WORDS.length), 0.06, { type: 'square', vol: 0.08 });
+      }
+      if (s.letter >= WORDS.length) {
+        s.stage = 'turn';
+        s.stageT = 0;
+        Snd.noise(0.08, { freq: 2600, vol: 0.28 });
+      }
+    } else if (s.stage === 'turn') {
+      if (s.stageT >= GRACE) {
+        if (moving) { api.die(); return; }
+        s.stage = 'watch';
+        s.stageT = 0;
+        s.watchFor = lerp(0.55, 1.25, s.rng());
+      }
+    } else if (s.stage === 'watch') {
+      if (moving) { api.die(); return; }
+      if (s.stageT >= s.watchFor) newChant(s);
+    }
+  }
+
+  function drawField(g) {
+    rect(g, -8, -8, 336, 82, '#a7dcf2');
+    disc(g, 60, 30, 24, 8, '#fff');
+    disc(g, 230, 22, 30, 9, '#fff');
+    for (let i = 0; i < 9; i += 1) {
+      disc(g, 18 + i * 36, 66, 20, 14, i % 2 ? '#6faf5d' : '#5f9f50');
+    }
+    rect(g, -8, 74, 336, 174, '#d8b783');
+    // 멀리서 가까이 오는 길
+    tri(g, 156, 74, 196, 74, 300, 240, '#e2c697');
+    tri(g, 156, 74, 80, 240, 300, 240, '#e2c697');
+    for (let i = 0; i < 6; i += 1) {
+      const k = (i + 1) / 7;
+      const y = lerp(80, 232, k * k);
+      rect(g, lerp(176, 190, k) - k * 22, y, k * 44, 1 + k * 3, '#caa672');
+    }
+  }
+
+  function drawPlayer(g, s, caught) {
+    const near = Math.pow(clamp(s.d / GOAL, 0, 1), 1.55);
+    const size = lerp(0.42, 3.1, near);
+    const baseX = lerp(176, 196, near), baseY = lerp(84, 214, near);
+    const step = s.holding && s.phase === 'hold' ? Math.sin(s.walk) : 0;
+    const P = (x, y, w, h, c) => rect(g, baseX + x * size, baseY + y * size, Math.max(1, w * size), Math.max(1, h * size), c);
+    P(-4 + step, -10, 3, 10, '#35487a');
+    P(1 - step, -10, 3, 10, '#35487a');
+    P(-5, -22, 10, 13, '#5fb96a');
+    P(-8, -21 + step, 3, 9, '#5fb96a');
+    P(5, -21 - step, 3, 9, '#5fb96a');
+    P(-4, -31, 8, 9, '#f7cda6');
+    P(-5, -34, 10, 5, '#3a2a24');
+    P(-3, -28, 1.4, 1.6, '#2a2230');
+    P(2, -28, 1.4, 1.6, '#2a2230');
+    if (caught) bang(g, '!', baseX, baseY - 40 * size, Math.max(16, 12 * size), '#ff5a5f');
+  }
+
+  // 술래: 눈을 가리고 이쪽을 보고 있다가, 돌아보면 뒤통수만 보인다
+  function drawSeeker(g, s, turned, lurch) {
+    const x = 74 + lurch, y = 128;
+    disc(g, x, y + 92, 62, 58, '#c4516a');
+    rect(g, x - 11, y + 30, 22, 14, '#f5c9a2');
+    if (turned) {
+      disc(g, x, y, 38, 38, '#2b2230');
+      disc(g, x - 10, y - 16, 13, 7, '#433650');
+      rect(g, x - 42, y - 4, 6, 12, '#f5c9a2');
+      rect(g, x + 36, y - 4, 6, 12, '#f5c9a2');
+      return;
+    }
+    disc(g, x, y, 36, 36, '#f5c9a2');
+    disc(g, x, y - 18, 37, 21, '#2b2230');
+    // 눈을 가린 두 손
+    disc(g, x - 16, y + 1, 15, 10, '#eeb98f');
+    disc(g, x + 16, y + 1, 15, 10, '#eeb98f');
+    for (let i = 0; i < 3; i += 1) {
+      rect(g, x - 28 + i * 8, y - 6, 1, 8, '#c98f66');
+      rect(g, x + 8 + i * 8, y - 6, 1, 8, '#c98f66');
+    }
+    line(g, x - 34, y + 6, x - 50, y + 60, 12, '#c4516a');
+    line(g, x + 34, y + 6, x + 50, y + 60, 12, '#c4516a');
+    // 노래하는 입
+    const singing = s.phase === 'hold' && s.stage === 'chant' && Math.sin(s.time * 26) > 0;
+    disc(g, x, y + 20, 6, singing ? 5 : 2, '#6b2a35');
+  }
+
+  function drawWords(g, s) {
+    const count = s.phase === 'hold' ? (s.stage === 'chant' ? s.letter : WORDS.length) : 0;
+    const box = { x: 16, y: 10, w: 288, h: 36 };
+    rect(g, box.x, box.y, box.w, box.h, '#fff8e7');
+    rect(g, box.x, box.y + box.h, box.w, 2, '#b89f76');
+    g.font = '900 24px "Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+    g.textBaseline = 'middle';
+    g.textAlign = 'center';
+    const gapX = (box.w - 16) / WORDS.length;
+    WORDS.forEach((ch, i) => {
+      g.fillStyle = i < count ? '#2a2230' : '#e9dcc0';
+      g.fillText(ch, box.x + 8 + gapX * (i + 0.5), box.y + box.h / 2 + 1);
+    });
+  }
+
+  function draw(g, s) {
+    const dead = s.phase === 'dead', won = s.phase === 'won';
+    const watching = s.phase === 'hold' && (s.stage === 'turn' || s.stage === 'watch');
+    let shakeX = 0;
+    if (dead) shakeX = (Math.random() - 0.5) * 8 * Math.exp(-s.phaseT * 3);
+    g.save();
+    g.translate(Math.round(shakeX), 0);
+    drawField(g);
+    drawWords(g, s);
+    if (won) {
+      // 끝까지 왔다: 술래 등을 치고 뒤돌아 도망간다
+      const hit = s.phaseT < 0.35;
+      const lurch = hit ? Math.sin(s.phaseT * 40) * 8 : -6;
+      drawSeeker(g, s, false, lurch);
+      if (hit) {
+        rect(g, 96, 150, 68, 13, '#5fb96a');
+        disc(g, 96, 156, 12, 10, '#f7cda6');
+        drawPlayer(g, s, false);
+        bang(g, '탁!', 112, 110, 44, '#ffd24a');
+      } else {
+        // 멀어지는 달리기
+        const away = Math.max(0, GOAL - (s.phaseT - 0.35) * 70);
+        const near = Math.pow(away / GOAL, 1.55);
+        const size = lerp(0.42, 3.1, near);
+        const bx = lerp(176, 196, near), by = lerp(84, 214, near);
+        const P = (x, y, w, h, c) => rect(g, bx + x * size, by + y * size, Math.max(1, w * size), Math.max(1, h * size), c);
+        const st = Math.sin(s.time * 18);
+        P(-4 + st * 2, -10, 3, 10, '#35487a');
+        P(1 - st * 2, -10, 3, 10, '#35487a');
+        P(-5, -22, 10, 13, '#5fb96a');
+        P(-8, -21, 3, 9, '#5fb96a');
+        P(5, -21, 3, 9, '#5fb96a');
+        P(-4, -32, 8, 11, '#3a2a24');
+        bang(g, '메롱', 244, 86, 22, '#fff');
+      }
+    } else if (dead) {
+      drawSeeker(g, s, true, 0);
+      drawPlayer(g, s, true);
+      if (s.phaseT < 0.1) { g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(-8, -8, 336, 256); }
+      bang(g, '너 움직였어!', 176, 64, 28, '#ff5a5f');
+    } else {
+      drawPlayer(g, s, false);
+      drawSeeker(g, s, watching, 0);
+      if (watching) {
+        g.fillStyle = 'rgba(200,30,40,.13)';
+        g.fillRect(-8, -8, 336, 256);
+      }
+    }
+    g.restore();
+  }
+
+  start({
+    id: 'red-light',
+    title: '무궁화꽃이 피었습니다',
+    hint: '꾹 누르면 걷고, 떼면 멈춰요 · 돌아볼 때 움직이면 잡혀요',
+    rules: false,
+    side: (s) => ({ label: '남은 거리', value: `${Math.ceil(GOAL - (s.d || 0))}m` }),
+    line: (s) => (s.holding ? '걷는 중' : '멈춤'),
+    holdEndsRound: false,
+    hazard: false,
+    lock: 0.9,
+    risk: () => 0,
+    unit: '초',
+    score: (s) => s.clock || 0,
+    format: (v) => v.toFixed(1),
+    wonWord: '등 치고 도망',
+    deadWord: '잡혔다',
+    draw,
+    tick,
+    reset(s) {
+      s.d = 0;
+      s.walk = 0;
+      s.clock = 0;
+      newChant(s);
+      s.stageT = 0;
+    },
+    onStart(s) { s.clock = 0; },
+    finalScore(s, rule, kind) {
+      return kind === 'dead' ? { value: null } : { value: s.clock };
+    },
+    lowerIsBetter: () => true,
+    formatBest: (value) => `${value.toFixed(1)}초`,
+    onFreeze(s, t) { s.d = clamp(t * SPEED, 0, GOAL); },
+    sound(s, dt) {
+      if (s.phase === 'hold' && s.holding) {
+        stepTimer -= dt;
+        if (stepTimer <= 0) {
+          Snd.noise(0.05, { freq: 900, vol: 0.14 });
+          stepTimer = 0.28;
+        }
+      }
+    },
+    onEnd(kind) {
+      if (kind === 'dead') {
+        Snd.tone(220, 0.5, { type: 'sawtooth', slide: 70, vol: 0.28 });
+      } else {
+        Snd.noise(0.09, { freq: 2200, vol: 0.5 });
+        setTimeout(() => Snd.tone(660, 0.16, { type: 'square', vol: 0.12 }), 120);
+        setTimeout(() => Snd.tone(880, 0.2, { type: 'square', vol: 0.12 }), 260);
+      }
+    },
+  });
+})();
+
+}
+};
+const HOLD_ON_ENTRIES = [{"id":"cat-1a","game":"cat","art":"opus-lcd-1a"},{"id":"cat-1b","game":"cat","art":"opus-lcd-1b"},{"id":"rubber-band","game":"rubber-band"},{"id":"bubble-gum","game":"bubble-gum"},{"id":"full-glass","game":"full-glass"},{"id":"red-light","game":"red-light"}];
+// 목록으로 돌아갈 때는 페이지를 새로 읽는다. 게임이 붙여 둔 입력 감지를 떼어 내는 가장 단순한 길이다
+window.HOLD_ON_BACK = () => location.reload();
+document.querySelector('.hl').addEventListener('click', (e) => {
+  const button = e.target.closest('[data-entry]');
+  if (!button) return;
+  const entry = HOLD_ON_ENTRIES.find((x) => x.id === button.dataset.entry);
+  document.body.classList.remove('hl-list');
+  window.HOLD_ON_ART = entry.art || null;
+  HOLD_ON_GAMES[entry.game]();
+});
+</script>
+</body></html>
