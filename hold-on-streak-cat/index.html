@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>고양이 100연승</title>
+<style>
+  /* 화면은 세 덩어리다: 위 고양이 그림판 · 가운데 숫자판 · 아래 큰 버튼. 색은 두 가지만 쓴다 */
+  :root { --bg: #051310; --ink: #ccf4e4; --page: #0c231d; --shade: #7fb5a0; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+  body {
+    background: var(--page); color: var(--ink);
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  main {
+    width: min(100vw, 430px);
+    height: min(100vh, 820px); height: min(100dvh, 820px);
+    padding: 12px 14px max(14px, env(safe-area-inset-bottom));
+    display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto; gap: 10px;
+  }
+  .stage {
+    min-height: 0; background: var(--bg); border-radius: 14px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  canvas { display: block; image-rendering: pixelated; }
+
+  /* 숫자판: 왼쪽 위 최고 기록 · 가운데 큰 연승 수 · 오른쪽 아래 다음 도전의 성공 확률 */
+  .panel {
+    position: relative; height: 184px; background: var(--bg); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .best { position: absolute; left: 14px; top: 10px; height: 26px; display: flex; align-items: center; gap: 7px; font-size: 22px; font-weight: 800; line-height: 1; }
+  .best svg { width: 28px; height: 20px; fill: currentColor; }
+  .best b { display: inline-block; }
+  .num { display: inline-block; margin-top: -8px; font-size: 84px; font-weight: 900; line-height: 1; letter-spacing: -2px; white-space: nowrap; }
+  .chance { position: absolute; right: 14px; bottom: 8px; font-size: 34px; font-weight: 900; line-height: 1; }
+
+  /* 연타 구간의 점 줄. 연타가 없을 때도 자리는 그대로 두어 화면이 출렁이지 않게 한다 */
+  .dots { height: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .dots div { display: flex; gap: 2px; }
+  .dots i { display: block; background: var(--ink); opacity: .22; }
+  .dots i.on { opacity: 1; }
+
+  .btn {
+    height: 112px; width: 100%; padding: 0 10px; border: 0; border-radius: 18px;
+    background: var(--ink); color: var(--bg); box-shadow: 0 6px 0 var(--shade);
+    font: inherit; font-size: 21px; font-weight: 900; line-height: 1.35;
+    cursor: pointer; touch-action: none; outline: none;
+  }
+  .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .btn .l { display: block; white-space: nowrap; }
+  .btn .sep { display: none; }
+  .btn.is-fail { background: var(--bg); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink), 0 6px 0 var(--shade); }
+</style>
+</head>
+<body>
+<main>
+  <div class="stage"><canvas aria-label="고양이와 쓰다듬는 손"></canvas></div>
+  <div class="panel" id="panel">
+    <div class="best"><svg id="crown" viewBox="0 0 7 5" shape-rendering="crispEdges" aria-label="최고 기록"></svg><b id="best">0</b></div>
+    <div class="num" id="num">0연승</div>
+    <div class="chance" id="chance">100%</div>
+  </div>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+  <button class="btn" id="btn" type="button"></button>
+</main>
+<script>
+/* 고양이 100연승 — 한 번 누름 = 한 번 쓰다듬기.
+   비유: 자판기 버튼. 누르는 그 순간 결과가 나오고, 숫자판과 버튼 글이 같은 순간에 바뀐다.
+   규칙: n연승 상태에서 다음 도전의 성공 확률은 100-n%. 실패하면 0연승부터, 최고 기록은 남는다.
+        10연승과 20연승부터 5연승마다, 99연승에서는 정해진 횟수만큼 눌러야 판정한다. */
+(function () {
+  'use strict';
+
+  /* ---------- 규칙 수치 ---------- */
+  const GOAL = 100;
+  // n연승 상태에서 다음 도전에 필요한 누름 수
+  const requiredTaps = (n) => (n === 99 ? 100 : n === 10 || (n >= 20 && n < 100 && n % 5 === 0) ? n : 1);
+  const chanceOf = (n) => 100 - n; // 다음 도전의 성공 확률(%)
+
+  /* ---------- 시험값: 느낌을 보며 고칠 수 있는 길이들(1000 = 1초) ---------- */
+  const PET_MS = 200; // 쓰다듬기 한 번
+  const FAIL_LOCK_MS = 350; // 실패 직후 실수로 연달아 누른 것을 막는 시간
+  const FAIL_SHOW_MS = 1500; // 무는 그림과 실패 문구가 보이는 시간(그 전에 눌러도 된다)
+  const CLEAR_LOCK_MS = 1000; // 100연승 직후 연타가 이어져 바로 넘어가지 않게 막는 시간
+  const HAPPY_MS = 300, HAPPY_BIG_MS = 700; // 기분 좋은 얼굴(10단위는 길게)
+  const FX_MS = 700; // 10단위 연승의 하트 · 별
+
+  const BEST_KEY = 'hold-on-streak-cat-best';
+  const BG = '#051310', INK = '#ccf4e4';
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const now = () => performance.now();
+
+  /* ---------- 최고 기록 저장: 저장소가 막혀 있어도 게임은 돈다 ---------- */
+  let memoryBest = 0;
+  function loadBest() {
+    try {
+      const value = Math.floor(Number(localStorage.getItem(BEST_KEY)));
+      if (Number.isFinite(value)) return clamp(value, 0, GOAL);
+    } catch (e) { /* 메모리 값으로 */ }
+    return memoryBest;
+  }
+  function saveBest(value) {
+    memoryBest = value;
+    try { localStorage.setItem(BEST_KEY, String(value)); } catch (e) { /* 메모리에만 */ }
+  }
+  function clearBest() {
+    memoryBest = 0;
+    try { localStorage.removeItem(BEST_KEY); } catch (e) { /* 메모리만 지움 */ }
+  }
+
+  /* ---------- 상태 ---------- */
+  const LONG_AGO = -1e9;
+  let streak = 0, best = loadBest(), taps = 0, petCount = 0;
+  let rand = Math.random; // 판정은 이 함수 하나만 쓴다
+  let failShown = false, failAt = LONG_AGO, failedStreak = 0; // 실패 장면
+  let cleared = false; // 100연승 달성 뒤 다음 누름을 기다리는 중
+  let lockUntil = 0, petAt = LONG_AGO, happyUntil = 0, fxAt = LONG_AGO;
+  let tailPhase = 0, lastFrame = 0;
+
+  const isFail = (t) => failShown && t < failAt + FAIL_SHOW_MS;
+  function labelNow(t) {
+    if (isFail(t)) return `${failedStreak}연승에서 실패 · 다시 누르기`;
+    if (cleared) return `${GOAL}연승 달성 · 다시 누르기`;
+    const need = requiredTaps(streak);
+    if (need > 1) return `${streak + 1}연승 도전 · ${taps}/${need}회 연타 · 성공 확률 ${chanceOf(streak)}%`;
+    return `${streak + 1}연승 도전 · 성공 확률 ${chanceOf(streak)}%`;
+  }
+
+  /* ---------- 누르기: 여기서 모든 일이 한 번에 일어난다 ---------- */
+  function press() {
+    const t = now();
+    if (t < lockUntil) return;
+    failShown = false;
+    if (cleared) { cleared = false; streak = 0; taps = 0; } // 100연승 뒤에는 새 판의 첫 도전이 된다
+    petCount += 1;
+    petAt = t; // 앞 동작을 기다리지 않고 처음부터 다시 쓰다듬는다
+    tailPhase += Math.PI; // 누를 때마다 꼬리도 반대쪽으로
+    taps += 1;
+    let result = 'tap', newBest = false;
+    if (taps >= requiredTaps(streak)) {
+      taps = 0;
+      if (rand() < chanceOf(streak) / 100) {
+        streak += 1;
+        result = streak % 10 === 0 ? 'bigwin' : 'win';
+        if (streak > best) { best = streak; saveBest(best); newBest = true; }
+        happyUntil = t + (result === 'bigwin' ? HAPPY_BIG_MS : HAPPY_MS);
+        if (result === 'bigwin') fxAt = t;
+        if (streak >= GOAL) { cleared = true; lockUntil = t + CLEAR_LOCK_MS; }
+      } else {
+        result = 'fail';
+        failedStreak = streak;
+        streak = 0;
+        failShown = true;
+        failAt = t;
+        lockUntil = t + FAIL_LOCK_MS;
+        happyUntil = 0;
+        fxAt = LONG_AGO;
+      }
+    }
+    syncText(t);
+    animate(result, newBest);
+    render(t);
+  }
+
+  /* ---------- 숫자판 · 버튼 ---------- */
+  const el = {
+    panel: document.getElementById('panel'),
+    num: document.getElementById('num'),
+    chance: document.getElementById('chance'),
+    best: document.getElementById('best'),
+    dots: document.getElementById('dots'),
+    btn: document.getElementById('btn'),
+  };
+  // 왕관: 칸으로 찍은 작은 그림
+  ['#..#..#', '##.#.##', '#######', '#######', '#######'].forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (ch !== '#') return;
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', x); r.setAttribute('y', y); r.setAttribute('width', 1); r.setAttribute('height', 1);
+      document.getElementById('crown').appendChild(r);
+    });
+  });
+
+  const setText = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+  let shownLabel = null, shownDots = '';
+  function syncText(t) {
+    const fail = isFail(t);
+    setText(el.num, `${streak}연승`);
+    setText(el.chance, `${cleared ? 0 : chanceOf(streak)}%`);
+    setText(el.best, String(best));
+    const label = labelNow(t);
+    if (label !== shownLabel) { // 긴 문구는 두 줄로: 「도전 · 연타」 / 「성공 확률」
+      shownLabel = label;
+      const parts = label.split(' · ');
+      const lines = parts.length === 3 ? [`${parts[0]} · ${parts[1]}`, parts[2]] : [label];
+      el.btn.textContent = '';
+      lines.forEach((text, i) => {
+        if (i > 0) {
+          const sep = document.createElement('span');
+          sep.className = 'sep'; sep.textContent = ' · ';
+          el.btn.appendChild(sep);
+        }
+        const line = document.createElement('span');
+        line.className = 'l'; line.textContent = text;
+        el.btn.appendChild(line);
+      });
+    }
+    el.btn.classList.toggle('is-fail', fail);
+    // 점 줄: 필요한 수만큼 점을 놓고, 누른 만큼 채운다
+    const need = fail || cleared ? 1 : requiredTaps(streak);
+    const key = `${need}:${taps}`;
+    if (key !== shownDots) {
+      const needChanged = shownDots.split(':')[0] !== String(need);
+      shownDots = key;
+      if (needChanged) {
+        el.dots.textContent = '';
+        if (need > 1) {
+          const perRow = need <= 25 ? need : Math.ceil(need / 2);
+          const size = clamp(Math.floor(340 / perRow) - 2, 3, 12);
+          for (let i = 0; i < need; i += 1) {
+            if (i % perRow === 0) el.dots.appendChild(document.createElement('div'));
+            const dot = document.createElement('i');
+            dot.style.width = dot.style.height = `${size}px`;
+            el.dots.lastChild.appendChild(dot);
+          }
+        }
+      }
+      el.dots.querySelectorAll('i').forEach((dot, i) => dot.classList.toggle('on', i < taps));
+    }
+  }
+
+  const play = (node, frames, ms) => { if (node.animate) node.animate(frames, { duration: ms, easing: 'ease-out' }); };
+  function animate(result, newBest) {
+    play(el.btn, [{ transform: 'translateY(5px)' }, { transform: 'translateY(0)' }], 110);
+    if (result === 'win' || result === 'bigwin') {
+      const big = result === 'bigwin';
+      play(el.num, [{ transform: 'scale(1)' }, { transform: `scale(${big ? 1.32 : 1.16})`, offset: 0.35 }, { transform: 'scale(1)' }], big ? 300 : 170);
+      if (big) play(el.panel, [{ background: INK, color: BG }, { background: INK, color: BG, offset: 0.7 }, { background: BG, color: INK }], 340);
+      if (newBest) play(el.best, [{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], 200);
+    } else if (result === 'fail') {
+      play(el.panel, [{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(0)' }], 240);
+    }
+  }
+
+  /* ---------- 그림: 32×24칸 판에 글자 그림으로 찍는다. # 밝은 색, o 어두운 색(앞 그림을 지움), . 건너뜀 ---------- */
+  const CAT_X = 8, CAT_Y = 5; // 고양이 왼쪽 위 칸
+  const HEAD = [
+    '.##############.', '################', '################', '################', '################',
+    '################', '################', '################', '.##############.', '...##########...',
+  ];
+  const BODY = [
+    '...##########...', '...##########...', '...##########...', '...##########...', '...###.##.###...', '..####.##.####..',
+  ];
+  const EARS = [ // 쫑긋 → 눕는 중 → 납작
+    ['.##..........##.', '.###........###.', '.####......####.'],
+    ['................', '###..........###', '.####......####.'],
+    ['................', '................', '###..........###'],
+  ];
+  const EYES = [ // 왼쪽 눈 기준. 오른쪽은 뒤집어 찍는다
+    ['.oo.', 'o..o', '....'], // 편하게 감음
+    ['....', 'oooo', '....'], // 실눈
+    ['.oo.', '.oo.', '....'], // 뜸
+    ['.oo.', '.oo.', '.oo.'], // 똑바로 쳐다봄
+    ['o...', '.oo.', '.oo.'], // 눈썹이 내려옴
+    ['oo..', '.ooo', '..oo'], // 찡그림
+  ];
+  const NOSE = ['oo'];
+  const MOUTHS = [
+    ['o..oo..o', '.oo..oo.'], // 웃는 입
+    ['...oo...'], // 다문 입
+    ['..oooo..'], // 일자
+    ['.oooooo.', '.oooooo.'], // 벌림
+    ['oooooooo', 'o#oooo#o', '.oooooo.'], // 이빨
+    ['oooooooo', 'o#oooo#o', 'oooooooo', '.oooooo.'], // 크게 벌림
+  ];
+  const TAILS = [ // 앞 둘은 편할 때, 뒤 둘은 화날 때 크게 흔든다
+    ['....##', '....##', '...##.', '..##..', '###...', '##....'],
+    ['......', '.....#', '....##', '...##.', '####..', '##....'],
+    ['.##...', '.##...', '..##..', '..##..', '###...', '##....'],
+    ['......', '.....#', '.....#', '....##', '#####.', '###...'],
+  ];
+  const PAW = ['.##.', '####', '####', '.##.', '.##.'];
+  const CLAWS = ['#.#.'];
+  const BANG = ['#', '#', '#', '.', '#'];
+  const RAYS = [[28, 11, 3], [28, 19, 3], [2, 12, 3], [2, 18, 3]]; // x, y, 길이
+  const HANDS = [ // 소매와 손가락이 보이는 손. 쓰다듬을 때마다 손가락이 번갈아 움직인다
+    ['.......#######', '......#######.', '.....ooooooooo', '...oo########o', 'oo.o#########o', 'o#oo#########o', 'o###o##o##o##o', 'oo##o##o##o#oo', '.oooo##o##oo..', '....oooooo....'],
+    ['.......#######', '......#######.', '.....ooooooooo', '...oo########o', 'oo.o#########o', 'o#oo#########o', 'o###o##o##o##o', 'oo##o##o##o##o', '.oooo##o##o#oo', '....ooooooooo.'],
+  ];
+  const BITE_JAW = [ // 물린 순간의 입: 턱까지 크게 벌린다
+    '###oooooooooooo#', '###ooo#ooo#ooooo', '##oooooooooooooo', '##oooooooooooooo',
+    '.#oooooooooooooo', '.#ooo#ooo#oooooo', '.##oooooooooooo.', '..############..',
+  ];
+  const BITE_HAND = [ // 오른쪽에서 들어와 물린 손
+    '.......ooooooo.....', '.......o#####o.####', '.......#######o####', '##############o####',
+    'ooooooo#######o####', '##############o####', '.......#######o####', '.......oooooooo####',
+  ];
+  const HEART = ['#.#', '###', '.#.'];
+  const STAR = ['.#.', '###', '.#.'];
+  const FX_SPOTS = [[2, 8, HEART], [28, 9, STAR], [4, 14, STAR], [29, 15, HEART], [1, 19, HEART]];
+  // 쓰다듬기 한 번의 손 자리(고양이 기준 칸): 내려와서 → 왼쪽으로 쓸고 → 올라간다
+  const PET_PATH = [[0.3, 5, 0], [0.6, 2, 0], [0.85, 0, 0], [1, 4, -2]];
+  const HAND_REST = [19, -3];
+
+  const canvas = document.querySelector('canvas');
+  const g = canvas.getContext('2d');
+  const board = document.createElement('canvas'); // 작은 판에 그린 뒤 그대로 키운다
+  board.width = 32; board.height = 24;
+  const c = board.getContext('2d');
+
+  function fill(x, y, w, h, color) { c.fillStyle = color; c.fillRect(x, y, w, h); }
+  function sprite(x, y, rows, flip) {
+    rows.forEach((row, j) => {
+      for (let i = 0; i < row.length; i += 1) {
+        const ch = flip ? row[row.length - 1 - i] : row[i];
+        if (ch !== '#' && ch !== 'o') continue;
+        c.fillStyle = ch === '#' ? INK : BG;
+        c.fillRect(x + i, y + j, 1, 1);
+      }
+    });
+  }
+  const eyeIndex = (a) => (a < 3 ? 0 : a < 6 ? 1 : a < 12 ? 2 : a < 18 ? 3 : a < 24 ? 4 : 5);
+  const mouthIndex = (a) => (a < 6 ? 0 : a < 10 ? 1 : a < 23 ? 2 : a < 26 ? 3 : a < 31 ? 4 : 5);
+
+  function render(t) {
+    const time = t / 1000;
+    const dead = isFail(t);
+    const deadT = (t - failAt) / 1000;
+    // 고양이 기분: 연승이 쌓일수록(성공 확률이 내려갈수록) 귀가 눕고 표정이 굳는다
+    const a = dead ? Math.max(failedStreak, 30) : cleared ? 0 : streak;
+    const happy = !dead && (cleared || t < happyUntil);
+    const dt = lastFrame ? Math.min(0.05, Math.max(0, (t - lastFrame) / 1000)) : 0;
+    lastFrame = t;
+    tailPhase += dt * Math.min(22, 1.6 + a * 0.55);
+
+    fill(0, 0, 32, 24, BG);
+    let ox = CAT_X;
+    const oy = CAT_Y;
+    // 몸 떨림은 칸이 커서 가끔만 한 칸 흔든다. 화날수록 잦아진다
+    const tremble = a < 6 ? 0 : Math.min(3.5, (a - 6) * 0.08 + Math.max(0, a - 30) * 0.12);
+    if (!dead && !happy && tremble > 0.8) {
+      const gap = Math.max(2, 9 - Math.round(tremble * 2));
+      if (Math.floor(time * 18) % gap === 0) ox += Math.floor(time * 36) % 2 ? 1 : -1;
+    }
+
+    // 꼬리
+    const wide = Math.min(1, (2 + a * 0.6) / 24) > 0.55;
+    sprite(ox + 13, oy + 13, TAILS[(wide ? 2 : 0) + (Math.sin(tailPhase) > 0 ? 1 : 0)]);
+    // 몸 · 귀 · 머리
+    const flat = happy ? 0 : clamp((a - 8) / 17, 0, 1);
+    sprite(ox, oy + 13, BODY);
+    sprite(ox, oy, EARS[flat < 0.34 ? 0 : flat < 0.67 ? 1 : 2]);
+    sprite(ox, oy + 3, HEAD);
+    if (a > 30) [[ox - 1, oy + 5], [ox - 1, oy + 9], [ox + 16, oy + 5], [ox + 16, oy + 9]].forEach(([x, y]) => fill(x, y, 1, 2, INK)); // 털이 곤두선다
+
+    // 얼굴
+    const look = happy ? 0 : (clamp((a - 15) / 7, 0, 1) >= 0.5 ? 1 : 0); // 고개 돌림은 얼굴만 한 칸 민다
+    const eye = EYES[happy ? 0 : eyeIndex(a)];
+    const eyeY = dead ? oy + 5 : oy + 6; // 물었을 땐 입이 커서 눈이 한 칸 올라간다
+    sprite(ox + 2 + look, eyeY, eye);
+    sprite(ox + 10 + look, eyeY, eye, true);
+    if (!dead) {
+      sprite(ox + 7 + look, oy + 9, NOSE);
+      sprite(ox + 4 + look, oy + 10, MOUTHS[happy ? 0 : mouthIndex(a)]);
+    }
+    const tense = a >= 15 && !happy ? 1 : 0; // 수염: 편할 땐 곧게, 화나면 젖힌다
+    [[-3, 6], [-3, 9]].forEach(([dx, y], i) => {
+      const lift = tense ? (i === 0 ? -1 : 1) : 0;
+      fill(ox + dx, oy + y + lift, 2, 1, INK);
+      fill(ox + 17, oy + y + lift, 2, 1, INK);
+    });
+
+    // 머리 옆의 김: 화날수록 많고 빠르다
+    if (a >= 8 && !dead && !happy) {
+      const speed = 0.5 + a * 0.05;
+      [[ox - 2, 0, 8], [ox + 18, 0.5, 16]].forEach(([x, offset, from]) => {
+        if (a < from) return;
+        const k = (time * speed + offset) % 1;
+        const y = oy + 3 - Math.floor(k * 5);
+        if (k < 0.5) fill(x, y, 2, 1, INK);
+        else fill(x + (k > 0.75 ? 1 : 0), y, 1, 1, INK);
+      });
+    }
+
+    // 앞발과 발톱
+    const pawShown = dead ? failedStreak >= 30 : a >= 30;
+    if (pawShown) {
+      const py = oy + 13 - Math.round(clamp((a - 30) / 8, 0, 1) * 6);
+      sprite(ox + 17, py, PAW);
+      if (a > 40 || dead) sprite(ox + 17, py - 1, CLAWS);
+    }
+
+    // 느낌표: 15부터 하나, 24부터 둘, 그 위로는 깜빡인다
+    if (a >= 15 && !happy && (a < 28 || Math.floor(time * 5) % 2 === 0)) {
+      sprite(1, 1, BANG);
+      if (a >= 24) sprite(3, 1, BANG);
+    }
+
+    if (dead) { // 무는 그림
+      sprite(ox, oy + 9, BITE_JAW);
+      sprite(ox + 5, oy + 8, BITE_HAND);
+      if (Math.floor(deadT * 8) % 2 === 0) RAYS.forEach(([x, y, len]) => fill(x, y, len, 1, INK));
+      if (deadT < 0.08) fill(0, 0, 32, 24, INK); // 물린 순간 화면이 번쩍
+    } else { // 손: 쉬는 자리에 있다가, 누를 때마다 한 번 쓰다듬는다
+      const k = (t - petAt) / PET_MS;
+      let hx = HAND_REST[0], hy = HAND_REST[1], finger = petCount % 2;
+      if (k >= 0 && k < 1) {
+        const step = PET_PATH.find((p) => k < p[0]);
+        hx = ox + step[1]; hy = step[2];
+        if (k < 0.6) finger = (petCount + 1) % 2; // 쓸면서 손가락이 바뀐다
+      }
+      sprite(hx, hy, HANDS[finger]);
+    }
+
+    // 10단위 연승: 하트와 별이 떴다 사라진다. 100연승은 계속 깜빡인다
+    const fxK = cleared ? (time % 1) : (t - fxAt) / FX_MS;
+    if (!dead && fxK >= 0 && fxK < 1) {
+      FX_SPOTS.forEach(([x, y, rows], i) => {
+        if (fxK > 0.7 && (i + Math.floor(fxK * 20)) % 2) return;
+        sprite(x, y - Math.floor(fxK * 3), rows);
+      });
+    }
+
+    // 작은 판을 큰 그림판에 옮긴다. 물린 직후에는 한 칸씩 좌우로 흔든다
+    const cell = canvas.width / 32;
+    const shift = dead && deadT < 0.3 ? (Math.floor(deadT * 30) % 2 ? 1 : -1) : 0;
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = BG;
+    g.fillRect(0, 0, canvas.width, canvas.height);
+    g.drawImage(board, shift * cell, 0, canvas.width, canvas.height);
+  }
+
+  // 그림판을 남는 자리에 맞춘다. 한 칸이 화면의 점 몇 개인지를 정수로 맞춰 칸이 고르게 보이게 한다
+  const stageEl = document.querySelector('.stage');
+  function fit() {
+    const box = stageEl.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    const cellCss = Math.max(2, Math.floor(Math.min(box.width / 32, box.height / 24)));
+    const cellPx = Math.max(1, Math.round(cellCss * ratio));
+    if (canvas.width !== 32 * cellPx) { canvas.width = 32 * cellPx; canvas.height = 24 * cellPx; }
+    canvas.style.width = `${(32 * cellPx) / ratio}px`;
+    canvas.style.height = `${(24 * cellPx) / ratio}px`;
+    render(now());
+  }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(stageEl);
+  window.addEventListener('resize', fit);
+
+  /* ---------- 입력: 손가락이 닿는 순간 판정한다 ---------- */
+  el.btn.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    press();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
+    e.preventDefault();
+    if (!e.repeat) press();
+  });
+  // 연타할 때 화면이 확대되거나 끌리거나, 길게 눌러 메뉴가 뜨지 않게 막는다
+  const block = (e) => e.preventDefault();
+  ['touchstart', 'touchmove', 'touchend'].forEach((name) => document.addEventListener(name, block, { passive: false }));
+  ['gesturestart', 'dblclick', 'contextmenu', 'selectstart', 'dragstart'].forEach((name) => document.addEventListener(name, block));
+
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    const t = now();
+    syncText(t); // 실패 문구는 잠깐 뒤 평소 문구로 돌아간다
+    render(t);
+  }
+  syncText(now());
+  fit();
+  requestAnimationFrame(frame);
+
+  /* ---------- 검사용 손잡이: 게임 규칙에는 영향이 없다 ---------- */
+  window.__STREAK_TEST__ = {
+    state() {
+      const t = now();
+      const fail = isFail(t);
+      return {
+        streak, best,
+        chance: cleared ? 0 : chanceOf(streak),
+        need: cleared ? 1 : requiredTaps(streak),
+        taps,
+        phase: fail ? 'fail' : 'idle',
+        label: labelNow(t),
+        petCount,
+      };
+    },
+    setRandom(fn) { rand = typeof fn === 'function' ? fn : Math.random; },
+    press,
+    reset() {
+      streak = 0; best = 0; taps = 0; petCount = 0;
+      failShown = false; failAt = LONG_AGO; failedStreak = 0; cleared = false;
+      lockUntil = 0; petAt = LONG_AGO; happyUntil = 0; fxAt = LONG_AGO;
+      clearBest();
+      const t = now();
+      syncText(t);
+      render(t);
+    },
+  };
+})();
+</script>
+</body>
+</html>
