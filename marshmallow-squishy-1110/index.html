@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>마시멜로 말랑이</title>
+<style>
+  /* 색은 전부 여기 한곳에서 정함 (밝은 화면 기본값) */
+  :root {
+    --bg: #ece9e2;          /* 화면 바탕 */
+    --wall-top: #f1efe9;    /* 뒷벽 위쪽 */
+    --wall-bottom: #ddd9d0; /* 뒷벽 아래쪽 */
+    --table: #b5ab99;       /* 탁자 */
+    --ink: #2b2723;         /* 글자 */
+    --sub: #6f685f;         /* 흐린 글자 */
+    --panel: #f8f6f1;       /* 손잡이 패널 바탕 */
+    --line: #d5cfc4;        /* 테두리 */
+    --accent: #e8641a;      /* 접시 주황 = 강조색 */
+  }
+  /* 어두운 화면 */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1d1b19; --wall-top: #34312d; --wall-bottom: #262421; --table: #5a5248;
+      --ink: #f0ece5; --sub: #a79f93; --panel: #292623; --line: #3d3934; --accent: #f07a35;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1d1b19; --wall-top: #34312d; --wall-bottom: #262421; --table: #5a5248;
+    --ink: #f0ece5; --sub: #a79f93; --panel: #292623; --line: #3d3934; --accent: #f07a35;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; touch-action: manipulation; overscroll-behavior: none; }
+  body {
+    background-color: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+  }
+  /* 세로로 쌓기: 위 = 마시멜로 무대, 아래 = 손잡이 패널. 패널이 열리면 무대가 그만큼 줄어서 마시멜로를 가리지 않음 */
+  #app {
+    height: 100vh; height: 100dvh; display: flex; flex-direction: column; gap: 10px;
+    padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+    max-width: 560px; margin: 0 auto;
+  }
+  #stage {
+    position: relative; flex: 1 1 auto; min-height: 180px; border-radius: 18px; overflow: hidden;
+    background: linear-gradient(var(--wall-top), var(--wall-bottom));
+    border: 1px solid var(--line);
+  }
+  #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #stage canvas.held { cursor: grabbing; }
+  #hint {
+    position: absolute; left: 0; right: 0; top: 14px; text-align: center; pointer-events: none;
+    font-size: 17px; font-weight: 700; color: var(--sub); transition: opacity .6s;
+  }
+  #hint.off { opacity: 0; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--sub); font-size: 16px; padding: 24px; text-align: center; }
+
+  #panel { flex: 0 1 auto; max-height: 55%; overflow: auto; overscroll-behavior: contain; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  #panel summary {
+    list-style: none; cursor: pointer; padding: 12px 14px; font-size: 16px; font-weight: 700;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #panel summary::-webkit-details-marker { display: none; }
+  #panel summary::after { content: "열기"; font-weight: 600; color: var(--accent); }
+  #panel[open] summary::after { content: "접기"; }
+  #knobs { padding: 0 14px 14px; display: grid; gap: 10px; }
+  .knob { display: grid; grid-template-columns: 1fr auto; row-gap: 2px; align-items: baseline; font-size: 16px; }
+  .knob output { color: var(--sub); font-variant-numeric: tabular-nums; }
+  .knob input { grid-column: 1 / -1; width: 100%; height: 30px; margin: 0; accent-color: var(--accent); touch-action: pan-x; }
+  #resetBtn {
+    font: inherit; font-size: 16px; font-weight: 700; padding: 10px; border-radius: 10px;
+    border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="loading">불러오는 중…</div>
+    <div id="hint">누르고 · 끌고 · 문질러 보세요</div>
+  </div>
+  <details id="panel">
+    <summary>느낌 손잡이</summary>
+    <div id="knobs">
+      <label class="knob"><span>탄성 (얼마나 통통 튀나)</span><output id="oBounce"></output>
+        <input id="kBounce" type="range" min="0" max="100" step="1"></label>
+      <label class="knob"><span>출렁임이 멎는 빠르기</span><output id="oSettle"></output>
+        <input id="kSettle" type="range" min="0" max="100" step="1"></label>
+      <label class="knob"><span>늘어나는 정도</span><output id="oStretch"></output>
+        <input id="kStretch" type="range" min="0" max="100" step="1"></label>
+      <label class="knob"><span>옆으로 부푸는 세기</span><output id="oBulge"></output>
+        <input id="kBulge" type="range" min="0" max="100" step="1"></label>
+      <button id="resetBtn" type="button">처음 값으로</button>
+    </div>
+  </details>
+</div>
+
+<script>
+  // 검수 11/10: three.js를 못 받으면(인터넷 끊김 등) 「불러오는 중…」만 남지 않게 15초 뒤 안내
+  setTimeout(function () { var el = document.getElementById('loading'); if (el) el.textContent = '3D 도구를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로 고침해 주세요.'; }, 15000);
+</script>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smooth = (a, b, v) => { const t = clamp((v - a)/(b - a), 0, 1); return t*t*(3 - 2*t); };
+
+/* ───────── 느낌 손잡이 4개 (슬라이더 0~100 → 실제 물리 값) ───────── */
+// 🤖 처음 값: Lumi Playground 말랑 공처럼 "통통, 서너 번 출렁이고 멎는" 느낌을 노리고 정함
+const DEFAULTS = {bounce: 58, settle: 50, stretch: 50, bulge: 40};
+const knob = {...DEFAULTS};
+const P = {k: 0, c: 0, stretch: 0, bulge: 0};   // 실제 물리 값
+function applyKnobs() {
+  P.k = 80*Math.pow(600/80, knob.bounce/100);       // 용수철 세기: 클수록 빠르게 통통
+  P.c = 3.5*Math.pow(14/3.5, knob.settle/100);      // 멎는 힘: 클수록 빨리 가라앉음(검수 11/10: 0일 때도 몇 초 안에 멎게 하한 3.5)
+  P.stretch = 0.4 + 1.2*knob.stretch/100;           // 손가락을 얼마나 따라 늘어나나
+  P.bulge = 2.5*knob.bulge/100;                     // 눌린 만큼 옆이 얼마나 부푸나
+  for (const [key, id] of [['bounce', 'Bounce'], ['settle', 'Settle'], ['stretch', 'Stretch'], ['bulge', 'Bulge']]) {
+    $('k' + id).value = knob[key]; $('o' + id).textContent = knob[key];
+  }
+}
+for (const [key, id] of [['bounce', 'Bounce'], ['settle', 'Settle'], ['stretch', 'Stretch'], ['bulge', 'Bulge']]) {
+  $('k' + id).addEventListener('input', e => { knob[key] = Number(e.target.value); applyKnobs(); });
+}
+$('resetBtn').addEventListener('click', () => { Object.assign(knob, DEFAULTS); applyKnobs(); });
+applyKnobs();
+
+/* ───────── 무대: 탁자 + 접시 (뒷벽은 CSS 바탕색이 비쳐 보임) ───────── */
+const stage = $('stage');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({antialias: true, alpha: true}); }
+catch (err) { $('loading').textContent = '이 브라우저에서 3D 화면을 켜지 못했습니다. 다른 브라우저로 열어 보세요.'; throw err; }
+renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+renderer.setClearColor(0x000000, 0);
+const cv = renderer.domElement;
+stage.insertBefore(cv, stage.firstChild);
+$('loading').remove();
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 60);
+const LOOK_AT = new THREE.Vector3(0, .6, 0);
+const CAM_DIR = new THREE.Vector3(0, .68, 4.9).normalize();   // 원본 게임과 같은 내려다보는 각도
+
+// 조명: 하늘빛 + 앞 위쪽 불빛 하나 (원본과 같음 — 마시멜로가 하얗게 날아가지 않는 세기)
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b3a6, 2.0));
+const sun = new THREE.DirectionalLight(0xfffaf0, 1.25); sun.position.set(-1.5, 3, 3.2); scene.add(sun);
+
+// 탁자 (윗면 높이 0)
+const tableMat = new THREE.MeshLambertMaterial({color: 0xb5ab99});
+const table = new THREE.Mesh(new THREE.BoxGeometry(9, 1.2, 2.8), tableMat);
+table.position.y = -.6; scene.add(table);
+
+// 주황 접시 (원본과 같은 단면)
+const plateProfile = [[0,0],[0.8,0],[1.2,0.12],[1.32,0.21],[1.27,0.21],[1.15,0.14],[0.75,0.06],[0,0.06]].map(p => new THREE.Vector2(p[0], p[1]));
+scene.add(new THREE.Mesh(new THREE.LatheGeometry(plateProfile, 72), new THREE.MeshLambertMaterial({color: 0xe8641a, side: THREE.DoubleSide})));
+const PLATE_TOP = 0.06;
+
+// 화면 밝기 모드가 바뀌면 탁자 색도 CSS 변수에서 다시 읽어 옴
+function applyTheme() {
+  const c = getComputedStyle(document.documentElement).getPropertyValue('--table').trim();
+  if (c) tableMat.color.set(c);
+}
+applyTheme();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
+
+/* ───────── 마시멜로 몸 (A2와 같은 치수: 반지름 .55 · 높이 1 · 모서리 둥글기 .22 · 색 fffaf2) ───────── */
+const BODY = {r: .55, h: 1.00, c: .22, faceC: .50, faceH: .46, color: 0xfffaf2, breath: [1.4, .035]};
+
+// 둥근 모서리 원기둥 단면. 원본과 같은 모양인데, 눌린 자국이 생길 수 있게 옆면 · 윗면에 점을 더 촘촘히 넣음
+function bodyProfile(d) {
+  const R = d.r, C = d.c, H = d.h, pts = [];
+  pts.push([0, 0], [(R - C)*.5, 0]);
+  for (let i = 0; i <= 8; i++) { const a = -Math.PI/2 + i/8*Math.PI/2; pts.push([R - C + C*Math.cos(a), C + C*Math.sin(a)]); }
+  for (let i = 1; i <= 9; i++) pts.push([R, C + (H - 2*C)*i/10]);
+  for (let i = 0; i <= 8; i++) { const a = i/8*Math.PI/2; pts.push([R - C + C*Math.cos(a), H - C + C*Math.sin(a)]); }
+  for (let i = 1; i <= 3; i++) pts.push([(R - C)*(1 - i/4), H]);
+  pts.push([0, H]);
+  return pts.map(p => new THREE.Vector2(p[0], p[1]));
+}
+const SEG = 64;                                   // 둘레를 몇 조각으로 나눌지
+const prof = bodyProfile(BODY), NP = prof.length; // 세로 점 개수
+// 이음매를 뒤쪽에 두려고 반 바퀴 돌려서 시작 (얼굴이 이음매에 걸리지 않게)
+const geo = new THREE.LatheGeometry(prof, SEG, Math.PI, Math.PI*2);
+const posAttr = geo.attributes.position, pos = posAttr.array;
+posAttr.setUsage(THREE.DynamicDrawUsage);
+const N_ALL = posAttr.count;          // 전체 점 개수 (이음매 겹침 줄 포함)
+const N = SEG*NP;                     // 실제로 움직임을 계산하는 점 개수 (겹침 줄 제외)
+
+// 그림 좌표: 가로 = 둘레 한 바퀴, 세로 = 높이. 얼굴 그림을 몸에 바로 붙이기 위함
+{ const uv = geo.attributes.uv;
+  for (let i = 0; i < N_ALL; i++) uv.setY(i, pos[i*3 + 1]/BODY.h);
+  uv.needsUpdate = true; }
+// 모양이 계속 바뀌므로 "어디쯤 있나" 범위를 넉넉히 고정 (누르기 판정용)
+geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .5, 0), 4);
+
+const rest = new Float32Array(pos);                 // 원래 모양
+geo.computeVertexNormals();
+const restN = new Float32Array(geo.attributes.normal.array);   // 원래 모양의 바깥 방향
+const vel = new Float32Array(N*3);                  // 점마다 속도
+const off = new Float32Array(N*3);                  // 손가락이 만든 "가야 할 곳" 밀림
+const err = new Float32Array(N*3);                  // 지금 위치와 가야 할 곳의 차이
+const pin = new Float32Array(N);                    // 바닥 고정 정도 (0 = 접시에 붙음, 1 = 자유)
+const pinSoft = new Float32Array(N);                // 부풀 때 쓰는 느슨한 바닥 고정
+const belly = new Float32Array(N);                  // 배(가운데 높이)일수록 큼
+const kScale = new Float32Array(N);                 // 위쪽일수록 조금 더 무름 → 위가 늦게 따라오며 출렁
+const radial = new Float32Array(N*2);               // 기둥 가운데에서 바깥을 향하는 방향 (x, z)
+const wDent = new Float32Array(N), wRing = new Float32Array(N), wGrab = new Float32Array(N);
+const nb = new Int32Array(N*4);                     // 이웃 점 4개 (좌 · 우 · 아래 · 위)
+for (let i = 0; i < SEG; i++) for (let j = 0; j < NP; j++) {
+  const v = i*NP + j, y = rest[v*3 + 1]/BODY.h, x = rest[v*3], z = rest[v*3 + 2], r = Math.hypot(x, z);
+  pin[v] = smooth(0, .32, y); pinSoft[v] = smooth(0, .1, y);
+  belly[v] = Math.sin(Math.PI*clamp(y, 0, 1));
+  kScale[v] = 1.15 - .45*y;
+  radial[v*2] = r > 1e-4 ? x/r : 0; radial[v*2 + 1] = r > 1e-4 ? z/r : 0;
+  nb[v*4] = ((i + SEG - 1) % SEG)*NP + j; nb[v*4 + 1] = ((i + 1) % SEG)*NP + j;
+  nb[v*4 + 2] = i*NP + Math.max(0, j - 1); nb[v*4 + 3] = i*NP + Math.min(NP - 1, j + 1);
+}
+
+// 가루 묻은 무광 겉면: 반짝임이 전혀 없는 재질
+const bodyMat = new THREE.MeshLambertMaterial({color: BODY.color, side: THREE.DoubleSide});
+const body = new THREE.Mesh(geo, bodyMat); body.frustumCulled = false;
+
+/* ───────── 얼굴 (A2 = 살색 판 없음 · 코 없음. 원본 drawA 코드를 그대로 옮김) ───────── */
+const PX = 768/1.1;   // 얼굴 그림판: 세계 1칸 = 698픽셀 (원본과 같음)
+const faceCv = document.createElement('canvas'); faceCv.width = 768; faceCv.height = Math.round(BODY.faceH*PX);
+const faceCtx = faceCv.getContext('2d');
+const faceTex = new THREE.CanvasTexture(faceCv);
+faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.generateMipmaps = false; faceTex.minFilter = THREE.LinearFilter;
+// 얼굴 그림을 몸 앞쪽 띠(원본과 같은 폭 · 높이)에만 놓음. 띠 밖은 투명
+{ const arc = 1.1/BODY.r, wu = arc/(Math.PI*2), u0 = .5 - wu/2;
+  const wv = BODY.faceH/BODY.h, v0 = (BODY.faceC - BODY.faceH/2)/BODY.h;
+  faceTex.repeat.set(1/wu, 1/wv); faceTex.offset.set(-u0/wu, -v0/wv); }
+// 몸과 같은 뼈대를 함께 쓰므로, 몸이 찌그러지면 얼굴도 똑같이 찌그러짐
+const faceMesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({map: faceTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2}));
+faceMesh.frustumCulled = false;
+
+// s = {lx, ly: 눈길, alert: 경계, hit: 닿았을 때 놀람, blink: 깜빡임}
+function drawFaceA2(s) {
+  const ctx = faceCtx, W = faceCv.width, H = faceCv.height, cx = W/2;
+  ctx.clearRect(0, 0, W, H);
+  const open = Math.min(1.15, 0.36 + 0.5*s.alert + 0.75*s.hit)*(1 - s.blink);
+  for (const sd of [-1, 1]) {
+    const ex = cx + sd*108, ey = 122, rx = 50, ry = 30, peak = ry*open*1.25;
+    const path = () => { ctx.beginPath(); ctx.moveTo(ex-rx, ey); ctx.quadraticCurveTo(ex, ey-2*peak, ex+rx, ey); ctx.quadraticCurveTo(ex, ey+ry*1.1, ex-rx, ey); ctx.closePath(); };
+    // 눈 밑 다크서클
+    ctx.strokeStyle = 'rgba(150,100,110,.35)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ex-rx+6, ey+14); ctx.quadraticCurveTo(ex, ey+ry*1.1+12, ex+rx-6, ey+14); ctx.stroke();
+    if (open > 0.04) {
+      ctx.save(); path(); ctx.clip();
+      ctx.fillStyle = '#f3eee8'; ctx.fillRect(ex-rx, ey-50, rx*2, 100);
+      const ix = ex + s.lx*15, iy = ey + s.ly*-7 + (1-open)*4;
+      ctx.fillStyle = '#76654f'; ctx.beginPath(); ctx.arc(ix, iy, 21, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#4a3d30'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = '#0c0a09'; ctx.beginPath(); ctx.arc(ix, iy, 8 - s.hit*3 + s.alert*1.5, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(ix-7, iy-8, 3.5, 0, 7); ctx.fill();
+      const sh = ctx.createLinearGradient(0, ey-peak, 0, ey-peak+22);
+      sh.addColorStop(0, 'rgba(110,70,60,.45)'); sh.addColorStop(1, 'rgba(110,70,60,0)');
+      ctx.fillStyle = sh; ctx.fillRect(ex-rx, ey-peak, rx*2, 24);
+      ctx.restore();
+    }
+    // 윗눈꺼풀 선 + 주름
+    ctx.strokeStyle = '#573d33'; ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.moveTo(ex-rx, ey); ctx.quadraticCurveTo(ex, ey-2*peak, ex+rx, ey); ctx.stroke();
+    ctx.strokeStyle = 'rgba(120,80,70,.5)'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(ex-rx+8, ey-8); ctx.quadraticCurveTo(ex, ey-2*peak-14, ex+rx-8, ey-8); ctx.stroke();
+    // 눈썹: 평소엔 축 처짐, 놀라면 안쪽이 올라감
+    const by = 52 - s.alert*8 - s.hit*16;
+    ctx.strokeStyle = 'rgba(108,76,56,.78)'; ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(ex + sd*55, by + 7 - s.alert*9 - s.hit*6);
+    ctx.lineTo(ex - sd*50, by - 3 - s.alert*7 - s.hit*6);
+    ctx.stroke();
+  }
+  // 입: 작고 축 처짐 → 닿으면 동그랗게
+  const my = 258, mw = 24 + s.alert*(-2);
+  if (s.hit > 0.15) {
+    const o = s.hit;
+    ctx.fillStyle = '#4e2424'; ctx.beginPath(); ctx.ellipse(cx, my+4, 14+8*o, 8+18*o, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#b97a76'; ctx.lineWidth = 6; ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#b77a76'; ctx.lineCap = 'round'; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(cx-mw, my+3); ctx.quadraticCurveTo(cx, my + 3 - 4 + s.alert*2, cx+mw, my+3); ctx.stroke();
+    ctx.strokeStyle = 'rgba(120,60,60,.55)'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(cx-mw+3, my+3); ctx.quadraticCurveTo(cx, my+1+s.alert*2, cx+mw-3, my+3); ctx.stroke();
+  }
+}
+
+/* ───────── 조립: 자리(anchor) → 통째 출렁임(root) → 몸 + 얼굴 ───────── */
+const anchor = new THREE.Group(); anchor.position.y = PLATE_TOP; scene.add(anchor);
+const root = new THREE.Group(); root.matrixAutoUpdate = false; root.add(body, faceMesh);
+// 마시멜로 밑 부드러운 그림자
+const blobCv = document.createElement('canvas'); blobCv.width = blobCv.height = 128;
+{ const g = blobCv.getContext('2d'), gr = g.createRadialGradient(64, 64, 4, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(40,30,20,.5)'); gr.addColorStop(1, 'rgba(40,30,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }
+const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(blobCv), transparent: true, depthWrite: false}));
+blob.rotation.x = -Math.PI/2; blob.position.y = .004;
+anchor.add(blob, root);
+
+/* ───────── 손맛 상태 ───────── */
+// 통째로 출렁이는 용수철 3개 (원본 마시멜로와 같은 방식): 납작/길쭉 · 좌우 기울기 · 앞뒤 기울기
+const sq = {x: 0, v: 0}, sw = {x: 0, v: 0}, swz = {x: 0, v: 0};
+const rootM = new THREE.Matrix4();
+const grab = {
+  held: false, seeking: false,        // 잡고 있나 / 빈 곳을 누른 채 마시멜로를 찾는 중인가
+  rest: new THREE.Vector3(),          // 잡은 곳 (원래 모양 기준)
+  world: new THREE.Vector3(),         // 잡은 곳 (화면 속 실제 위치)
+  dir: new THREE.Vector3(),           // 누르는 방향 (몸 안쪽)
+  d: new THREE.Vector3(),             // 잡은 뒤 손가락이 움직인 만큼
+  prevD: new THREE.Vector3(),
+  depth: 0,                           // 눌린 깊이 (누르는 순간부터 쑥 들어감)
+  plane: new THREE.Plane(),
+};
+const PRESS_DEPTH = .17, DENT_RADIUS = .26, GRAB_RADIUS = .8;   // 🤖 눌림 깊이 · 눌린 자국 넓이 · 같이 끌려오는 넓이
+let hitT = 0, lookX = 0, lookY = 0, simTime = 0, blinkStart = -9, nextBlink = 1.5, faceKey = '';
+
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3();
+function setRay(x, y) {   // x, y = 캔버스 왼쪽 위에서 잰 화면 좌표(px)
+  ndc.set(x/cv.clientWidth*2 - 1, -(y/cv.clientHeight)*2 + 1);
+  ray.setFromCamera(ndc, camera);
+}
+
+// 마시멜로를 잡기 시작 (눌린 곳 주변 점들이 얼마나 영향받을지 미리 계산)
+function beginGrab(hit) {
+  root.worldToLocal(tmpV.copy(hit.point));
+  let gi = hit.face.a, best = Infinity;
+  for (const idx of [hit.face.a, hit.face.b, hit.face.c]) {
+    const d2 = (pos[idx*3]-tmpV.x)**2 + (pos[idx*3+1]-tmpV.y)**2 + (pos[idx*3+2]-tmpV.z)**2;
+    if (d2 < best) { best = d2; gi = idx; }
+  }
+  if (gi >= N) gi -= N;   // 이음매 겹침 줄이면 짝이 되는 점으로
+  grab.rest.set(rest[gi*3], rest[gi*3+1], rest[gi*3+2]);
+  // 누르는 방향 = 손가락이 들어오는 방향 + 겉면의 안쪽 방향을 섞음
+  grab.dir.set(-restN[gi*3], -restN[gi*3+1], -restN[gi*3+2]).multiplyScalar(.4).addScaledVector(ray.ray.direction, .6).normalize();
+  for (let v = 0; v < N; v++) {
+    const d = Math.hypot(rest[v*3]-grab.rest.x, rest[v*3+1]-grab.rest.y, rest[v*3+2]-grab.rest.z);
+    wDent[v] = Math.exp(-((d/DENT_RADIUS)**2));                       // 눌린 자국
+    wRing[v] = Math.exp(-((d/(DENT_RADIUS*2.3))**2)) - wDent[v];      // 자국 둘레의 부푸는 띠
+    wGrab[v] = Math.exp(-((d/GRAB_RADIUS)**2));                       // 끌 때 같이 따라오는 정도
+  }
+  grab.world.copy(hit.point);
+  camera.getWorldDirection(tmpV2);
+  grab.plane.setFromNormalAndCoplanarPoint(tmpV2, grab.world);
+  grab.d.set(0, 0, 0); grab.prevD.set(0, 0, 0); grab.depth = 0;
+  grab.held = true; grab.seeking = false; hitT = 1;
+  sq.v -= 1.4; sw.v -= grab.dir.x*2.2;       // 누르는 순간 몸 전체가 움찔
+  cv.classList.add('held'); $('hint').classList.add('off');
+}
+function pointerDown(x, y) {
+  setRay(x, y);
+  const hits = ray.intersectObject(body, false);
+  if (hits.length) beginGrab(hits[0]); else { grab.seeking = true; }
+  return grab.held;
+}
+let seekAt = null;
+function seekTick() {
+  if (!seekAt || !grab.seeking || grab.held) { seekAt = null; return; }
+  setRay(seekAt[0], seekAt[1]); seekAt = null;
+  const hits = ray.intersectObject(body, false);
+  if (hits.length) beginGrab(hits[0]);
+}
+function pointerMove(x, y) {
+  setRay(x, y);
+  if (grab.held) {
+    if (ray.ray.intersectPlane(grab.plane, tmpV)) grab.d.copy(tmpV).sub(grab.world);
+  } else if (grab.seeking) {      // 빈 곳에서 문지르다 마시멜로에 닿으면 그때부터 잡힘 — 판정은 프레임당 한 번(검수 11/10: 이동 이벤트가 초당 120번 넘게 와도 가볍게)
+    seekAt = [x, y];
+  }
+}
+function pointerUp() {
+  if (grab.held) {
+    sq.v += 1.0 + Math.min(1.5, grab.d.length()*1.5);   // 놓는 순간 통 하고 한 번 더 튐
+    off.fill(0);                                         // 가야 할 곳 = 원래 모양 → 용수철이 출렁이며 돌아감
+  }
+  grab.held = false; grab.seeking = false; cv.classList.remove('held');
+}
+
+// 손가락이 만든 밀림(가야 할 곳)을 점마다 계산
+function updateOffsets(dt) {
+  grab.depth += (PRESS_DEPTH - grab.depth)*Math.min(1, dt*14);
+  // 끈 길이: 멀리 끌수록 점점 덜 늘어나게 (고무줄처럼 한계가 있음)
+  const rawLen = grab.d.length()*P.stretch, maxLen = .5 + .9*P.stretch;
+  const len = maxLen*Math.tanh(rawLen/maxLen);
+  let hx = 0, hy = 0, hz = 0;
+  if (rawLen > 1e-5) { hx = grab.d.x/grab.d.length(); hy = grab.d.y/grab.d.length(); hz = grab.d.z/grab.d.length(); }
+  const dx = hx*len, dy = hy*len, dz = hz*len;
+  const px = grab.dir.x, py = grab.dir.y, pz = grab.dir.z;
+  // 바깥으로 잡아당기는 중이면 눌린 자국은 사라짐
+  const outward = Math.max(0, -(dx*px + dy*py + dz*pz));
+  const dent = grab.depth*clamp(1 - outward/.2, 0, 1);
+  const topPress = dent*Math.max(0, -py)*P.bulge*.9;      // 위에서 누르면 배가 옆으로 나옴
+  const ringAmt = dent*P.bulge*1.6, allAmt = dent*P.bulge*.12;
+  const squeeze = Math.min(.45, P.bulge*.35*len);          // 늘어난 만큼 가늘어짐
+  const cy = BODY.h/2;
+  for (let v = 0; v < N; v++) {
+    const a = v*3, pn = pin[v], ps = pinSoft[v];
+    const out = (ringAmt*wRing[v] + allAmt)*ps;            // 겉면 바깥 방향으로 부풀기
+    const bl = topPress*belly[v];
+    const g = wGrab[v]*pn;
+    const rx = rest[a], ry = rest[a+1] - cy, rz = rest[a+2];
+    const along = rx*hx + ry*hy + rz*hz, sqz = squeeze*pn;
+    off[a]   = px*dent*wDent[v] + restN[a]*out   + radial[v*2]*bl   + dx*g - (rx - along*hx)*sqz;
+    off[a+1] = py*dent*wDent[v] + restN[a+1]*out                    + dy*g - (ry - along*hy)*sqz;
+    off[a+2] = pz*dent*wDent[v] + restN[a+2]*out + radial[v*2+1]*bl + dz*g - (rz - along*hz)*sqz;
+  }
+}
+
+// 점마다 용수철: 가야 할 곳으로 당겨지되, 이웃 점과도 이어져 있어 출렁임이 몸을 타고 퍼짐
+function simStep(h) {
+  const k = P.k, kc = P.k*.5, c = P.c;
+  for (let a = 0; a < N*3; a++) err[a] = pos[a] - rest[a] - off[a];
+  for (let v = 0; v < N; v++) {
+    const a = v*3, n0 = nb[v*4]*3, n1 = nb[v*4+1]*3, n2 = nb[v*4+2]*3, n3 = nb[v*4+3]*3, ks = k*kScale[v];
+    for (let q = 0; q < 3; q++) {
+      const e = err[a+q], lap = (err[n0+q] + err[n1+q] + err[n2+q] + err[n3+q])*.25 - e;
+      vel[a+q] += (-ks*e + kc*lap - c*vel[a+q])*h;
+      pos[a+q] += vel[a+q]*h;
+    }
+    if (pos[a+1] < 0) { pos[a+1] = 0; if (vel[a+1] < 0) vel[a+1] = 0; }   // 접시 아래로는 못 내려감
+  }
+}
+// 꼭대기 · 바닥 한가운데 점들은 한 점처럼 붙여 두고, 뒤쪽 이음매도 맞춤
+function stitch() {
+  for (const j of [0, NP - 1]) {
+    let sx = 0, sy = 0, sz = 0, ux = 0, uy = 0, uz = 0;
+    for (let i = 0; i < SEG; i++) { const a = (i*NP + j)*3; sx += pos[a]; sy += pos[a+1]; sz += pos[a+2]; ux += vel[a]; uy += vel[a+1]; uz += vel[a+2]; }
+    sx /= SEG; sy /= SEG; sz /= SEG; ux /= SEG; uy /= SEG; uz /= SEG;
+    for (let i = 0; i < SEG; i++) { const a = (i*NP + j)*3; pos[a] = sx; pos[a+1] = sy; pos[a+2] = sz; vel[a] = ux; vel[a+1] = uy; vel[a+2] = uz; }
+  }
+  for (let j = 0; j < NP*3; j++) pos[N*3 + j] = pos[j];
+}
+
+// 시간을 dt초만큼 흘려보냄 (그리기는 따로)
+function advance(dt) {
+  seekTick();   // 빈 곳을 문지르는 중이면 이번 프레임에 한 번만 닿았는지 봄
+  simTime += dt;
+  const t = simTime;
+  if (grab.held) {
+    updateOffsets(dt);
+    // 빠르게 문지르면 몸 전체가 흔들림: 손가락 속도를 통째 출렁임에 실어 줌
+    const vx = clamp((grab.d.x - grab.prevD.x)/dt, -8, 8), vy = clamp((grab.d.y - grab.prevD.y)/dt, -8, 8);
+    sw.v += vx*4*dt; sq.v += vy*1.5*dt; swz.v += vx*.6*dt;
+    grab.prevD.copy(grab.d);
+    hitT = 1;
+  } else hitT = Math.max(0, hitT - dt/.9);
+
+  const steps = Math.max(1, Math.ceil(dt/.006)), h = dt/steps;
+  const kr = P.k/257, cr = P.c/4.58, [br, ba] = BODY.breath;
+  for (let i = 0; i < steps; i++) {
+    simStep(h);
+    const tt = t - dt + (i + 1)*h;
+    sq.v += ((Math.sin(tt*br)*ba - sq.x)*110*kr - sq.v*6*cr)*h; sq.x += sq.v*h;            // 숨쉬기 + 납작/길쭉
+    sw.v += ((Math.sin(tt*br*.6)*.012 - sw.x)*70*kr - sw.v*5*cr)*h; sw.x += sw.v*h;        // 좌우 기울기
+    swz.v += ((Math.sin(tt*br*.8)*.01 - swz.x)*70*kr - swz.v*5*cr)*h; swz.x += swz.v*h;    // 앞뒤 기울기
+  }
+  sq.x = clamp(sq.x, -.45, .6); sw.x = clamp(sw.x, -.7, .7); swz.x = clamp(swz.x, -.5, .5);
+  stitch();
+  posAttr.needsUpdate = true;
+  geo.computeVertexNormals();
+
+  // 통째 출렁임: 납작해지면 그만큼 옆으로 퍼짐 (부피 보존)
+  const sy = 1 + sq.x, sx = 1/Math.sqrt(Math.max(.2, sy));
+  rootM.set(sx, sw.x, 0, 0,  0, sy, 0, 0,  0, swz.x, sx, 0,  0, 0, 0, 1);
+  root.matrix.copy(rootM); root.matrixWorldNeedsUpdate = true;
+  blob.scale.setScalar(sx);
+
+  // 표정: 누르는 동안 A2의 "닿았을 때" 얼굴, 놓으면 원래 얼굴로
+  const tx = grab.held ? clamp((grab.rest.x + grab.d.x)*1.4, -1, 1) : 0;
+  const ty = grab.held ? clamp((grab.rest.y + grab.d.y - .5)*1.4, -1, 1) : 0;
+  const q = Math.min(1, dt*9); lookX += (tx - lookX)*q; lookY += (ty - lookY)*q;
+  if (t > nextBlink) { blinkStart = t; nextBlink = t + 2 + Math.random()*3.2; }
+  const bt = (t - blinkStart)/.34, blink = bt >= 0 && bt <= 1 ? Math.sin(bt*Math.PI) : 0;
+  const hit = Math.min(1, hitT*1.6);
+  const key = Math.round(hit*50) + '|' + Math.round(blink*30) + '|' + Math.round(lookX*40) + '|' + Math.round(lookY*40);
+  if (key !== faceKey) {     // 얼굴이 바뀔 때만 다시 그림 (폰 부담 줄이기)
+    faceKey = key;
+    drawFaceA2({lx: lookX, ly: lookY, alert: 0, hit, blink});
+    faceTex.needsUpdate = true;
+  }
+}
+
+/* ───────── 화면 크기 맞추기 ───────── */
+function resize() {
+  const w = Math.max(1, stage.clientWidth), h = Math.max(1, stage.clientHeight);
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h;
+  // 세로로 긴 화면에서도 마시멜로가 가로 폭의 절반쯤 차지하도록 카메라 거리를 조절
+  const span = 2.4, tanHalf = Math.tan(THREE.MathUtils.degToRad(19));
+  const dist = Math.max(4.9, span/(2*tanHalf*camera.aspect));
+  camera.position.copy(LOOK_AT).addScaledVector(CAM_DIR, dist);
+  camera.lookAt(LOOK_AT); camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
+  if (typeof scene !== 'undefined') renderer.render(scene, camera);   // 검수 11/10: 크기를 바꾼 직후 한 프레임 비는 것 막기
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+
+/* ───────── 손가락 · 마우스 입력 (둘 다 같은 길로 들어옴) ───────── */
+let activeId = null;
+const localXY = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+cv.addEventListener('pointerdown', e => {
+  if (activeId !== null) return;      // 손가락 하나만 받음
+  activeId = e.pointerId;
+  try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  pointerDown(...localXY(e)); e.preventDefault();
+});
+cv.addEventListener('pointermove', e => { if (e.pointerId === activeId) { pointerMove(...localXY(e)); e.preventDefault(); } });
+const endPointer = e => { if (e.pointerId === activeId) { activeId = null; pointerUp(); } };
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ───────── 매 프레임 ───────── */
+let last = performance.now(), fps = 60;
+function frame(now) {
+  const raw = (now - last)/1000; last = now;
+  if (raw > 0) fps += (1/raw - fps)*.05;
+  advance(clamp(raw, .001, .033));
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+advance(1/60); renderer.render(scene, camera);
+requestAnimationFrame(frame);
+
+/* ───────── 검사용 손잡이 (화면 없는 크롬에서 눌러 보고 재기) ─────────
+   좌표는 전부 캔버스 왼쪽 위에서 잰 px. state().center 가 마시멜로 한가운데 좌표. */
+function toScreen(x, y, z) {
+  tmpV.set(x, y, z); anchor.localToWorld(tmpV); tmpV.project(camera);
+  return {x: (tmpV.x + 1)/2*cv.clientWidth, y: (1 - tmpV.y)/2*cv.clientHeight};
+}
+function state() {
+  let maxDisp = 0, sum = 0, minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let v = 0; v < N; v++) {
+    const a = v*3, d = Math.hypot(pos[a]-rest[a], pos[a+1]-rest[a+1], pos[a+2]-rest[a+2]);
+    if (d > maxDisp) maxDisp = d; sum += d;
+    if (pos[a] < minX) minX = pos[a]; if (pos[a] > maxX) maxX = pos[a]; if (pos[a+1] > maxY) maxY = pos[a+1];
+  }
+  return {
+    held: grab.held, hit: Math.min(1, hitT*1.6),
+    maxDisp, meanDisp: sum/N,                 // 원래 모양에서 벗어난 정도 (가장 큰 값 · 평균)
+    width: maxX - minX, height: maxY,         // 지금 몸의 폭 · 높이 (원래 1.1 · 1.0)
+    squash: sq.x, swayX: sw.x, swayZ: swz.x,  // 통째 출렁임 값
+    fps: Math.round(fps), verts: N,
+    params: {...P}, knobs: {...knob},
+    center: toScreen(0, BODY.h/2, 0), top: toScreen(0, BODY.h, 0), side: toScreen(BODY.r*.9, BODY.h/2, 0),
+  };
+}
+window.__SQ_TEST__ = {
+  state,
+  press(x, y) { return pointerDown(x, y); },
+  drag(x1, y1, x2, y2, ms = 300) {
+    return new Promise(res => {
+      pointerDown(x1, y1);
+      const t0 = performance.now();
+      (function go() {
+        const u = Math.min(1, (performance.now() - t0)/ms);
+        pointerMove(x1 + (x2 - x1)*u, y1 + (y2 - y1)*u);
+        if (u < 1) setTimeout(go, 16); else res(state());
+      })();
+    });
+  },
+  move(x, y) { pointerMove(x, y); },
+  release() { pointerUp(); return state(); },
+  step(ms = 1000) { for (let t = 0; t < ms; t += 1000/60) advance(1/60); renderer.render(scene, camera); return state(); },   // 시간을 강제로 흘려보내기
+  setKnobs(o) { Object.assign(knob, o); applyKnobs(); return {...P}; },
+};
+</script>
+</body>
+</html>
