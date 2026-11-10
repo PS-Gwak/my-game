@@ -127,7 +127,7 @@ for (const [key, id] of [['bounce', 'Bounce'], ['settle', 'Settle'], ['stretch',
 $('resetBtn').addEventListener('click', () => { Object.assign(knob, DEFAULTS); applyKnobs(); });
 applyKnobs();
 
-/* ───────── 무대: 탁자 + 접시 (뒷벽은 CSS 바탕색이 비쳐 보임) ───────── */
+/* ───────── 무대: 탁자 (뒷벽은 CSS 바탕색이 비쳐 보임 · 11/10 접시 뺌) ───────── */
 const stage = $('stage');
 let renderer;
 try { renderer = new THREE.WebGLRenderer({antialias: true, alpha: true}); }
@@ -152,10 +152,8 @@ const tableMat = new THREE.MeshLambertMaterial({color: 0xb5ab99});
 const table = new THREE.Mesh(new THREE.BoxGeometry(9, 1.2, 2.8), tableMat);
 table.position.y = -.6; scene.add(table);
 
-// 주황 접시 (원본과 같은 단면)
-const plateProfile = [[0,0],[0.8,0],[1.2,0.12],[1.32,0.21],[1.27,0.21],[1.15,0.14],[0.75,0.06],[0,0.06]].map(p => new THREE.Vector2(p[0], p[1]));
-scene.add(new THREE.Mesh(new THREE.LatheGeometry(plateProfile, 72), new THREE.MeshLambertMaterial({color: 0xe8641a, side: THREE.DoubleSide})));
-const PLATE_TOP = 0.06;
+// 11/10 16:00 형님 「받침대에 그릇 없애 줘」 → 주황 접시를 빼고 마시멜로를 탁자 위에 바로 둠(이름 PLATE_TOP은 「마시멜로 바닥 높이」로 그대로 씀)
+const PLATE_TOP = 0;
 
 // 화면 밝기 모드가 바뀌면 탁자 색도 CSS 변수에서 다시 읽어 옴
 function applyTheme() {
