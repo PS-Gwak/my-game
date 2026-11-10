@@ -150,10 +150,11 @@ const sun = new THREE.DirectionalLight(0xfffaf0, 1.25); sun.position.set(-1.5, 3
 // 탁자 (윗면 높이 0)
 const tableMat = new THREE.MeshLambertMaterial({color: 0xb5ab99});
 const table = new THREE.Mesh(new THREE.BoxGeometry(9, 1.2, 2.8), tableMat);
-table.position.y = -.6; scene.add(table);
+table.position.y = -.6;   // 11/10 16:17 형님 「받침을 없애 · 공중에 떠 있는 느낌」 → 탁자를 화면에 넣지 않음(색 바꾸는 코드 때문에 만들기만 함)
 
 // 11/10 16:00 형님 「받침대에 그릇 없애 줘」 → 주황 접시를 빼고 마시멜로를 탁자 위에 바로 둠(이름 PLATE_TOP은 「마시멜로 바닥 높이」로 그대로 씀)
 const PLATE_TOP = 0;
+const FLOAT = {amp: .035, speed: 1.1};   // 11/10 「공중에 떠 있는 느낌」 — 위아래로 아주 천천히 둥실(🤖 값)
 
 // 화면 밝기 모드가 바뀌면 탁자 색도 CSS 변수에서 다시 읽어 옴
 function applyTheme() {
@@ -294,7 +295,7 @@ const blobCv = document.createElement('canvas'); blobCv.width = blobCv.height = 
 { const g = blobCv.getContext('2d'), gr = g.createRadialGradient(64, 64, 4, 64, 64, 64);
   gr.addColorStop(0, 'rgba(40,30,20,.5)'); gr.addColorStop(1, 'rgba(40,30,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }
 const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(blobCv), transparent: true, depthWrite: false}));
-blob.rotation.x = -Math.PI/2; blob.position.y = .004;
+blob.rotation.x = -Math.PI/2; blob.position.y = .004; blob.visible = false;   // 받침이 없으니 바닥 그림자도 끔
 anchor.add(blob, root);
 
 /* ───────── 손맛 상태 ───────── */
@@ -515,6 +516,7 @@ function frame(now) {
   const raw = (now - last)/1000; last = now;
   if (raw > 0) fps += (1/raw - fps)*.05;
   advance(clamp(raw, .001, .033));
+  anchor.position.y = PLATE_TOP + FLOAT.amp*Math.sin(now/1000*FLOAT.speed);   // 공중에서 둥실(🤖 3.5cm · 약 5.7초 한 번)
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
