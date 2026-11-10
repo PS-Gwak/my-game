@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>가위바위보 연승</title>
+<style>
+  /* 화면은 세 덩어리다: 위 가위바위보 그림판 · 가운데 숫자판 · 아래 큰 버튼. 색은 딱 두 가지만 쓴다 */
+  :root { --bg: #0d1230; --ink: #f7e9a8; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  main {
+    width: min(100vw, 430px);
+    height: min(100vh, 820px); height: min(100dvh, 820px);
+    padding: 12px 14px max(14px, env(safe-area-inset-bottom));
+    display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto; gap: 10px;
+  }
+  .stage {
+    min-height: 0; background: var(--bg); border: 3px solid var(--ink); border-radius: 14px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .board { position: relative; line-height: 0; --cell: 12px; }
+  canvas { display: block; image-rendering: pixelated; }
+
+  /* 선생님 말풍선: 그림판 왼쪽 위 빈자리에 놓는다. 글자 크기는 그림판 한 칸 크기를 따라간다 */
+  .bubble {
+    position: absolute; left: 3.125%; top: 4.2%; padding: .3em .5em;
+    background: var(--ink); color: var(--bg);
+    font-size: calc(var(--cell) * 2.1); font-weight: 900; line-height: 1.2; white-space: nowrap; text-align: center;
+  }
+  .bubble[hidden] { display: none; }
+  .bubble::after { content: ''; position: absolute; left: 100%; bottom: .9em; width: .45em; height: .45em; background: var(--ink); } /* 선생님 쪽을 가리키는 꼬리 */
+  /* 100연승 알림판: 같은 자리에서 두 색이 번갈아 뒤집힌다 */
+  .bubble.is-clear { font-size: calc(var(--cell) * 2.4); box-shadow: inset 0 0 0 .12em var(--ink); animation: flip .5s steps(1, end) infinite; }
+  .bubble.is-clear::after { display: none; }
+  @keyframes flip { 0% { background: var(--ink); color: var(--bg); } 50% { background: var(--bg); color: var(--ink); } }
+
+  /* 숫자판: 왼쪽 위 최고 기록 · 가운데 큰 연승 수 · 오른쪽 아래 다음 도전의 성공 확률 */
+  .panel {
+    position: relative; height: 184px; background: var(--bg); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .best { position: absolute; left: 14px; top: 10px; height: 26px; display: flex; align-items: center; gap: 7px; font-size: 22px; font-weight: 800; line-height: 1; }
+  .best svg { width: 28px; height: 20px; fill: currentColor; }
+  .best b { display: inline-block; }
+  .num { display: inline-block; margin-top: -8px; font-size: 84px; font-weight: 900; line-height: 1; letter-spacing: -2px; white-space: nowrap; }
+  .chance { position: absolute; right: 14px; bottom: 8px; font-size: 34px; font-weight: 900; line-height: 1; }
+
+  /* 연타 구간의 점 줄. 아직 안 채운 점은 작게, 채운 점은 크게. 연타가 없을 때도 자리는 그대로 둔다 */
+  .dots { height: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .dots div { display: flex; gap: 2px; }
+  .dots i { display: block; background: var(--ink); transform: scale(.34); }
+  .dots i.on { transform: none; }
+
+  .btn {
+    height: 112px; width: 100%; padding: 0 10px; border: 0; border-radius: 18px;
+    background: var(--ink); color: var(--bg);
+    font: inherit; font-size: 21px; font-weight: 900; line-height: 1.35;
+    cursor: pointer; touch-action: none; outline: none;
+  }
+  .btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  .btn .l { display: block; white-space: nowrap; }
+  .btn .sep { display: none; }
+  .btn.is-fail { background: var(--bg); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink); }
+  /* 가로로 눕힌 폰처럼 낮은 화면: 왼쪽에 그림판, 오른쪽에 숫자판 · 점 줄 · 버튼 */
+  @media (orientation: landscape) and (max-height: 520px) {
+    main {
+      width: min(100vw, 860px);
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); grid-template-rows: auto auto auto;
+      column-gap: 14px; align-content: center;
+    }
+    .stage { grid-column: 1; grid-row: 1 / span 3; height: 100%; }
+    .panel { grid-column: 2; height: 150px; }
+    .num { font-size: 68px; }
+    .dots { grid-column: 2; }
+    .btn { grid-column: 2; height: 96px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="stage"><div class="board" id="board"><canvas aria-label="선생님과 가위바위보"></canvas><div class="bubble" id="bubble" hidden></div></div></div>
+  <div class="panel" id="panel">
+    <div class="best"><svg id="crown" viewBox="0 0 7 5" shape-rendering="crispEdges" aria-label="최고 기록"></svg><b id="best">0</b></div>
+    <div class="num" id="num">0연승</div>
+    <div class="chance" id="chance">100%</div>
+  </div>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+  <button class="btn" id="btn" type="button"></button>
+</main>
+<script>
+/* 가위바위보 100연승 — 한 번 누름 = 선생님과 가위바위보 한 판.
+   비유: 자판기 버튼. 누르는 그 순간 두 손이 나오고, 숫자판과 버튼 글이 같은 순간에 바뀐다.
+   규칙: n연승 상태에서 다음 도전의 성공 확률은 100-n%. 지면 0연승부터, 최고 기록은 남는다.
+        10연승과 20연승부터 5연승마다, 99연승에서는 정해진 횟수만큼 눌러야 판정한다.
+        비기는 판은 없다. 이겼는지 졌는지를 먼저 정하고, 두 손 모양은 그 결과에 맞춰 보여 준다. */
+(function () {
+  'use strict';
+
+  /* ---------- 규칙 수치 ---------- */
+  const GOAL = 100;
+  // n연승 상태에서 다음 도전에 필요한 누름 수
+  const requiredTaps = (n) => (n === 99 ? 100 : n === 10 || (n >= 20 && n < 100 && n % 5 === 0) ? n : 1);
+  const chanceOf = (n) => 100 - n; // 다음 도전의 성공 확률(%)
+  const moodOf = (n) => (n < 30 ? 'easy' : n < 70 ? 'serious' : 'sweat'); // 선생님 얼굴 세 단계: 여유 · 진지 · 진땀
+
+  /* ---------- 시험값: 느낌을 보며 고칠 수 있는 길이들(1000 = 1초) ---------- */
+  const THROW_MS = 200; // 손을 한 번 내미는(또는 주먹을 한 번 흔드는) 동작
+  const FAIL_LOCK_MS = 350; // 진 직후 실수로 연달아 누른 것을 막는 시간
+  const FAIL_SHOW_MS = 1500; // 선생님이 이긴 얼굴과 진 문구가 보이는 시간(그 전에 눌러도 된다)
+  const CLEAR_LOCK_MS = 350; // 100연승 직후 연타가 이어져 바로 넘어가지 않게 막는 시간(졌을 때와 같게)
+  const SOUR_MS = 300, SOUR_BIG_MS = 700; // 선생님이 분해하는 얼굴(10단위는 길게)
+  const FX_MS = 700; // 10단위 연승의 땀방울 · 별
+
+  const BEST_KEY = 'hold-on-streak-rps-best';
+  const BG = '#0d1230', INK = '#f7e9a8';
+  const BUBBLES = { // 말풍선은 줄 단위로 적는다
+    intro: ['100번 연속', '이기면', '야자 면제다'],
+    retry: ['다시 해 볼래?'],
+  };
+  const CLEAR_TEXT = '야자 면제!';
+  const SHAPES = ['rock', 'scissors', 'paper'];
+  const BEATS = { rock: 'scissors', scissors: 'paper', paper: 'rock' }; // 왼쪽이 오른쪽을 이긴다
+  const LOSES_TO = { rock: 'paper', scissors: 'rock', paper: 'scissors' }; // 왼쪽이 오른쪽에게 진다
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const now = () => performance.now();
+
+  /* ---------- 최고 기록 저장: 저장소가 막혀 있어도 게임은 돈다 ---------- */
+  let memoryBest = 0;
+  function loadBest() {
+    try {
+      const value = Math.floor(Number(localStorage.getItem(BEST_KEY)));
+      if (Number.isFinite(value)) return clamp(value, 0, GOAL);
+    } catch (e) { /* 메모리 값으로 */ }
+    return memoryBest;
+  }
+  function saveBest(value) {
+    memoryBest = value;
+    try { localStorage.setItem(BEST_KEY, String(value)); } catch (e) { /* 메모리에만 */ }
+  }
+  function clearBest() {
+    memoryBest = 0;
+    try { localStorage.removeItem(BEST_KEY); } catch (e) { /* 메모리만 지움 */ }
+  }
+
+  /* ---------- 상태 ---------- */
+  const LONG_AGO = -1e9;
+  let streak = 0, best = loadBest(), taps = 0, petCount = 0; // petCount = 손을 내민 횟수
+  let rand = Math.random; // 판정은 이 함수 하나만 쓴다
+  let last = null; // 마지막 판의 두 손과 결과
+  let bubbleKind = 'intro'; // 지금 보이는 말풍선: 처음 · 지고 난 뒤 · 없음
+  let failShown = false, failAt = LONG_AGO, failedStreak = 0; // 진 장면
+  let cleared = false; // 100연승 달성 뒤 다음 누름을 기다리는 중
+  let lockUntil = 0, pressAt = LONG_AGO, sourUntil = 0, fxAt = LONG_AGO;
+
+  const isFail = (t) => failShown && t < failAt + FAIL_SHOW_MS;
+  const bubbleNow = () => (bubbleKind ? BUBBLES[bubbleKind].join(' ') : '');
+  function labelNow(t) {
+    if (isFail(t)) return `${failedStreak}연승에서 졌다 · 다시 누르기`;
+    if (cleared) return `${GOAL}연승 달성 · 다시 누르기`;
+    const need = requiredTaps(streak);
+    if (need > 1) return `${streak + 1}연승 도전 · ${taps}/${need}회 연타 · 성공 확률 ${chanceOf(streak)}%`;
+    return `${streak + 1}연승 도전 · 성공 확률 ${chanceOf(streak)}%`;
+  }
+
+  /* ---------- 누르기: 여기서 모든 일이 한 번에 일어난다 ---------- */
+  function press() {
+    const t = now();
+    if (t < lockUntil) return;
+    failShown = false;
+    bubbleKind = ''; // 한 번 누르면 말풍선은 사라진다
+    if (cleared) { cleared = false; streak = 0; taps = 0; } // 100연승 뒤에는 새 판의 첫 도전이 된다
+    petCount += 1;
+    pressAt = t; // 앞 동작을 기다리지 않고 처음부터 다시 내민다
+    taps += 1;
+    let result = 'tap', newBest = false;
+    if (taps >= requiredTaps(streak)) {
+      taps = 0;
+      const win = rand() < chanceOf(streak) / 100;
+      // 내 손은 고르게 무작위(그림용 난수), 선생님 손은 결과에 맞는 모양
+      const me = SHAPES[Math.floor(Math.random() * 3) % 3];
+      last = { me, teacher: win ? BEATS[me] : LOSES_TO[me], win };
+      if (win) {
+        streak += 1;
+        result = streak % 10 === 0 ? 'bigwin' : 'win';
+        if (streak > best) { best = streak; saveBest(best); newBest = true; }
+        sourUntil = t + (result === 'bigwin' ? SOUR_BIG_MS : SOUR_MS);
+        if (result === 'bigwin') fxAt = t;
+        if (streak >= GOAL) { cleared = true; lockUntil = t + CLEAR_LOCK_MS; }
+      } else {
+        result = 'fail';
+        failedStreak = streak;
+        streak = 0;
+        failShown = true;
+        failAt = t;
+        lockUntil = t + FAIL_LOCK_MS;
+        sourUntil = 0;
+        fxAt = LONG_AGO;
+        bubbleKind = 'retry';
+      }
+    }
+    syncText(t);
+    animate(result, newBest);
+    render(t);
+  }
+
+  /* ---------- 숫자판 · 버튼 · 말풍선 ---------- */
+  const el = {
+    panel: document.getElementById('panel'),
+    num: document.getElementById('num'),
+    chance: document.getElementById('chance'),
+    best: document.getElementById('best'),
+    dots: document.getElementById('dots'),
+    btn: document.getElementById('btn'),
+    board: document.getElementById('board'),
+    bubble: document.getElementById('bubble'),
+  };
+  // 왕관: 칸으로 찍은 작은 그림
+  ['#..#..#', '##.#.##', '#######', '#######', '#######'].forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (ch !== '#') return;
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', x); r.setAttribute('y', y); r.setAttribute('width', 1); r.setAttribute('height', 1);
+      document.getElementById('crown').appendChild(r);
+    });
+  });
+
+  const setText = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+  let shownLabel = null, shownDots = '', shownBubble = null;
+  function syncText(t) {
+    const fail = isFail(t);
+    setText(el.num, `${streak}연승`);
+    setText(el.chance, `${cleared ? 0 : chanceOf(streak)}%`);
+    setText(el.best, String(best));
+    const label = labelNow(t);
+    if (label !== shownLabel) { // 긴 문구는 두 줄로: 「도전 · 연타」 / 「성공 확률」
+      shownLabel = label;
+      const parts = label.split(' · ');
+      const lines = parts.length === 3 ? [`${parts[0]} · ${parts[1]}`, parts[2]] : [label];
+      el.btn.textContent = '';
+      lines.forEach((text, i) => {
+        if (i > 0) {
+          const sep = document.createElement('span');
+          sep.className = 'sep'; sep.textContent = ' · ';
+          el.btn.appendChild(sep);
+        }
+        const line = document.createElement('span');
+        line.className = 'l'; line.textContent = text;
+        el.btn.appendChild(line);
+      });
+    }
+    el.btn.classList.toggle('is-fail', fail);
+    // 말풍선(처음 · 지고 난 뒤)과 100연승 알림판은 같은 자리를 쓴다
+    const bubbleKey = cleared ? 'clear' : bubbleKind;
+    if (bubbleKey !== shownBubble) {
+      shownBubble = bubbleKey;
+      el.bubble.textContent = '';
+      (cleared ? [CLEAR_TEXT] : bubbleKind ? BUBBLES[bubbleKind] : []).forEach((text) => {
+        const line = document.createElement('div');
+        line.textContent = text;
+        el.bubble.appendChild(line);
+      });
+      el.bubble.classList.toggle('is-clear', cleared);
+      el.bubble.hidden = !bubbleKey;
+    }
+    // 점 줄: 필요한 수만큼 점을 놓고, 누른 만큼 채운다
+    const need = fail || cleared ? 1 : requiredTaps(streak);
+    const key = `${need}:${taps}`;
+    if (key !== shownDots) {
+      const needChanged = shownDots.split(':')[0] !== String(need);
+      shownDots = key;
+      if (needChanged) {
+        el.dots.textContent = '';
+        if (need > 1) {
+          const perRow = need <= 25 ? need : Math.ceil(need / 2);
+          const size = clamp(Math.floor((el.dots.clientWidth || 340) / perRow) - 2, 2, 12); // 점 줄이 화면 폭을 넘지 않게 실제 폭으로 계산
+          for (let i = 0; i < need; i += 1) {
+            if (i % perRow === 0) el.dots.appendChild(document.createElement('div'));
+            const dot = document.createElement('i');
+            dot.style.width = dot.style.height = `${size}px`;
+            el.dots.lastChild.appendChild(dot);
+          }
+        }
+      }
+      el.dots.querySelectorAll('i').forEach((dot, i) => dot.classList.toggle('on', i < taps));
+    }
+  }
+
+  const play = (node, frames, ms, easing) => { if (node.animate) node.animate(frames, { duration: ms, easing: easing || 'ease-out' }); };
+  function animate(result, newBest) {
+    play(el.btn, [{ transform: 'translateY(5px)' }, { transform: 'translateY(0)' }], 110);
+    if (result === 'win' || result === 'bigwin') {
+      const big = result === 'bigwin';
+      play(el.num, [{ transform: 'scale(1)' }, { transform: `scale(${big ? 1.32 : 1.16})`, offset: 0.35 }, { transform: 'scale(1)' }], big ? 300 : 170);
+      // 10단위: 숫자판 색이 잠깐 뒤집힌다. 중간색이 섞이지 않게 한 번에 바뀐다
+      if (big) play(el.panel, [{ background: INK, color: BG }, { background: BG, color: INK }], 340, 'steps(1, end)');
+      if (newBest) play(el.best, [{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], 200);
+    } else if (result === 'fail') {
+      play(el.panel, [{ transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(0)' }], 240);
+    }
+  }
+
+  /* ---------- 그림: 32×24칸 판에 글자 그림으로 찍는다. # 밝은 색, o 어두운 색(앞 그림을 지움), . 건너뜀 ---------- */
+  const W = 32, H = 24;
+  const FACE_X = 18, FACE_Y = 0; // 선생님 얼굴 왼쪽 위 칸
+  const MY_X = 1, T_X = 17, HAND_Y = 14; // 내 손(왼쪽 아래) · 선생님 손(오른쪽, 얼굴 아래)
+  const HEAD = [ // 머리카락 · 얼굴 · 턱 · 어깨와 넥타이
+    '..########..', '.##########.', '##oooooooo##', '############', '############', '############', '############',
+    '############', '############', '############', '.##########.', '...######...', '#####oo#####',
+  ];
+  const EYES = { // 왼쪽 눈 기준. 오른쪽은 뒤집어 찍는다
+    easy: ['....', '.oo.', 'o..o'], // 웃는 눈
+    serious: ['oooo', '....', '.oo.'], // 일자 눈썹
+    sweat: ['..oo', 'oo..', '.oo.'], // 처진 눈썹
+    sour: ['oo..', '..oo', '.oo.'], // 치켜뜬 눈썹
+    gloat: ['.oo.', 'o..o', '....'], // 신난 눈
+    shock: ['o..o', '.oo.', 'o..o'], // 질끈 감은 눈
+  };
+  const MOUTHS = {
+    easy: ['o....o', '.oooo.'], // 미소
+    serious: ['......', 'oooooo'], // 일자
+    sweat: ['.o.o.o', 'o.o.o.'], // 떨리는 입
+    sour: ['.oooo.', 'o....o'], // 입꼬리가 내려감
+    gloat: ['oooooo', '.oooo.'], // 크게 웃음
+    shock: ['.oooo.', '.oooo.'], // 벌어진 입
+  };
+  // 손: 왼쪽이 소매, 오른쪽이 손끝. 선생님 손은 뒤집어 찍는다
+  const HANDS = {
+    rock: [
+      '..............', '.....######...', '....########..', '###o#####o###.', '###o#####o###.',
+      '###o#ooooo###.', '....#########.', '....########..', '.....######...',
+    ],
+    scissors: [
+      '.........####.', '......#######.', '....######....', '###o#####.....', '###o#o###.....',
+      '###o#####.....', '....######....', '......#######.', '.........####.',
+    ],
+    paper: [
+      '.....##.......', '.....##.......', '....#########.', '###o#####.....', '###o##########',
+      '###o#####.....', '....##########', '....#####.....', '....########..',
+    ],
+  };
+  const STAR = ['.#.', '###', '.#.'];
+  const FX_SPOTS = [[2, 4], [8, 8], [13, 3], [5, 11], [14, 10]]; // 10단위 연승의 별 자리(왼쪽 위 빈자리)
+  const CLEAR_SPOTS = [[3, 9], [9, 8], [14, 10]]; // 100연승의 별 자리(알림판 아래)
+  const WIN_TICKS = [[4, 11], [8, 10], [12, 11]]; // 이긴 내 손 위의 반짝임
+
+  const canvas = document.querySelector('canvas');
+  const g = canvas.getContext('2d');
+  const board = document.createElement('canvas'); // 작은 판에 그린 뒤 그대로 키운다
+  board.width = W; board.height = H;
+  const c = board.getContext('2d');
+
+  function fill(x, y, w, h, color) { c.fillStyle = color; c.fillRect(x, y, w, h); }
+  function sprite(x, y, rows, flip) {
+    rows.forEach((row, j) => {
+      for (let i = 0; i < row.length; i += 1) {
+        const ch = flip ? row[row.length - 1 - i] : row[i];
+        if (ch !== '#' && ch !== 'o') continue;
+        c.fillStyle = ch === '#' ? INK : BG;
+        c.fillRect(x + i, y + j, 1, 1);
+      }
+    });
+  }
+
+  function render(t) {
+    const time = t / 1000;
+    const dead = isFail(t);
+    const deadT = (t - failAt) / 1000;
+    const sour = !dead && !cleared && t < sourUntil; // 방금 내가 이겨서 선생님이 분해하는 중
+    const k = (t - pressAt) / THROW_MS; // 마지막 누름 뒤 동작이 얼마나 진행됐나(0~1)
+    const fxK = (t - fxAt) / FX_MS;
+    const bigFx = !dead && !cleared && fxK >= 0 && fxK < 1;
+
+    fill(0, 0, W, H, BG);
+
+    // 선생님 얼굴: 졌으면 분한 얼굴, 이겼으면 신난 얼굴, 평소엔 연승에 따라 여유 → 진지 → 진땀
+    const face = dead ? 'gloat' : cleared ? 'shock' : sour ? 'sour' : moodOf(streak);
+    let fx = FACE_X, fy = FACE_Y;
+    if (sour && k >= 0 && k < 1) fx += Math.floor(k * 4) % 2 ? 1 : -1; // 분해서 고개를 턴다
+    if (dead && Math.floor(deadT * 8) % 2) fy += 1; // 웃느라 들썩인다
+    sprite(fx, fy, HEAD);
+    sprite(fx + 1, fy + 4, EYES[face]);
+    sprite(fx + 7, fy + 4, EYES[face], true);
+    sprite(fx + 3, fy + 8, MOUTHS[face]);
+
+    // 땀방울: 진땀 단계에서는 계속, 10단위 연승과 100연승에서는 빠르게 흐른다
+    if (face === 'sweat' || face === 'shock' || bigFx) {
+      const speed = bigFx || cleared ? 3 : 1.4;
+      [[FACE_X - 2, 0], [FACE_X + 13, 0.5]].forEach(([x, offset]) => {
+        const drop = (time * speed + offset) % 1;
+        fill(x, FACE_Y + 3 + Math.floor(drop * 6), 1, 2, INK);
+      });
+    }
+
+    // 두 손: 연타 중(과 맨 처음)에는 두 주먹, 판정이 나면 그 판의 모양
+    const fists = taps > 0 || !last;
+    let myX = MY_X, myY = HAND_Y, tX = T_X, tY = HAND_Y;
+    if (fists) {
+      if (k >= 0 && k < 1) { const dy = k < 0.5 ? -1 : 1; myY += dy; tY += dy; } // 구호에 맞춰 주먹을 한 번 흔든다
+    } else if (k >= 0 && k < 1) { // 뒤에서 앞으로 한 번 내민다
+      const off = k < 0.25 ? -4 : k < 0.5 ? -2 : k < 0.75 ? 1 : 0;
+      myX += off; tX -= off;
+    } else if (last.win) { tX += 1; tY += 1; } // 진 손은 한 칸 물러나 처진다
+    else { myX -= 1; myY += 1; }
+    if (!fists && dead && Math.floor(deadT * 8) % 2) tY -= 1; // 이긴 선생님 손이 들썩인다
+    sprite(myX, myY, HANDS[fists ? 'rock' : last.me]);
+    sprite(tX, tY, HANDS[fists ? 'rock' : last.teacher], true);
+
+    // 이긴 순간: 내 손 위에 반짝임
+    if (sour && !fists) WIN_TICKS.forEach(([x, y]) => fill(x, y, 1, 2, INK));
+
+    // 10단위 연승: 별이 떴다 사라진다. 100연승은 계속 깜빡인다
+    if (bigFx) {
+      FX_SPOTS.forEach(([x, y], i) => {
+        if (fxK > 0.7 && (i + Math.floor(fxK * 20)) % 2) return;
+        sprite(x, y - Math.floor(fxK * 3), STAR);
+      });
+    }
+    if (cleared) CLEAR_SPOTS.forEach(([x, y], i) => { if ((i + Math.floor(time * 4)) % 2) sprite(x, y, STAR); });
+
+    if (dead && deadT < 0.08) fill(0, 0, W, H, INK); // 진 순간 화면이 번쩍
+
+    // 작은 판을 큰 그림판에 옮긴다. 진 직후에는 한 칸씩 좌우로 흔든다
+    const cell = canvas.width / W;
+    const shift = dead && deadT < 0.3 ? (Math.floor(deadT * 30) % 2 ? 1 : -1) : 0;
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = BG;
+    g.fillRect(0, 0, canvas.width, canvas.height);
+    g.drawImage(board, shift * cell, 0, canvas.width, canvas.height);
+  }
+
+  // 그림판을 남는 자리에 맞춘다. 한 칸이 화면의 점 몇 개인지를 정수로 맞춰 칸이 고르게 보이게 한다
+  const stageEl = document.querySelector('.stage');
+  function fit() {
+    const ratio = window.devicePixelRatio || 1;
+    const cellCss = Math.max(2, Math.floor(Math.min(stageEl.clientWidth / W, stageEl.clientHeight / H)));
+    const cellPx = Math.max(1, Math.round(cellCss * ratio));
+    if (canvas.width !== W * cellPx) { canvas.width = W * cellPx; canvas.height = H * cellPx; }
+    canvas.style.width = `${(W * cellPx) / ratio}px`;
+    canvas.style.height = `${(H * cellPx) / ratio}px`;
+    el.board.style.setProperty('--cell', `${cellPx / ratio}px`); // 말풍선 글자가 칸 크기를 따라가게
+    render(now());
+  }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(stageEl);
+  window.addEventListener('resize', fit);
+
+  /* ---------- 입력: 손가락이 닿는 순간 판정한다 ---------- */
+  el.btn.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    press();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
+    e.preventDefault();
+    if (!e.repeat) press();
+  });
+  // 연타할 때 화면이 확대되거나 끌리거나, 길게 눌러 메뉴가 뜨지 않게 막는다
+  const block = (e) => e.preventDefault();
+  ['touchstart', 'touchmove', 'touchend'].forEach((name) => document.addEventListener(name, block, { passive: false }));
+  ['gesturestart', 'dblclick', 'contextmenu', 'selectstart', 'dragstart'].forEach((name) => document.addEventListener(name, block));
+
+  function frame() {
+    requestAnimationFrame(frame);
+    const t = now();
+    syncText(t); // 진 문구는 잠깐 뒤 평소 문구로 돌아간다
+    render(t);
+  }
+  syncText(now());
+  fit();
+  requestAnimationFrame(frame);
+
+  /* ---------- 검사용 손잡이: 게임 규칙에는 영향이 없다 ---------- */
+  window.__STREAK_TEST__ = {
+    state() {
+      const t = now();
+      const fail = isFail(t);
+      return {
+        streak, best,
+        chance: cleared ? 0 : chanceOf(streak),
+        need: cleared ? 1 : requiredTaps(streak),
+        taps,
+        phase: fail ? 'fail' : 'idle',
+        label: labelNow(t),
+        petCount,
+        last: last ? { me: last.me, teacher: last.teacher, win: last.win } : null,
+        mood: moodOf(streak),
+        bubble: bubbleNow(),
+      };
+    },
+    setRandom(fn) { rand = typeof fn === 'function' ? fn : Math.random; },
+    press,
+    reset() {
+      streak = 0; best = 0; taps = 0; petCount = 0;
+      last = null; bubbleKind = 'intro';
+      failShown = false; failAt = LONG_AGO; failedStreak = 0; cleared = false;
+      lockUntil = 0; pressAt = LONG_AGO; sourUntil = 0; fxAt = LONG_AGO;
+      clearBest();
+      const t = now();
+      syncText(t);
+      render(t);
+    },
+  };
+})();
+</script>
+</body>
+</html>
