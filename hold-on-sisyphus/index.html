@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>시시포스 누르기</title>
+<style>
+  /* 화면은 세 덩어리다: 위 그림판 · 가운데 숫자판 · 아래 큰 버튼. 색은 검정과 흰색 두 가지만 쓴다 */
+  :root { --black: #000000; --white: #f2f2f2; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+  body {
+    background: var(--black); color: var(--white);
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  main {
+    width: min(100vw, 430px);
+    height: min(100vh, 820px); height: min(100dvh, 820px);
+    padding: 12px 14px max(14px, env(safe-area-inset-bottom));
+    display: grid; grid-template-rows: minmax(0, 1fr) auto auto; gap: 12px;
+  }
+  /* 그림판: 흰 기기 몸통 안에 가로로 긴 검은 화면이 박힌 모양 */
+  .stage {
+    min-height: 0; background: var(--white); border-radius: 18px; padding: 10px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  canvas { display: block; image-rendering: pixelated; background: var(--black); border-radius: 4px; }
+
+  /* 숫자판: 가운데 큰 누른 횟수만. 숫자가 길어지면 글씨를 줄여 판을 넘지 않게 한다 */
+  .panel {
+    height: 184px; background: var(--black); color: var(--white);
+    border: 3px solid var(--white); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .num { display: inline-block; font-size: calc(84px * var(--fit, 1)); font-weight: 900; line-height: 1; letter-spacing: -2px; white-space: nowrap; }
+
+  .btn {
+    height: 112px; width: 100%; padding: 0 10px; border: 0; border-radius: 18px;
+    background: var(--white); color: var(--black);
+    font: inherit; font-size: 34px; font-weight: 900; line-height: 1;
+    cursor: pointer; touch-action: none; outline: none;
+  }
+  .btn:focus-visible { outline: 3px solid var(--white); outline-offset: 3px; }
+  /* 가로로 눕힌 폰처럼 낮은 화면: 왼쪽에 그림판, 오른쪽에 숫자판 · 버튼 */
+  @media (orientation: landscape) and (max-height: 520px) {
+    main {
+      width: min(100vw, 860px);
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); grid-template-rows: auto auto;
+      column-gap: 14px; align-content: center;
+    }
+    .stage { grid-column: 1; grid-row: 1 / span 2; height: 100%; }
+    .panel { grid-column: 2; height: 150px; }
+    .num { font-size: calc(68px * var(--fit, 1)); }
+    .btn { grid-column: 2; height: 96px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="stage"><canvas aria-label="바위를 비탈 위로 미는 사람"></canvas></div>
+  <div class="panel" id="panel">
+    <div class="num" id="num">0</div>
+  </div>
+  <button class="btn" id="btn" type="button">밀기</button>
+</main>
+<script>
+/* 시시포스 누르기 — 한 번 누름 = 바위를 한 걸음 밀기.
+   비유: 만보기. 누를 때마다 숫자가 1 오르고 사람이 한 걸음 내딛을 뿐, 끝도 상도 없다.
+   누르지 않으면 그림은 멈춰 있고, 바위가 뒤로 굴러 내려가지도 않는다. */
+(function () {
+  'use strict';
+
+  const W = 128, H = 64; // 그림판 칸 수(가로로 긴 작은 화면)
+  const BG = '#000000', INK = '#f2f2f2';
+  const COUNT_KEY = 'hold-on-sisyphus-count';
+  const LABEL = '밀기';
+  const mod = (a, n) => ((a % n) + n) % n; // 음수도 0 ~ n-1로 돌려준다
+
+  /* ---------- 누른 횟수 저장: 저장소가 막혀 있어도 게임은 돈다 ---------- */
+  let memoryCount = 0;
+  function loadCount() {
+    try {
+      const raw = localStorage.getItem(COUNT_KEY);
+      if (raw !== null) {
+        const value = Math.floor(Number(raw));
+        if (Number.isFinite(value) && value >= 0) return value;
+      }
+    } catch (e) { /* 메모리 값으로 */ }
+    return memoryCount;
+  }
+  function saveCount(value) {
+    memoryCount = value;
+    try { localStorage.setItem(COUNT_KEY, String(value)); } catch (e) { /* 메모리에만 */ }
+  }
+  function clearCount() {
+    memoryCount = 0;
+    try { localStorage.removeItem(COUNT_KEY); } catch (e) { /* 메모리만 지움 */ }
+  }
+
+  /* ---------- 그림 재료: 글자 그림. # 흰 점, o 검은 점(뒤 그림을 지움), - 바위 속(무늬로 채움), . 건너뜀 ---------- */
+
+  // 사람: 윗몸은 늘 같고, 다리만 네 장이 돌아간다(한 번 누름 = 한 장 넘김)
+  const MAN_TOP = [
+    '..........###.....',
+    '.........#####....',
+    '.........#####....',
+    '..........###.....',
+    '........#####.....',
+    '.......##########.',
+    '......#####....###',
+    '.....#####........',
+    '....#####.........',
+    '....####..........',
+    '...#####..........',
+  ];
+  const MAN_LEGS = [
+    [ // 앞발 내딛고 뒷발 뻗음
+      '...##.##..........',
+      '..##...##.........',
+      '..##....##........',
+      '.##.....##........',
+      '.##.....##........',
+      '##.......##.......',
+      '##.......##.......',
+      '#........##.......',
+      '##.......###......',
+    ],
+    [ // 다리가 서로 지나감
+      '...####...........',
+      '...##.##..........',
+      '..##...##.........',
+      '..##...##.........',
+      '.##....##.........',
+      '.##.....##........',
+      '##......##........',
+      '##......##........',
+      '###.....###.......',
+    ],
+    [ // 앞발을 들어 올림
+      '...####...........',
+      '...####...........',
+      '..##.##...........',
+      '..##..##..........',
+      '.##...##..........',
+      '.##....##.........',
+      '##.....##.........',
+      '##....###.........',
+      '###...............',
+    ],
+    [ // 크게 벌려 디딤
+      '...##..##.........',
+      '..##....##........',
+      '..##.....##.......',
+      '.##......##.......',
+      '.##.......##......',
+      '##........##......',
+      '##........##......',
+      '#.........##......',
+      '##........###.....',
+    ],
+  ];
+  const MAN = MAN_LEGS.map((legs) => MAN_TOP.concat(legs));
+
+  // 바위: 울퉁불퉁한 테두리(#) 안쪽(-)을 무늬로 채운다
+  const BOULDER = [
+    '..........########..........',
+    '.......###--------###.......',
+    '.....##--------------##.....',
+    '....#------------------#....',
+    '...##------------------##...',
+    '..#----------------------#..',
+    '..#----------------------#..',
+    '.#------------------------#.',
+    '.##-----------------------#.',
+    '#--------------------------#',
+    '#--------------------------#',
+    '.#-------------------------#',
+    '#--------------------------#',
+    '#--------------------------#',
+    '#--------------------------#',
+    '#-------------------------##',
+    '#--------------------------#',
+    '#--------------------------#',
+    '.#------------------------#.',
+    '.#-------------------------#',
+    '..#----------------------##.',
+    '..#-----------------------#.',
+    '...#--------------------#...',
+    '...##------------------##...',
+    '....###--------------###....',
+    '......##------------##......',
+    '........###------###........',
+    '...........######...........',
+  ];
+  // 바위 속 무늬: 누를 때마다 오른쪽으로 한 칸 밀려 바위가 굴러가는 것처럼 보인다
+  const ROCK_TEX = [
+    '#.##..#.',
+    '.#..##.#',
+    '##.#..#.',
+    '..#.##..',
+    '#.#..#.#',
+    '.##.#..#',
+    '#..#.##.',
+    '.#..#.##',
+  ];
+
+  // 산 능선: 64칸짜리 조각을 이어 붙여 끝없이 흘려보낸다(8칸씩 끊어 적음)
+  const RIDGE = [
+    ['........', '....#...', '........', '........', '........', '........', '........', '........'],
+    ['........', '...#.#..', '........', '........', '........', '...##...', '........', '........'],
+    ['........', '..#...#.', '........', '........', '..##....', '..#..#..', '........', '........'],
+    ['...##...', '.#.....#', '.......#', '##......', '.#..#...', '.#....#.', '........', '..#.....'],
+    ['..#..#..', '#.......', '#....##.', '..#.....', '#....#..', '#......#', '....##..', '.#.#....'],
+    ['##....##', '........', '.#..#...', '...##..#', '......##', '........', '#..#..#.', '#...##.#'],
+    ['........', '........', '..##....', '.....##.', '........', '........', '.##....#', '......#.'],
+  ].map((parts) => parts.join(''));
+
+  // 구름: 길쭉하게 흐르는 조각
+  const CLOUD = [
+    '.....#####...........',
+    '..###########....###.',
+    '################.####',
+    '...###########.......',
+  ];
+
+  // 비탈 바닥: 8칸짜리 계단 한 단을 오른쪽 위로 한 칸씩 올려 찍는다
+  const GROUND_STEP = ['########'];
+  // 바닥 속 자갈 점: 왼쪽 아래로 흘러간다
+  const GROUND_TEX = [
+    '#.....#.....#...',
+    '....#.....#....#',
+    '..#.....#.......',
+    '.......#....#..#',
+    '.#..#.......#...',
+    '.........#.....#',
+    '#....#..........',
+    '...#.....#..#...',
+  ];
+  // 비탈 위 작은 것들(돌 · 풀 · 나무): 바닥과 함께 왼쪽으로 지나간다
+  const ROCK = ['.##.', '####'];
+  const PEBBLE = ['#.#'];
+  const SHRUB = ['.#.', '###', '.#.', '.#.'];
+  const TREE = ['..#..', '.###.', '#####', '.###.', '..#..', '..#..'];
+  const DECOR_LOOP = 160; // 이 칸 수마다 같은 풍경이 다시 나온다
+  const DECOR = [[6, ROCK], [30, SHRUB], [58, TREE], [84, PEBBLE], [100, SHRUB], [112, TREE], [140, ROCK]];
+
+  // 왼쪽 위 숫자용 점 글씨(가로 5 · 세로 7)
+  const DIGITS = {
+    0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
+    1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
+    2: ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'],
+    3: ['#####', '...#.', '..#..', '...#.', '....#', '#...#', '.###.'],
+    4: ['...#.', '..##.', '.#.#.', '#..#.', '#####', '...#.', '...#.'],
+    5: ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'],
+    6: ['..##.', '.#...', '#....', '####.', '#...#', '#...#', '.###.'],
+    7: ['#####', '....#', '...#.', '..#..', '.#...', '.#...', '.#...'],
+    8: ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'],
+    9: ['.###.', '#...#', '#...#', '.####', '....#', '...#.', '.##..'],
+  };
+
+  // 자리 잡기(칸 좌표)
+  const GROUND_LEFT_Y = 54; // 맨 왼쪽 바닥 높이. 8칸 갈 때마다 한 칸씩 오른다
+  const BOULDER_X = 52, BOULDER_Y = 19;
+  const MAN_X = 35, MAN_Y = 30;
+  const CLOUD_HOME = 100, CLOUD_Y = 4, CLOUD_SLOW = 4; // 구름은 4번 누를 때 한 칸
+  const RIDGE_Y = 21;
+
+  /* ---------- 상태: 누른 횟수 하나로 그림 전체가 정해진다 ---------- */
+  let count = loadCount();
+  const stepOf = (n) => n % MAN.length;
+
+  /* ---------- 누르기: 여기서 모든 일이 한 번에 일어난다 ---------- */
+  function press() {
+    count += 1;
+    saveCount(count);
+    syncText();
+    if (el.btn.animate) el.btn.animate([{ transform: 'translateY(5px)' }, { transform: 'translateY(0)' }], { duration: 110, easing: 'ease-out' });
+    render();
+  }
+
+  /* ---------- 숫자판 · 버튼 ---------- */
+  const el = { num: document.getElementById('num'), btn: document.getElementById('btn') };
+  function syncText() {
+    const text = count.toLocaleString('en-US'); // 천 단위 쉼표
+    if (el.num.textContent !== text) el.num.textContent = text;
+    el.num.style.setProperty('--fit', String(Math.min(1, 7 / text.length))); // 7글자 넘으면 글씨를 줄인다
+    if (el.btn.textContent !== LABEL) el.btn.textContent = LABEL;
+  }
+
+  /* ---------- 그리기: 128×64칸 작은 판에 찍은 뒤 그대로 키운다 ---------- */
+  const canvas = document.querySelector('canvas');
+  const g = canvas.getContext('2d');
+  const board = document.createElement('canvas');
+  board.width = W; board.height = H;
+  const c = board.getContext('2d');
+
+  function dot(x, y, color) {
+    if (x < 0 || x >= W || y < 0 || y >= H) return;
+    c.fillStyle = color; c.fillRect(x, y, 1, 1);
+  }
+  function sprite(x, y, rows) {
+    rows.forEach((row, j) => {
+      for (let i = 0; i < row.length; i += 1) {
+        const ch = row[i];
+        if (ch === '#') dot(x + i, y + j, INK);
+        else if (ch === 'o') dot(x + i, y + j, BG);
+      }
+    });
+  }
+
+  // 비탈 계단을 찍으면서 칸마다 바닥 높이를 적어 둔다(작은 것들을 바닥에 올려놓을 때 쓴다)
+  const surface = new Array(W).fill(H);
+  for (let k = 0; k * GROUND_STEP[0].length < W; k += 1) {
+    for (let i = 0; i < GROUND_STEP[0].length; i += 1) surface[k * GROUND_STEP[0].length + i] = GROUND_LEFT_Y - k;
+  }
+  const surfaceAt = (x) => surface[Math.max(0, Math.min(W - 1, x))];
+
+  function render() {
+    const s = count; // 한 번 누름 = 한 칸
+    c.fillStyle = BG; c.fillRect(0, 0, W, H);
+
+    // 구름(가장 느리게)
+    const cloudW = CLOUD[0].length;
+    sprite(mod(CLOUD_HOME + cloudW - Math.floor(s / CLOUD_SLOW), W + cloudW) - cloudW, CLOUD_Y, CLOUD);
+
+    // 산 능선(한 칸씩)
+    const ridgeW = RIDGE[0].length;
+    for (let x = -mod(s, ridgeW); x < W; x += ridgeW) sprite(x, RIDGE_Y, RIDGE);
+
+    // 비탈 바닥 선
+    for (let k = 0; k * GROUND_STEP[0].length < W; k += 1) {
+      sprite(k * GROUND_STEP[0].length, GROUND_LEFT_Y - k, GROUND_STEP);
+    }
+    // 바닥 속 자갈 점: 왼쪽으로 한 칸, 8번마다 비탈을 따라 한 칸 아래로
+    const texW = GROUND_TEX[0].length, texH = GROUND_TEX.length;
+    const sink = Math.floor(s / GROUND_STEP[0].length);
+    for (let x = 0; x < W; x += 1) {
+      for (let y = surface[x] + 2; y < H; y += 1) {
+        if (GROUND_TEX[mod(y - sink, texH)][mod(x + s, texW)] === '#') dot(x, y, INK);
+      }
+    }
+    // 비탈 위 작은 것들
+    DECOR.forEach(([home, rows]) => {
+      const x = mod(home - s, DECOR_LOOP) - 16;
+      if (x >= W) return;
+      const y = surfaceAt(x + Math.floor(rows[0].length / 2)) - rows.length;
+      sprite(x, y, rows);
+    });
+
+    // 바위: 테두리는 그대로, 속 무늬만 한 칸 굴러간다
+    BOULDER.forEach((row, j) => {
+      for (let i = 0; i < row.length; i += 1) {
+        const ch = row[i];
+        if (ch === '#') dot(BOULDER_X + i, BOULDER_Y + j, INK);
+        else if (ch === '-') {
+          const on = ROCK_TEX[mod(j, ROCK_TEX.length)][mod(i - s, ROCK_TEX[0].length)] === '#';
+          dot(BOULDER_X + i, BOULDER_Y + j, on ? INK : BG); // 뒤 풍경은 지우고 무늬만 남긴다
+        }
+      }
+    });
+
+    // 미는 사람: 누를 때마다 다음 걸음 그림
+    sprite(MAN_X, MAN_Y, MAN[stepOf(s)]);
+
+    // 왼쪽 위 누른 횟수(구름이 지나가도 읽히게 뒤를 비운다)
+    const digits = String(count);
+    c.fillStyle = BG; c.fillRect(2, 2, digits.length * 6 + 1, 9);
+    [...digits].forEach((d, i) => sprite(3 + i * 6, 3, DIGITS[d]));
+
+    // 작은 판을 큰 그림판에 옮긴다
+    g.imageSmoothingEnabled = false;
+    g.drawImage(board, 0, 0, canvas.width, canvas.height);
+  }
+
+  // 그림판을 남는 자리에 맞춘다. 한 칸이 화면 점 몇 개인지를 정수로 맞춰 점이 고르게 보이게 한다
+  const stageEl = document.querySelector('.stage');
+  const STAGE_PAD = 10;
+  function fit() {
+    const box = stageEl.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    const room = (box.width - STAGE_PAD * 2) * ratio / W;
+    const roomH = (box.height - STAGE_PAD * 2) * ratio / H;
+    const cellPx = Math.max(1, Math.floor(Math.min(room, roomH)));
+    if (canvas.width !== W * cellPx) { canvas.width = W * cellPx; canvas.height = H * cellPx; }
+    canvas.style.width = `${(W * cellPx) / ratio}px`;
+    canvas.style.height = `${(H * cellPx) / ratio}px`;
+    render();
+  }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(stageEl);
+  window.addEventListener('resize', fit);
+
+  /* ---------- 입력: 손가락이 닿는 순간 한 걸음 ---------- */
+  el.btn.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    press();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
+    e.preventDefault();
+    if (!e.repeat) press();
+  });
+  // 연타할 때 화면이 확대되거나 끌리거나, 길게 눌러 메뉴가 뜨지 않게 막는다
+  const block = (e) => e.preventDefault();
+  ['touchstart', 'touchmove', 'touchend'].forEach((name) => document.addEventListener(name, block, { passive: false }));
+  ['gesturestart', 'dblclick', 'contextmenu', 'selectstart', 'dragstart'].forEach((name) => document.addEventListener(name, block));
+
+  syncText();
+  fit();
+
+  /* ---------- 검사용 손잡이: 게임에는 영향이 없다 ---------- */
+  window.__STREAK_TEST__ = {
+    state() { return { count, step: stepOf(count), label: LABEL }; },
+    press,
+    reset() {
+      count = 0;
+      clearCount();
+      syncText();
+      render();
+    },
+    setCount(n) {
+      const value = Math.floor(Number(n));
+      count = Number.isFinite(value) ? Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, value)) : 0;
+      saveCount(count);
+      syncText();
+      render();
+    },
+  };
+})();
+</script>
+</body>
+</html>
