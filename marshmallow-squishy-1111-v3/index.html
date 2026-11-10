@@ -154,9 +154,10 @@ function applyKnobs() {
   P.depth = .05 + .13*knob.depth/100;              // 자국 깊이(몸 높이 1 기준): 0 → 0.05, 100 → 0.18, 200 → 0.31
   P.soft = .16*knob.soft/100;                      // 누를 때 몸 전체가 같이 눌리는 비율: 100 → 16%, 200 → 32%
   P.bounce = knob.bounce/100;                      // 놓은 뒤 출렁이는 세기: 0 = 없음, 200 = 100의 두 배
-  P.stretch = .5*knob.stretch/100;                 // 잡힌 곳이 따라오는 한계(몸 높이 1 기준): 100 → 0.5, 200 → 1.0
   P.scale = knob.size/100;                         // 크기 배수: 100 = v2 크기
   P.overD = clamp((knob.depth - 100)/100, 0, 1);   // 깊이가 100을 얼마나 넘었나 0~1
+  // 잡힌 곳이 따라오는 한계(몸 높이 1 기준): 100 → 0.5, 200 → 1.0. 깊이가 100을 넘으면 겉면이 접히지 않게 40%까지 줄임
+  P.stretch = .5*knob.stretch/100*(1 - .4*P.overD);
   P.over = clamp((Math.max(knob.depth, knob.soft) - 100)/100, 0, 1);   // 깊이 · 말랑함 중 큰 쪽이 100을 얼마나 넘었나
   for (const [key, id] of KNOB_IDS) { $('k' + id).value = knob[key]; $('o' + id).textContent = key === 'size' ? knob[key] + '%' : knob[key]; }
   $('presetB').setAttribute('aria-pressed', String(preset === 'B'));
@@ -228,6 +229,7 @@ const SEG = 64;                                   // 둘레를 몇 조각으로 
 const prof = bodyProfile(BODY);
 // 이음매를 뒤쪽에 두려고 반 바퀴 돌려서 시작 (얼굴이 이음매에 걸리지 않게)
 const geo = new THREE.LatheGeometry(prof, SEG, Math.PI, Math.PI*2);
+const SEAM_N = prof.length, SEAM_OFF = SEG*prof.length;   // 이음매에서 겹치는 점: j번과 SEAM_OFF + j번
 const posAttr = geo.attributes.position, pos = posAttr.array;
 posAttr.setUsage(THREE.DynamicDrawUsage);
 const NV = posAttr.count;             // 겉면 점 개수
@@ -382,6 +384,7 @@ const rootM = new THREE.Matrix4();
 const ROT_YAW = .014;        // 좌우로 1px 끌 때 도는 각도(라디안) — 화면 폭만큼 끌면 약 290도
 const ROT_PITCH = .009;      // 위아래로 1px 끌 때 기우는 각도
 const PITCH_MAX = THREE.MathUtils.degToRad(40);   // 앞뒤 기울기 한계
+const EDGE_SLOP = 12;        // 가장자리 여유(px): 이만큼 빗나가도 잡은 것으로 침
 const HOME_RATE = 8;         // 「정면으로」 돌아오는 빠르기 (약 0.9초)
 const view = {yaw: 0, pitch: 0, homing: false, fit: 1};
 let camHH = 2, camHW = 1.2, floatY = 0;   // 카메라가 보는 높이 · 폭의 절반(몸 자리 기준) · 지금 둥실 높이
@@ -553,6 +556,11 @@ function pointerDown(x, y) {
   press.down = true; press.touched = false; press.rotating = false; press.hasPrev = false;
   press.x = x; press.y = y; press.e.set(0, 0, 0);
   probe();
+  for (let k = 0; k < 8 && !press.touched; k++) {   // 가장자리에서 살짝(12px) 빗나간 손가락은 가까운 겉면을 잡은 것으로 침
+    press.x = x + Math.cos(k*Math.PI/4)*EDGE_SLOP; press.y = y + Math.sin(k*Math.PI/4)*EDGE_SLOP;
+    probe();
+  }
+  press.x = x; press.y = y;
   if (!press.touched) {         // 빈 곳에서 시작 → 끝까지 돌리기 (마시멜로 위를 지나가도 잡지 않음)
     press.rotating = true; press.rx = x; press.ry = y; view.homing = false;
   }
@@ -724,6 +732,14 @@ function advance(dt) {
   }
   posAttr.needsUpdate = true;
   geo.computeVertexNormals();
+  // 뒤쪽 이음매: 같은 자리에 겹쳐 있는 짝 점끼리 바깥 방향을 평균 → 세로 줄이 보이지 않게
+  for (let j = 0; j < SEAM_N; j++) {
+    const a = j*3, b = (SEAM_OFF + j)*3;
+    let nx = nrm[a] + nrm[b], ny = nrm[a+1] + nrm[b+1], nz = nrm[a+2] + nrm[b+2];
+    const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+    nrm[a] = nrm[b] = nx; nrm[a+1] = nrm[b+1] = ny; nrm[a+2] = nrm[b+2] = nz;
+  }
+  geo.attributes.normal.needsUpdate = true;
 
   // 점마다 밝기: 가장자리는 가루 묻은 듯 조금 밝게, 눌린 자국 안쪽은 조금 어둡게
   root.worldToLocal(camL.copy(camera.position));   // 카메라 자리를 몸 자체 좌표로 (돌려도 맞게)
