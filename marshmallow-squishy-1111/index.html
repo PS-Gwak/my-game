@@ -238,8 +238,8 @@ float sqNoise(vec3 p) {
   return mix(mix(a, b, f.y), mix(c, d, f.y), f.z);
 }`)
     .replace('#include <color_fragment>', `#include <color_fragment>
-{
-  // 큰 얼룩 + 중간 얼룩 + 잔가루 세 겹
+if (uPowder > 0.0) {
+  // 가루 겉면일 때만 계산: 큰 얼룩 + 중간 얼룩 + 잔가루 세 겹
   float pw = (sqNoise(vRest*5.0) - 0.5)*0.9 + (sqNoise(vRest*26.0) - 0.5)*0.6 + (sqNoise(vRest*90.0) - 0.5)*0.35;
   diffuseColor.rgb *= 1.0 + uPowder*pw;
 }`);
