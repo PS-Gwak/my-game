@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>시시포스 누르기</title>
 <style>
-  /* 화면은 세 덩어리다: 위 그림판 · 가운데 숫자판 · 아래 큰 버튼. 색은 검정과 흰색 두 가지만 쓴다.
-     글씨와 테두리는 전부 캔버스(그림 종이)에 칸으로 찍는다. 글꼴 파일은 불러오지 않는다 */
+  /* 화면은 두 덩어리다: 그림판(흰 기기 몸통 안의 검은 화면) · 큰 「밀기」 버튼.
+     둘의 크기 비율은 배치(A · B · C · D)마다 다르고, 칸 나누기는 스크립트가 배치에 맞춰 정한다.
+     색은 검정과 흰색 두 가지만 쓴다. 글씨와 테두리는 전부 캔버스(그림 종이)에 칸으로 찍는다 */
   :root { --black: #000000; --white: #f2f2f2; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
@@ -19,55 +20,47 @@
   main {
     width: min(100vw, 430px);
     height: min(100vh, 820px); height: min(100dvh, 820px);
-    padding: 12px 14px max(14px, env(safe-area-inset-bottom));
-    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; gap: 12px;
+    padding: 10px 12px max(12px, env(safe-area-inset-bottom));
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 160px; gap: 12px;
   }
-  /* 그림판 자리: 흰 기기 몸통이 검은 화면을 바짝 감싼다(몸통이 화면 크기에 맞춰 줄어듦) */
-  .stage { min-height: 0; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; } /* 폭이 줄어들 때 그림판이 칸을 밀어내지 않게 */
-  .device { position: relative; background: var(--white); border-radius: 16px; padding: 30px 8px 8px; line-height: 0; }
-  .screen { display: block; image-rendering: pixelated; background: var(--black); border-radius: 3px; }
-  /* 몸통 오른쪽 위 「밀림」 켬·끔 버튼(작은 점 글씨) */
-  .slide-btn {
-    position: absolute; top: 4px; right: 8px; padding: 0; margin: 0; border: 0; background: transparent;
+  /* 그림판 자리: 흰 기기 몸통이 검은 화면을 얇게 감싼다(위쪽 띠에만 작은 버튼 둘) */
+  .stage { min-height: 0; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .device { position: relative; background: var(--white); border-radius: 8px; padding: 28px 4px 4px; line-height: 0; }
+  .screen { display: block; image-rendering: pixelated; background: var(--black); border-radius: 2px; }
+  .screen.tappable { cursor: pointer; }
+  /* 몸통 위쪽 띠의 작은 점 글씨 버튼: 왼쪽 = 배치 바꾸기, 오른쪽 = 「밀림」 켬·끔 */
+  .corner-btn {
+    position: absolute; top: 3px; padding: 0; margin: 0; border: 0; background: transparent;
     line-height: 0; cursor: pointer; touch-action: none; outline: none;
   }
-  .slide-btn canvas { display: block; image-rendering: pixelated; }
+  .corner-btn canvas { display: block; image-rendering: pixelated; }
+  .layout-btn { left: 4px; }
+  .slide-btn { right: 4px; }
 
-  /* 숫자판 · 버튼: 캔버스가 칸 테두리와 점 글씨를 그린다 */
-  .panel { position: relative; height: 184px; }
+  /* 큰 버튼: 캔버스가 칸 모양 버튼과 점 글씨를 그린다. 크기는 배치가 정한 칸을 꽉 채운다 */
   .btn {
-    position: relative; display: block; height: 112px; width: 100%; padding: 0; margin: 0; border: 0;
+    position: relative; display: block; width: 100%; height: 100%; min-height: 0; min-width: 0; padding: 0; margin: 0; border: 0;
     background: transparent; cursor: pointer; touch-action: none; outline: none;
   }
-  .panel canvas, .btn canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  .btn canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
   .btn:focus-visible { outline: 3px solid var(--white); outline-offset: 3px; }
-  /* 화면에는 안 보이는 글자: 읽어 주는 기능 · 검사기가 숫자와 버튼 글을 읽을 수 있게 남겨 둔다 */
+  /* 화면에는 안 보이는 글자: 읽어 주는 기능 · 검사기가 버튼 글을 읽을 수 있게 남겨 둔다 */
   .ghost { position: absolute; left: 0; top: 0; width: 100%; height: 100%; color: transparent; overflow: hidden; white-space: nowrap; pointer-events: none; line-height: 1; }
 
-  /* 가로로 눕힌 폰처럼 낮은 화면: 왼쪽에 그림판, 오른쪽에 숫자판 · 버튼 */
+  /* 가로로 눕힌 폰처럼 낮은 화면: 왼쪽에 그림판, 오른쪽에 버튼(칸 나누기는 스크립트가) */
   @media (orientation: landscape) and (max-height: 520px) {
-    main {
-      width: min(100vw, 860px);
-      grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); grid-template-rows: auto auto;
-      column-gap: 14px; align-content: center;
-    }
-    .stage { grid-column: 1; grid-row: 1 / span 2; height: 100%; }
-    .panel { grid-column: 2; height: 150px; }
-    .btn { grid-column: 2; height: 96px; }
+    main { width: min(100vw, 860px); column-gap: 14px; }
   }
 </style>
 </head>
 <body>
-<main>
+<main id="main">
   <div class="stage" id="stage">
     <div class="device" id="device">
-      <button class="slide-btn" id="slideBtn" type="button" tabindex="-1" aria-pressed="false"><canvas id="slideCanvas"></canvas><span class="ghost" id="slideLabel">밀림 끔</span></button>
+      <button class="corner-btn layout-btn" id="layoutBtn" type="button" tabindex="-1"><canvas id="layoutCanvas"></canvas><span class="ghost" id="layoutLabel">배치 B</span></button>
+      <button class="corner-btn slide-btn" id="slideBtn" type="button" tabindex="-1" aria-pressed="false"><canvas id="slideCanvas"></canvas><span class="ghost" id="slideLabel">밀림 끔</span></button>
       <canvas class="screen" id="screen" aria-label="바위를 비탈 위로 미는 사람"></canvas>
     </div>
-  </div>
-  <div class="panel" id="panel">
-    <canvas id="panelCanvas"></canvas>
-    <div class="ghost" id="num">0</div>
   </div>
   <button class="btn" id="btn" type="button"><canvas id="btnCanvas"></canvas><span class="ghost" id="btnLabel">밀기</span></button>
 </main>
@@ -75,11 +68,14 @@
 /* 시시포스 누르기 — 한 번 누름 = 바위를 한 걸음 밀기.
    비유: 만보기. 누를 때마다 숫자가 1 오르고 사람이 한 걸음 내딛을 뿐, 끝도 상도 없다.
    「밀림」을 켜면 비탈길 러닝머신이 된다: 손을 놓고 2초가 지나면 0.5초에 한 걸음씩 뒤로 밀려 내려간다.
-   100걸음마다 있는 쉼터(평평한 턱)에서는 밀리지 않는다. */
+   100걸음마다 있는 쉼터(평평한 턱)에서는 밀리지 않는다.
+   v3: 숫자판을 없애고, 화면과 버튼의 비율을 네 가지 배치로 바꿔 볼 수 있다. */
 (function () {
   'use strict';
 
-  const W = 128, H = 64; // 그림판 칸 수(가로로 긴 작은 화면)
+  const W = 128;          // 그림판 가로 칸 수(모든 배치 같음)
+  const BASE_H = 64;      // 그림을 처음 짠 기준 세로 칸 수(배치 A)
+  const MAX_ROWS = 400;   // 아주 긴 화면에서도 칸 수가 끝없이 늘지 않게 막는 상한
   const BG = '#000000', INK = '#f2f2f2';
   const KEYS = {
     count: 'hold-on-sisyphus-count',   // 누른 횟수(절대 안 줄어듦)
@@ -87,11 +83,29 @@
     height: 'hold-on-sisyphus-height', // 밀림 켬일 때 지금 높이
     best: 'hold-on-sisyphus-best',     // 밀림 켬일 때 최고 높이
   };
+  const LAYOUT_KEY = 'hold-on-sisyphus-layout'; // 고른 배치(A~D). 「처음부터」 지우기에는 안 들어감
   const LABEL = '밀기';
   const SLIDE_WAIT = 2000;  // 마지막으로 누른 뒤 이만큼(1/1000초) 쉬면 밀리기 시작
   const SLIDE_EVERY = 500;  // 밀릴 때 한 걸음 내려가는 간격
   const SHELTER = 100;      // 이 걸음마다 쉼터
   const mod = (a, n) => ((a % n) + n) % n; // 음수도 0 ~ n-1로 돌려준다
+
+  /* ---------- 배치 네 가지 ----------
+     rows = 검은 화면 세로 칸 수('fill' = 남는 높이를 전부 채우게 계산)
+     btn = 세로 화면에서 버튼 높이(화면 점), 'fill' = 화면을 놓고 남는 높이 전부
+     btnLand = 가로로 눕힌 화면에서 오른쪽 버튼 폭, 'fill' = 화면과 반반
+     tapScreen = 검은 화면을 눌러도 밀리는지 */
+  const LAYOUTS = {
+    A: { rows: 64, btn: 'fill', btnLand: 'fill', tapScreen: false },  // 작은 2:1 화면 + 아주 큰 버튼
+    B: { rows: 96, btn: 160, btnLand: 220, tapScreen: false },        // 4:3 화면 + 중간 버튼
+    C: { rows: 128, btn: 96, btnLand: 150, tapScreen: false },        // 1:1 화면 + 얇은 버튼
+    D: { rows: 'fill', btn: 64, btnLand: 88, tapScreen: true },       // 화면이 거의 전부 + 맨 아래 띠 버튼
+  };
+  const LAYOUT_IDS = Object.keys(LAYOUTS);
+  const A_MIN_BTN = 200;   // 배치 A에서 버튼이 적어도 이만큼은 남게(화면 점)
+  const SIDE = 4;          // 흰 몸통이 검은 화면 옆 · 아래를 감싸는 두께(화면 점)
+  const SKY_SHARE = 0.6;   // 화면이 세로로 늘어날 때, 늘어난 칸 중 하늘 쪽(위)에 주는 몫. 나머지는 땅 쪽(아래)
+  const LAND_MQ = window.matchMedia('(orientation: landscape) and (max-height: 520px)');
 
   /* ---------- 저장: 저장소가 막혀 있어도 게임은 돈다(그때는 메모리에만) ---------- */
   const memory = {};
@@ -112,6 +126,15 @@
   function clearKey(key) {
     delete memory[key];
     try { localStorage.removeItem(key); } catch (e) { /* 메모리만 지움 */ }
+  }
+  function loadLayout() {
+    let raw = memory[LAYOUT_KEY];
+    try { const v = localStorage.getItem(LAYOUT_KEY); if (v !== null) raw = v; } catch (e) { /* 메모리 값으로 */ }
+    return LAYOUTS[raw] ? raw : 'B'; // 처음은 B
+  }
+  function saveLayout(id) {
+    memory[LAYOUT_KEY] = id;
+    try { localStorage.setItem(LAYOUT_KEY, id); } catch (e) { /* 메모리에만 */ }
   }
 
   /* ---------- 그림 재료: 글자 그림. # 흰 점, - 바위 속(무늬로 채움), . 건너뜀 ---------- */
@@ -183,7 +206,7 @@
   ];
   const MAN = MAN_LEGS.map((legs) => MAN_TOP.concat(legs));
 
-  // 바위: 화면 높이의 절반쯤 되는 울퉁불퉁한 덩어리. 테두리(#) 안쪽(-)은 굴러가는 무늬로 채운다
+  // 바위: 기준 화면 높이의 절반쯤 되는 울퉁불퉁한 덩어리. 테두리(#) 안쪽(-)은 굴러가는 무늬로 채운다
   const BOULDER = [
     '.............##########.............',
     '..........###----------###..........',
@@ -253,6 +276,14 @@
   const CLOUD_A = ['...######...', '############', '..########..'];
   const CLOUD_B = ['..####..', '########', '.######.'];
   const CLOUD_C = ['###'];
+  // 화면이 세로로 길어지면 늘어난 하늘에 더 띄우는 구름: [처음 가로 자리, 위아래 흔들림, 모양]. 한 층에 둘씩 쓴다
+  const SKY_CLOUDS = [
+    [30, 0, CLOUD_B], [96, 2, CLOUD_C],
+    [64, 1, CLOUD_A], [12, 0, CLOUD_C],
+    [104, 2, CLOUD_B], [44, 0, CLOUD_A],
+    [80, 1, CLOUD_C], [18, 2, CLOUD_B],
+  ];
+  const SKY_BAND = 12; // 더 띄우는 구름 층 사이 간격(칸)
 
   // 비탈 바닥: 8칸짜리 계단 한 단을 오른쪽 위로 한 칸씩 올려 찍는다
   const GROUND_STEP = ['########'];
@@ -279,7 +310,7 @@
   const LEDGE = ['.######.', '########'];
   const FLAG = ['##....', '####..', '######', '####..', '##....', '#.....', '#.....', '#.....', '#.....'];
 
-  /* ---------- 점 글씨: 숫자 · 쉼표 · 한글 몇 자 · 작은 그림 ---------- */
+  /* ---------- 점 글씨: 숫자 · 쉼표 · 영문 A~D · 한글 몇 자 · 작은 그림 ---------- */
   const GLYPHS = {
     0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
     1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
@@ -293,6 +324,11 @@
     9: ['.###.', '#...#', '#...#', '.####', '....#', '...#.', '.##..'],
     ',': ['..', '..', '..', '..', '.#', '.#', '#.'],
     ' ': ['...'],
+    // 배치 이름
+    A: ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+    B: ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'],
+    C: ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'],
+    D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'],
     // 손가락(누른 횟수 표시)
     '☝': ['..#....', '..#.#..', '..#.#.#', '#.#####', '#######', '.######', '..####.'],
     // 깃발(최고 높이 표시)
@@ -303,7 +339,6 @@
     '켬': ['#####...#.', '....#.###.', '.####...#.', '....#.###.', '...#....#.', '........#.', '..........', '.########.', '.#......#.', '.#......#.', '.########.'],
     '끔': ['####.####.', '...#....#.', '...#....#.', '...#....#.', '..........', '#########.', '..........', '.########.', '.#......#.', '.#......#.', '.########.'],
   };
-  const fmt = (n) => [...n.toLocaleString('en-US')]; // 천 단위 쉼표
   function measure(keys) {
     let w = 0, h = 0;
     keys.forEach((k, i) => { const gl = GLYPHS[k]; w += gl[0].length + (i ? 1 : 0); h = Math.max(h, gl.length); });
@@ -334,7 +369,7 @@
     ctx.fillRect(2 * b, 0, w - 4 * b, h); ctx.fillRect(b, b, w - 2 * b, h - 2 * b); ctx.fillRect(0, 2 * b, w, h - 4 * b);
   }
 
-  // 자리 잡기(칸 좌표)
+  // 자리 잡기(기준 화면 64칸일 때의 칸 좌표). 화면이 세로로 길어지면 전부 skyShift 칸만큼 아래로 내린다
   const GROUND_LEFT_Y = 56;         // 맨 왼쪽 바닥 높이. 8칸 갈 때마다 한 칸씩 오른다
   const BOULDER_X = 48, BOULDER_Y = 14;
   const MAN_X = BOULDER_X - 17, MAN_Y = BOULDER_Y + 17; // 손끝과 머리가 바위 속으로 살짝 묻히게
@@ -348,6 +383,7 @@
   let slideOn = loadNum(KEYS.slide) === 1;
   let height = loadNum(KEYS.height);
   let best = Math.max(loadNum(KEYS.best), height);
+  let layout = loadLayout();
   let idleMs = 0;    // 마지막으로 누른 뒤 흐른 시간(화면이 보일 때만 흐름)
   let slideDone = 0; // 이번 쉼 동안 밀려 내려간 걸음 수
   const stepOf = (n) => n % MAN.length;
@@ -406,12 +442,23 @@
   }
   document.addEventListener('visibilitychange', () => { lastTs = null; if (!document.hidden) startLoop(); });
 
-  /* ---------- 숫자판 · 버튼 · 켬끔 버튼(점 글씨) ---------- */
+  /* ---------- 배치 바꾸기 ---------- */
+  function setLayout(id) {
+    if (!LAYOUTS[id]) return false;
+    layout = id;
+    saveLayout(id);
+    fit();
+    return true;
+  }
+  const nextLayout = () => setLayout(LAYOUT_IDS[(LAYOUT_IDS.indexOf(layout) + 1) % LAYOUT_IDS.length]);
+
+  /* ---------- 버튼 · 작은 버튼 둘(점 글씨) ---------- */
   const el = {
+    main: document.getElementById('main'),
     stage: document.getElementById('stage'), device: document.getElementById('device'),
     screen: document.getElementById('screen'),
+    layoutBtn: document.getElementById('layoutBtn'), layoutCanvas: document.getElementById('layoutCanvas'), layoutLabel: document.getElementById('layoutLabel'),
     slideBtn: document.getElementById('slideBtn'), slideCanvas: document.getElementById('slideCanvas'), slideLabel: document.getElementById('slideLabel'),
-    panel: document.getElementById('panel'), panelCanvas: document.getElementById('panelCanvas'), num: document.getElementById('num'),
     btn: document.getElementById('btn'), btnCanvas: document.getElementById('btnCanvas'), btnLabel: document.getElementById('btnLabel'),
   };
   const dpr = () => window.devicePixelRatio || 1;
@@ -421,81 +468,95 @@
     if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
   }
 
-  function drawPanel() {
-    const cv = el.panelCanvas, ctx = cv.getContext('2d'), w = cv.width, h = cv.height, r = dpr();
-    ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
-    const b = Math.max(1, Math.round(3 * r)), pad = Math.round(10 * r);
-    pixelFrame(ctx, w, h, b, INK);
-    const left = b + pad, top = b + pad, right = w - b - pad, bottom = h - b - pad;
-    const innerW = right - left, innerH = bottom - top;
-    let areaTop = top, areaBottom = bottom;
-    if (slideOn) {
-      // 켬: 왼쪽 위 누른 횟수(손가락) · 오른쪽 아래 최고 높이(깃발)
-      const countKeys = ['☝', ' '].concat(fmt(count)), bestKeys = ['⚑', ' '].concat(fmt(best));
-      const cm = measure(countKeys), km = measure(bestKeys);
-      const sc = fitCell({ w: Math.max(cm.w, km.w), h: 7 }, innerW, innerH / 5, Math.max(1, Math.round(3 * r)));
-      drawText(ctx, countKeys, left, top, sc, INK);
-      drawText(ctx, bestKeys, right - km.w * sc, bottom - km.h * sc, sc, INK);
-      const gap = Math.round(6 * r);
-      areaTop = top + 7 * sc + gap; areaBottom = bottom - 7 * sc - gap;
-    }
-    // 가운데 큰 숫자: 끔=누른 횟수, 켬=지금 높이. 길어지면 칸을 줄여 판 안에 넣는다
-    const bigKeys = fmt(slideOn ? height : count), bm = measure(bigKeys);
-    const areaH = areaBottom - areaTop;
-    const cell = fitCell(bm, innerW * 0.92, areaH * (slideOn ? 0.9 : 0.62), Math.round(14 * r));
-    const tx = Math.round(left + (innerW - bm.w * cell) / 2), ty = Math.round(areaTop + (areaH - bm.h * cell) / 2);
-    drawText(ctx, bigKeys, tx, ty, cell, INK);
-    const s = el.num.style;
-    s.left = `${tx / r}px`; s.top = `${ty / r}px`; s.width = `${(bm.w * cell) / r}px`; s.height = `${(bm.h * cell) / r}px`;
-    s.fontSize = `${(bm.h * cell) / r}px`;
-  }
-
   function drawButton() {
     const cv = el.btnCanvas, ctx = cv.getContext('2d'), w = cv.width, h = cv.height, r = dpr();
     ctx.clearRect(0, 0, w, h);
     pixelBlock(ctx, w, h, Math.max(1, Math.round(4 * r)), INK);
     const keys = [...LABEL], m = measure(keys);
-    const cell = fitCell(m, w * 0.8, h * 0.55, Math.round(6 * r));
+    // 버튼이 클수록 글씨 칸도 키운다(한 칸 6 ~ 12 화면 점)
+    const cap = Math.round(Math.max(6, Math.min(12, Math.floor(h / r / 24))) * r);
+    const cell = fitCell(m, w * 0.8, h * 0.55, cap);
     drawText(ctx, keys, Math.round((w - m.w * cell) / 2), Math.round((h - m.h * cell) / 2), cell, BG);
+  }
+
+  // 작은 버튼의 한 칸 크기(화면 점 1.5개)
+  const cornerCell = () => Math.max(1, Math.round(1.5 * dpr()));
+  function sizeCorner(cv, cw, ch) {
+    const r = dpr();
+    if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
+    cv.style.width = `${cw / r}px`; cv.style.height = `${ch / r}px`;
   }
 
   // 켬끔 버튼: 끔 = 흰 몸통 위 검은 테두리 글씨, 켬 = 검게 칠한 칸에 흰 글씨. 버튼 높이(화면 점)를 돌려준다
   function drawToggle() {
-    const cv = el.slideCanvas, ctx = cv.getContext('2d'), r = dpr();
-    const c = Math.max(1, Math.round(1.5 * r));
+    const cv = el.slideCanvas, ctx = cv.getContext('2d'), r = dpr(), cc = cornerCell();
     const keys = ['밀', '림', ' ', slideOn ? '켬' : '끔'], m = measure(keys);
-    const cw = (m.w + 6) * c, ch = (m.h + 6) * c;
-    if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
-    cv.style.width = `${cw / r}px`; cv.style.height = `${ch / r}px`;
+    const cw = (m.w + 6) * cc, ch = (m.h + 6) * cc;
+    sizeCorner(cv, cw, ch);
     ctx.clearRect(0, 0, cw, ch);
-    if (slideOn) { pixelBlock(ctx, cw, ch, c, BG); drawText(ctx, keys, 3 * c, 3 * c, c, INK); }
-    else { pixelFrame(ctx, cw, ch, c, BG); drawText(ctx, keys, 3 * c, 3 * c, c, BG); }
+    if (slideOn) { pixelBlock(ctx, cw, ch, cc, BG); drawText(ctx, keys, 3 * cc, 3 * cc, cc, INK); }
+    else { pixelFrame(ctx, cw, ch, cc, BG); drawText(ctx, keys, 3 * cc, 3 * cc, cc, BG); }
     const label = slideOn ? '밀림 켬' : '밀림 끔';
     if (el.slideLabel.textContent !== label) el.slideLabel.textContent = label;
     el.slideBtn.setAttribute('aria-pressed', slideOn ? 'true' : 'false');
     return ch / r;
   }
 
+  // 배치 버튼: 테두리 안에 A B C D 네 글자. 지금 배치 글자만 검게 칠한 칸에 흰 글씨. 높이는 켬끔 버튼과 같다
+  function drawLayoutBtn() {
+    const cv = el.layoutCanvas, ctx = cv.getContext('2d'), r = dpr(), cc = cornerCell();
+    const BOX_W = 7, BOX_H = 9;                       // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
+    const cols = 3 + LAYOUT_IDS.length * (BOX_W + 1) - 1 + 3, rowsN = 17;
+    const cw = cols * cc, ch = rowsN * cc;
+    sizeCorner(cv, cw, ch);
+    ctx.clearRect(0, 0, cw, ch);
+    pixelFrame(ctx, cw, ch, cc, BG);
+    LAYOUT_IDS.forEach((id, i) => {
+      const bx = (3 + i * (BOX_W + 1)) * cc, by = Math.floor((rowsN - BOX_H) / 2) * cc;
+      if (id === layout) {
+        ctx.fillStyle = BG; ctx.fillRect(bx, by, BOX_W * cc, BOX_H * cc);
+        drawText(ctx, [id], bx + cc, by + cc, cc, INK);
+      } else {
+        drawText(ctx, [id], bx + cc, by + cc, cc, BG);
+      }
+    });
+    const label = `배치 ${layout}`;
+    if (el.layoutLabel.textContent !== label) el.layoutLabel.textContent = label;
+    return ch / r;
+  }
+
+  // 숫자판이 없어졌으므로 읽어 주는 기능용 글은 화면 이름표에 함께 둔다
   function syncText() {
     const text = (slideOn ? height : count).toLocaleString('en-US');
-    if (el.num.textContent !== text) el.num.textContent = text;
+    const aria = `바위를 비탈 위로 미는 사람, ${text}`;
+    if (el.screen.getAttribute('aria-label') !== aria) el.screen.setAttribute('aria-label', aria);
     if (el.btnLabel.textContent !== LABEL) el.btnLabel.textContent = LABEL;
-    drawPanel();
   }
 
-  /* ---------- 그리기: 128×64칸 작은 판에 찍은 뒤 그대로 키운다 ---------- */
+  /* ---------- 그리기: 128×(배치별 세로)칸 작은 판에 찍은 뒤 그대로 키운다 ---------- */
   const g = el.screen.getContext('2d');
   const board = document.createElement('canvas');
-  board.width = W; board.height = H;
   const c = board.getContext('2d');
+  let H = 0;         // 지금 검은 화면 세로 칸 수
+  let skyShift = 0;  // 기준 그림을 아래로 내리는 칸 수(늘어난 하늘 몫)
+  let skyClouds = []; // 늘어난 하늘에 더 띄운 구름 [처음 가로 자리, 세로 자리, 모양]
 
+  let ink = null; // 지금 붓 색(같은 색이면 다시 고르지 않아 빠르게)
   function dot(x, y, color) {
     if (x < 0 || x >= W || y < 0 || y >= H) return;
-    c.fillStyle = color; c.fillRect(x, y, 1, 1);
+    if (color !== ink) { c.fillStyle = color; ink = color; }
+    c.fillRect(x, y, 1, 1);
   }
-  function sprite(x, y, rows, color = INK) {
+  function box(x, y, w, h, color) {
+    c.fillStyle = color; ink = color;
+    c.fillRect(x, y, w, h);
+  }
+  function sprite(x, y, rows, color = INK, k = 1) {
     rows.forEach((row, j) => {
-      for (let i = 0; i < row.length; i += 1) if (row[i] === '#') dot(x + i, y + j, color);
+      for (let i = 0; i < row.length; i += 1) {
+        if (row[i] !== '#') continue;
+        for (let dy = 0; dy < k; dy += 1) for (let dx = 0; dx < k; dx += 1) dot(x + i * k + dx, y + j * k + dy, color);
+      }
     });
   }
   // 사람 둘레를 한 칸 검게 비워서, 흰 바위 무늬 위에 겹쳐도 몸이 또렷하게 보이게 한다
@@ -511,9 +572,27 @@
 
   // 비탈 계단을 찍으면서 칸마다 바닥 높이를 적어 둔다(작은 것들을 바닥에 올려놓을 때 쓴다)
   const STEP_W = GROUND_STEP[0].length;
-  const surface = new Array(W).fill(H);
-  for (let x = 0; x < W; x += 1) surface[x] = GROUND_LEFT_Y - Math.floor(x / STEP_W);
+  const surface = new Array(W).fill(BASE_H);
   const surfaceAt = (x) => surface[Math.max(0, Math.min(W - 1, x))];
+
+  // 세로 칸 수가 바뀌면: 그림 전체를 내릴 칸 수 · 바닥 높이 · 늘어난 하늘의 구름을 다시 정한다
+  function setRows(rows) {
+    if (rows === H) return;
+    H = rows;
+    board.width = W; board.height = H; ink = null;
+    skyShift = Math.round((H - BASE_H) * SKY_SHARE);
+    for (let x = 0; x < W; x += 1) surface[x] = GROUND_LEFT_Y + skyShift - Math.floor(x / STEP_W);
+    // 원래 구름 줄 위로 SKY_BAND 칸마다 한 층씩, 한 층에 구름 둘. 맨 위 숫자 자리 근처까지만
+    skyClouds = [];
+    for (let k = 1; ; k += 1) {
+      const y = skyShift + 6 - SKY_BAND * k;
+      if (y < 2) break;
+      for (let n = 0; n < 2; n += 1) {
+        const [home, wobble, rows2] = SKY_CLOUDS[((k - 1) * 2 + n) % SKY_CLOUDS.length];
+        skyClouds.push([home, y + wobble, rows2]);
+      }
+    }
+  }
 
   // 바위 칸 정리: 줄마다 처음 ~ 마지막 칠한 칸 사이가 바위 몸통
   const BOULDER_CELLS = [];
@@ -523,28 +602,46 @@
     for (let i = first; i <= last && first >= 0; i += 1) BOULDER_CELLS.push({ i, j, edge: row[i] === '#' });
   });
 
+  // 점 글씨 한 줄을 판에 찍고, 뒤를 검게 비워 구름이 지나가도 읽히게 한다. 차지한 높이(칸)를 돌려준다
+  function boardText(keys, x, y, k) {
+    const m = measure(keys);
+    box(x - 1, y - 1, m.w * k + 2, m.h * k + 2, BG);
+    let cx = x;
+    keys.forEach((key) => {
+      sprite(cx, y, GLYPHS[key], INK, k);
+      cx += (GLYPHS[key][0].length + 1) * k;
+    });
+    return m.h * k;
+  }
+
   function render() {
     const s = sceneS(); // 한 걸음 = 한 칸
-    c.fillStyle = BG; c.fillRect(0, 0, W, H);
+    const oy = skyShift;
+    box(0, 0, W, H, BG);
 
-    // 구름(가장 느리게)
+    // 구름(가장 느리게): 원래 셋 + 늘어난 하늘에 더 띄운 것들
+    const cloudShift = Math.floor(s / CLOUD_SLOW);
     CLOUDS.forEach(([home, y, rows]) => {
       const w = rows[0].length;
-      sprite(mod(home + w - Math.floor(s / CLOUD_SLOW), W + 24) - w, y, rows);
+      sprite(mod(home + w - cloudShift, W + 24) - w, y + oy, rows);
+    });
+    skyClouds.forEach(([home, y, rows]) => {
+      const w = rows[0].length;
+      sprite(mod(home + w - cloudShift, W + 24) - w, y, rows);
     });
 
     // 먼 산 능선(바위 왼쪽에만, 2걸음에 한 칸)
     const ridgeShift = Math.floor(s / RIDGE_SLOW);
-    for (let x = 0; x < RIDGE_END; x += 1) dot(x, RIDGE_Y + RIDGE_H[mod(x + ridgeShift, RIDGE_H.length)], INK);
+    for (let x = 0; x < RIDGE_END; x += 1) dot(x, RIDGE_Y + oy + RIDGE_H[mod(x + ridgeShift, RIDGE_H.length)], INK);
 
     // 비탈 바닥 선
-    for (let k = 0; k * STEP_W < W; k += 1) sprite(k * STEP_W, GROUND_LEFT_Y - k, GROUND_STEP);
+    for (let k = 0; k * STEP_W < W; k += 1) sprite(k * STEP_W, GROUND_LEFT_Y + oy - k, GROUND_STEP);
     // 바닥 속 자갈 점: 한 걸음에 한 칸, 8걸음마다 비탈을 따라 한 칸 아래로
     const texW = GROUND_TEX[0].length, texH = GROUND_TEX.length;
     const sink = Math.floor(s / STEP_W);
     for (let x = 0; x < W; x += 1) {
       for (let y = surface[x] + 2; y < H; y += 1) {
-        if (GROUND_TEX[mod(y - sink, texH)][mod(x + s, texW)] === '#') dot(x, y, INK);
+        if (GROUND_TEX[mod(y - oy - sink, texH)][mod(x + s, texW)] === '#') dot(x, y, INK);
       }
     }
     // 비탈 위 작은 것들
@@ -568,7 +665,7 @@
     const angle = s / ROLL_RADIUS, cos = Math.cos(angle), sin = Math.sin(angle);
     const tw = ROCK_TEX[0].length, th = ROCK_TEX.length;
     BOULDER_CELLS.forEach(({ i, j, edge }) => {
-      const x = BOULDER_X + i, y = BOULDER_Y + j;
+      const x = BOULDER_X + i, y = BOULDER_Y + oy + j;
       if (edge) { dot(x, y, INK); return; }
       const dx = i - BOULDER_CX, dy = j - BOULDER_CY;
       const u = dx * cos + dy * sin, v = -dx * sin + dy * cos;
@@ -579,58 +676,111 @@
     });
 
     // 미는 사람: 한 걸음마다 다음 그림(밀려 내려갈 때는 거꾸로 돌아 뒷걸음질)
-    spriteWithHalo(MAN_X, MAN_Y, MAN[stepOf(s)]);
+    spriteWithHalo(MAN_X, MAN_Y + oy, MAN[stepOf(s)]);
 
-    // 왼쪽 위 숫자(끔=누른 횟수, 켬=지금 높이). 구름이 지나가도 읽히게 뒤를 비운다
-    const digits = String(slideOn ? height : count);
-    c.fillStyle = BG; c.fillRect(2, 2, digits.length * 6 + 1, 9);
-    [...digits].forEach((d, i) => sprite(3 + i * 6, 3, GLYPHS[d]));
+    // 왼쪽 위 숫자(끔=누른 횟수, 켬=지금 높이): 칸 두 배 크기. 너무 길어 화면을 넘으면 한 배로
+    const big = [...String(slideOn ? height : count)];
+    const bigK = (measure(big).w * 2 <= W - 6) ? 2 : 1;
+    let y = 3 + boardText(big, 3, 3, bigK) + 3;
+    // 밀림 켬: 그 아래 작게 손 모양 + 누른 횟수, 깃발 + 최고 높이
+    if (slideOn) {
+      y += boardText(['☝', ' '].concat([...String(count)]), 3, y, 1) + 2;
+      boardText(['⚑', ' '].concat([...String(best)]), 3, y, 1);
+    }
 
     // 작은 판을 큰 그림판에 옮긴다
     g.imageSmoothingEnabled = false;
     g.drawImage(board, 0, 0, el.screen.width, el.screen.height);
   }
 
-  // 자리 맞추기: 검은 화면은 한 칸이 화면 점 몇 개인지를 정수로 맞춰 점이 고르게 보이게 하고,
-  // 흰 몸통은 그 화면을 바짝 감싼다. 숫자판 · 버튼 캔버스는 자기 상자 크기 그대로
+  // 자리 맞추기: 배치에 맞춰 화면 · 버튼 칸을 나누고, 검은 화면은 한 칸이 화면 점 몇 개인지를 정수로 맞춰
+  // 점이 고르게 보이게 한다. 흰 몸통은 그 화면을 얇게 감싼다
   function fit() {
-    const r = dpr();
-    const toggleH = drawToggle();
-    const padTop = Math.ceil(toggleH) + 8;
-    el.device.style.paddingTop = `${padTop}px`;
-    const box = el.stage.getBoundingClientRect();
-    const cellPx = Math.max(1, Math.floor(Math.min((box.width - 16) * r / W, (box.height - padTop - 8) * r / H)));
-    if (el.screen.width !== W * cellPx) { el.screen.width = W * cellPx; el.screen.height = H * cellPx; }
+    const r = dpr(), L = LAYOUTS[layout], land = LAND_MQ.matches, ms = el.main.style;
+    if (land) {
+      ms.gridTemplateRows = 'minmax(0, 1fr)';
+      ms.gridTemplateColumns = L.btnLand === 'fill' ? 'minmax(0, 1fr) minmax(0, 1fr)' : `minmax(0, 1fr) ${L.btnLand}px`;
+    } else {
+      ms.gridTemplateColumns = 'minmax(0, 1fr)';
+      ms.gridTemplateRows = L.btn === 'fill' ? 'auto minmax(0, 1fr)' : `minmax(0, 1fr) ${L.btn}px`;
+    }
+    el.screen.classList.toggle('tappable', L.tapScreen);
+
+    const bandH = Math.max(drawToggle(), drawLayoutBtn());
+    const padTop = Math.ceil(bandH) + 6;
+    el.device.style.padding = `${padTop}px ${SIDE}px ${SIDE}px`;
+
+    // 화면이 쓸 수 있는 자리(화면 점): 전체 판에서 버튼 몫과 흰 몸통 두께를 뺀다
+    const cs = getComputedStyle(el.main), mb = el.main.getBoundingClientRect();
+    const innerW = mb.width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    const innerH = mb.height - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+    const gapR = parseFloat(cs.rowGap) || 0, gapC = parseFloat(cs.columnGap) || 0;
+    let availW, availH;
+    if (land) {
+      availH = innerH;
+      availW = L.btnLand === 'fill' ? (innerW - gapC) / 2 : innerW - gapC - L.btnLand;
+    } else {
+      availW = innerW;
+      availH = innerH - gapR - (L.btn === 'fill' ? A_MIN_BTN : L.btn);
+    }
+    const aw = Math.max(1, (availW - 2 * SIDE) * r), ah = Math.max(1, (availH - padTop - SIDE) * r);
+
+    let rows, cellPx;
+    if (L.rows === 'fill') {
+      // 폭에 맞춘 칸 크기로, 남는 높이를 세로 칸으로 전부 채운다(적어도 기준 64칸)
+      cellPx = Math.max(1, Math.min(Math.floor(aw / W), Math.floor(ah / BASE_H)));
+      rows = Math.max(BASE_H, Math.min(MAX_ROWS, Math.floor(ah / cellPx)));
+    } else {
+      rows = L.rows;
+      cellPx = Math.max(1, Math.floor(Math.min(aw / W, ah / rows)));
+    }
+    setRows(rows);
+    if (el.screen.width !== W * cellPx || el.screen.height !== H * cellPx) { el.screen.width = W * cellPx; el.screen.height = H * cellPx; }
     el.screen.style.width = `${(W * cellPx) / r}px`;
     el.screen.style.height = `${(H * cellPx) / r}px`;
-    sizeToBox(el.panelCanvas, el.panel);
+
     sizeToBox(el.btnCanvas, el.btn);
     drawButton();
     syncText();
     render();
   }
-  if (window.ResizeObserver) {
-    const ro = new ResizeObserver(fit);
-    [el.stage, el.panel, el.btn].forEach((node) => ro.observe(node));
-  }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(el.main);
   window.addEventListener('resize', fit);
 
   /* ---------- 입력: 손가락이 닿는 순간 한 걸음 ---------- */
+  const mainPointer = (e) => e.pointerType !== 'mouse' || e.button === 0;
   el.btn.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (!mainPointer(e)) return;
     e.preventDefault();
     press();
   });
-  // 켬끔 버튼: 밀기로 세지 않는다
+  // 배치 D에서는 검은 화면을 눌러도 밀린다
+  el.screen.addEventListener('pointerdown', (e) => {
+    if (!LAYOUTS[layout].tapScreen || !mainPointer(e)) return;
+    e.preventDefault();
+    press();
+  });
+  // 작은 버튼 둘: 밀기로 세지 않는다
   el.slideBtn.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (!mainPointer(e)) return;
     e.preventDefault(); e.stopPropagation();
     setSlideOn(!slideOn);
   });
+  el.layoutBtn.addEventListener('pointerdown', (e) => {
+    if (!mainPointer(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    nextLayout();
+  });
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'KeyB' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const plain = !e.metaKey && !e.ctrlKey && !e.altKey;
+    if (e.code === 'KeyB' && plain) {
       e.preventDefault();
       if (!e.repeat) setSlideOn(!slideOn);
+      return;
+    }
+    if (e.code === 'KeyL' && plain) {
+      e.preventDefault();
+      if (!e.repeat) nextLayout();
       return;
     }
     if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
@@ -652,7 +802,10 @@
   };
   window.__STREAK_TEST__ = {
     state() {
-      return { count, step: stepOf(sceneS()), label: LABEL, slide: slideOn, height, best, sliding: isSliding() };
+      return {
+        count, step: stepOf(sceneS()), label: LABEL, slide: slideOn, height, best, sliding: isSliding(),
+        layout, layouts: LAYOUT_IDS.slice(), rows: H,
+      };
     },
     press,
     reset() {
@@ -677,6 +830,8 @@
       advance(Math.max(0, Number(ms) || 0));
       return this.state();
     },
+    setLayout(id) { return setLayout(String(id).toUpperCase()); },
+    nextLayout() { nextLayout(); return layout; },
   };
 })();
 </script>
