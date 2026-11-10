@@ -160,7 +160,9 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
    - 처음엔 여섯 종(생 · 꼬치구이 · 스모어 · 초코파이 · 무지개 · 코코아)이 한 화면에 나란히 떠 있음 (목록 화면)
    - 하나를 누르면 가운데로 크게 떠오르고, 그때부터 v4와 똑같이 만짐. 「목록」 버튼(Esc)으로 돌아감
    - 몸 겉면 무늬(그을림 · 무지개 줄 · 초콜릿)는 몸에 칠해져 있어 같이 눌리고 늘어남.
-     장식(꼬챙이 · 크래커 · 컵 · 수건 …)은 몸 가까운 곳을 따라 같이 움직이되 눌리지는 않음 */
+     장식(꼬챙이 · 크래커 · 컵 · 수건 …)은 몸 가까운 곳을 따라 같이 움직이되 눌리지는 않음
+   v1.1: 크래커 · 빵 · 수건은 몸과 같이 휘며 솟은 몸 위로 들리고, 팔은 몸과 컵 사이에서 늘어나고, 김은 옆 몸 겉면을 따라감
+     → 몸이 장식을 뚫고 나오지 않음 (손맛 계산은 그대로) */
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -846,9 +848,16 @@ function cracker(withDots) {
   return g;
 }
 // 종마다 장식 한 벌. pieces = 몸 겉면을 따라 움직일 덩어리들 (anchors = 따라갈 몸 점들, f = 따라가는 비율)
+// opt.cap = 몸 위(1) · 아래(-1)를 덮는 판(크래커 · 빵 · 수건): 판 전체가 몸과 같이 휘고, 밑에서 솟은 몸에 맞춰 들림. half = 판 두께의 절반
+// opt.arm = 팔: 몸 쪽 끝은 몸을, 컵 쪽 끝은 컵(이 조각)을 따라가며 늘어남
+// 아무 표시가 없으면 따라갈 몸 점들의 평균만큼 통째로 옮김 (꼬챙이 · 컵 · 김)
 function buildDeco(id) {
   const group = new THREE.Group(), pieces = [], steams = [];
-  const add = (obj, anchors, f = 1) => { group.add(obj); pieces.push({obj, base: obj.position.clone(), anchors, f}); };
+  const add = (obj, anchors, f = 1, opt = {}) => {
+    group.add(obj);
+    const pc = {obj, base: obj.position.clone(), anchors, f, d: new THREE.Vector3(), cap: opt.cap || 0, half: opt.half || 0, arm: opt.arm || null};
+    pieces.push(pc); return pc;
+  };
   const topCap = () => vertsWhere((x, y) => y > .99);
   const botCap = () => vertsWhere((x, y) => y < .01);
   if (id === 'skewer') {
@@ -868,13 +877,13 @@ function buildDeco(id) {
     // 위아래 크래커 두 장 (서로 살짝 엇갈리게 돌려 놓음). 몸보다 조금 좁아서 몸이 옆으로 삐져나와 보임
     const t = cracker(true); t.position.y = 1.035; t.rotation.y = .22;
     const b = cracker(false); b.position.y = -.035; b.rotation.y = -.12;
-    add(t, topCap()); add(b, botCap());
+    add(t, topCap(), 1, {cap: 1, half: .0445}); add(b, botCap(), 1, {cap: -1, half: .0445});
   } else if (id === 'chocopie') {
     // 위아래 둥근 초콜릿 빵이 이불처럼 덮고, 가운데 띠로 흰 마시멜로 얼굴이 보임
     const m = lam(0xffffff, {vertexColors: true});
     const t = new THREE.Mesh(lidGeo(true), m); t.position.y = .91;
     const b = new THREE.Mesh(lidGeo(false), m); b.position.y = .09;
-    add(t, topCap()); add(b, botCap());
+    add(t, topCap(), 1, {cap: 1, half: .15}); add(b, botCap(), 1, {cap: -1, half: .15});
   } else if (id === 'cocoa') {
     // 머그컵 + 코코아 + 손잡이 + 김 (한 덩어리로 몸 아랫부분을 따라 움직임)
     const mugG = new THREE.Group(), mugM = lam(DECO.mug, {side: THREE.DoubleSide});
@@ -886,17 +895,20 @@ function buildDeco(id) {
     const hG = new THREE.Group(); hG.rotation.y = 2.54;   // 손잡이: 왼쪽 뒤
     const handle = new THREE.Mesh(new THREE.TorusGeometry(.13, .042, 8, 20, Math.PI), mugM);
     handle.rotation.z = -Math.PI/2; handle.position.set(.64, .2, 0); hG.add(handle); mugG.add(hG);
-    // 김 세 가닥: 둥근 덩어리 두 개씩, 천천히 위아래로
+    const mugPc = add(mugG, vertsWhere((x, y) => Math.abs(y - .2) < .05));
+    // 김 세 가닥: 둥근 덩어리 두 개씩, 천천히 위아래로. 컵이 아니라 바로 옆 몸 겉면을 따라감 → 몸을 끌어도 몸 속 · 몸 앞에 떠 있지 않음
+    // (w = 몸을 따라가는 자리, puff = 그 안에서 오르내리는 김)
     const steamM = lam(DECO.steam, {transparent: true, opacity: .7, depthWrite: false});
     const sg1 = new THREE.SphereGeometry(.065, 14, 10), sg2 = new THREE.SphereGeometry(.045, 12, 8);
     for (const [ph, y0, sp, off] of [[1.45, .66, .8, 0], [-1.5, .72, .65, 2.1], [2.7, .8, .9, 4.0]]) {
-      const w = new THREE.Group();
+      const w = new THREE.Group(), puff = new THREE.Group();
       const a = new THREE.Mesh(sg1, steamM); a.scale.set(1, 1.5, 1);
       const b = new THREE.Mesh(sg2, steamM); b.position.set(.03, .14, 0); b.scale.set(1, 1.4, 1);
-      w.add(a, b); w.position.set(.63*Math.sin(ph), y0, .63*Math.cos(ph)); mugG.add(w);
-      steams.push({w, y0, sp, off});
+      puff.add(a, b); w.add(puff);
+      w.position.set(.63*Math.sin(ph), y0, .63*Math.cos(ph));
+      add(w, vertsNear(.55*Math.sin(ph), y0, .55*Math.cos(ph), 8));
+      steams.push({w: puff, y0: 0, sp, off});
     }
-    add(mugG, vertsWhere((x, y) => Math.abs(y - .2) < .05));
     // 짧은 두 팔: 몸 옆에서 나와 컵 가장자리에 걸침
     const armM = lam(BODY.color);
     for (const sd of [-1, 1]) {
@@ -905,14 +917,14 @@ function buildDeco(id) {
       const arm = new THREE.Mesh(new THREE.CapsuleGeometry(.07, len - .04, 4, 10), armM);
       arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
       arm.position.copy(A).add(B).multiplyScalar(.5);
-      add(arm, vertsNear(.55*Math.sin(ph), .6, .55*Math.cos(ph), 8));
+      add(arm, vertsNear(.55*Math.sin(ph), .6, .55*Math.cos(ph), 8), 1, {arm: mugPc});
     }
     // 머리에 접은 흰 수건 (양끝에 컵과 같은 색 줄 두 개)
     const towel = new THREE.Group();
     towel.add(new THREE.Mesh(smoothNormals(slabGeo(roundedRectShape(.22, .13, .05), .05, .03, 2)), lam(DECO.towel)));
     for (const x of [-.14, .14]) { const band = new THREE.Mesh(new THREE.BoxGeometry(.04, .118, .33), lam(DECO.mug)); band.position.x = x; towel.add(band); }
     towel.position.set(-.04, 1.04, .02); towel.rotation.set(0, -.4, .08);
-    add(towel, topCap());
+    add(towel, topCap(), 1, {cap: 1, half: .055});
   }
   const meshes = [];
   group.traverse(o => { if (o.isMesh) meshes.push(o); });
@@ -926,6 +938,220 @@ function buildDeco(id) {
     },
   };
 }
+/* ───────── 장식이 몸을 따라가는 법 (v1.1) ─────────
+   예전: 장식을 「붙은 몸 점들의 평균」만큼 통째로 옮김 → 잡아 끈 곳만 많이 움직이면 몸이 장식을 뚫고 나옴.
+   지금:
+   - 덮는 판(크래커 · 빵 · 수건): 판을 잘게 쪼개 두고, 판의 점마다 가장 가까운 몸 점 몇 개를 따라감(가까울수록 많이) → 몸과 같이 휨.
+     그리고 위 판은 「그 자리 몸에서 가장 높이 솟은 점」보다 아래로 가지 않게 들어 올림(아래 판은 가장 낮은 점보다 위로 가지 않게).
+     → 판이 몸 위에 얹혀 있는 모양 그대로, 몸이 판을 뚫고 솟지 않음
+   - 팔: 몸 쪽 끝은 몸을, 컵 쪽 끝은 컵을 따라가고 그 사이는 고무줄처럼 늘어남
+   - 김: 바로 옆 몸 겉면을 따라감
+   - 꼬챙이 · 컵: 예전과 같음(통째로) */
+const TESS_EDGE = .09;       // 판을 쪼갤 크기: 세모 한 변이 이보다 길면 반으로 나눔 (몸 높이 1 기준). 바둑판 한 칸보다 작아야 함
+const SKIN_K = 4;            // 판의 점 하나가 따라갈 가장 가까운 몸 점 수
+const GRID_S = .1;           // 「가장 높이 솟은 점」을 기록하는 바둑판 한 칸 크기
+const GRID_R = 2.2;          // 바둑판이 덮는 범위(몸 한가운데에서 앞뒤 · 좌우로). 끝까지 늘려도 들어오는 크기
+const GRID_N = Math.round(2*GRID_R/GRID_S) + 1;
+const GRID_EMPTY = 1e9;      // 아무 몸 점도 기록되지 않은 칸 표시
+const STRETCH_ROOM = 1.6;    // 장식이 휘며 늘어날 수 있는 거리 — 누르기 판정 · 화면 밖 판정이 놓치지 않게 그만큼 넉넉히 잡음
+const gridTop = new Float32Array(GRID_N*GRID_N), gridBot = new Float32Array(GRID_N*GRID_N);
+
+// 큰 세모를 작게 쪼갬 (가장 긴 변의 가운데를 자르기를 반복). 생김새 · 색 · 무늬 자리는 그대로이고 점만 늘어남.
+// 같은 변은 이웃 세모에서도 같은 자리에서 잘리므로 휘어도 틈이 벌어지지 않음
+function tessellate(src, maxEdge) {
+  const g0 = src.index ? src.toNonIndexed() : src;
+  const names = ['position', ...Object.keys(g0.attributes).filter(n => n !== 'position')];   // 자리를 맨 앞에
+  const arrs = names.map(n => g0.attributes[n].array), sizes = names.map(n => g0.attributes[n].itemSize);
+  const width = sizes.reduce((s, v) => s + v, 0), L2 = maxEdge*maxEdge;
+  const vert = i => { const o = []; names.forEach((n, k) => { for (let c = 0; c < sizes[k]; c++) o.push(arrs[k][i*sizes[k] + c]); }); return o; };
+  const d2 = (a, b) => (a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2;   // 첫 세 값 = 자리
+  const mid = (a, b) => { const o = new Array(width); for (let c = 0; c < width; c++) o[c] = (a[c] + b[c])*.5; return o; };
+  const out = [], stack = [], n = g0.attributes.position.count;
+  for (let i = 0; i < n; i += 3) stack.push([vert(i), vert(i + 1), vert(i + 2)]);
+  while (stack.length) {
+    const [a, b, c] = stack.pop();
+    const ab = d2(a, b), bc = d2(b, c), ca = d2(c, a), m = Math.max(ab, bc, ca);
+    if (m <= L2) { out.push(a, b, c); continue; }
+    // 감기는 방향(앞뒤)이 바뀌지 않게 나눔
+    if (m === ab) { const p = mid(a, b); stack.push([a, p, c], [p, b, c]); }
+    else if (m === bc) { const p = mid(b, c); stack.push([a, b, p], [a, p, c]); }
+    else { const p = mid(c, a); stack.push([a, b, p], [p, b, c]); }
+  }
+  const g = new THREE.BufferGeometry();
+  let off = 0;
+  names.forEach((nm, k) => {
+    const sz = sizes[k], arr = new Float32Array(out.length*sz);
+    for (let i = 0; i < out.length; i++) for (let c = 0; c < sz; c++) arr[i*sz + c] = out[i][off + c];
+    if (nm === 'normal') for (let i = 0; i < arr.length; i += 3) { const l = Math.hypot(arr[i], arr[i+1], arr[i+2]) || 1; arr[i] /= l; arr[i+1] /= l; arr[i+2] /= l; }
+    g.setAttribute(nm, new THREE.BufferAttribute(arr, sz));
+    off += sz;
+  });
+  return g;
+}
+// 휘거나 늘어난 장식도 누르기 판정 · 화면 밖 판정에서 빠지지 않게 둘레 공을 넉넉히
+function roomyBounds(g) {
+  g.computeBoundingSphere(); g.boundingSphere.radius += STRETCH_ROOM; g.boundingBox = null;
+}
+// 덮는 판의 한 덩어리를 따라가게 준비 (한 번만): 쪼개기 → 같은 자리 점 묶기 → 점마다 가까운 몸 점 찾기
+function rigCapMesh(mesh, cap, gInv) {
+  const g = tessellate(mesh.geometry, TESS_EDGE);
+  mesh.geometry = g;
+  const posA = g.attributes.position; posA.setUsage(THREE.DynamicDrawUsage);
+  const arr = posA.array, nV = posA.count, restL = Float32Array.from(arr);
+  // 장식 좌표 ↔ 몸 좌표 (장식 묶음은 몸과 같은 좌표에 붙어 있음)
+  const rel = new THREE.Matrix4().multiplyMatrices(gInv, mesh.matrixWorld);
+  const inv = Float32Array.from(new THREE.Matrix4().copy(rel).invert().elements);
+  const nmx = new THREE.Matrix3().getNormalMatrix(rel);
+  // 같은 자리 점 묶기 (가장자리처럼 한 자리에 점이 여럿 겹친 곳은 같이 움직여야 틈이 안 생김)
+  const keyOf = new Map(), map = new Uint32Array(nV), ublL = [], outerSet = new Set();
+  const nrmA = g.attributes.normal ? g.attributes.normal.array : null;
+  const p = new THREE.Vector3(), nv = new THREE.Vector3();
+  for (let i = 0; i < nV; i++) {
+    const x = arr[i*3], y = arr[i*3 + 1], z = arr[i*3 + 2];
+    const key = Math.round(x*1e5) + ',' + Math.round(y*1e5) + ',' + Math.round(z*1e5);
+    let u = keyOf.get(key);
+    if (u === undefined) { u = ublL.length/3; keyOf.set(key, u); p.set(x, y, z).applyMatrix4(rel); ublL.push(p.x, p.y, p.z); }
+    map[i] = u;
+    // 바깥쪽(위 판은 윗면, 아래 판은 밑면)을 향한 점 — 뚫림 검사에 씀
+    if (nrmA) { nv.set(nrmA[i*3], nrmA[i*3 + 1], nrmA[i*3 + 2]).applyMatrix3(nmx).normalize(); if (nv.y*cap > .5) outerSet.add(u); }
+  }
+  const U = ublL.length/3, ubl = Float32Array.from(ublL);
+  // 점마다 가까운 몸 점 SKIN_K개 (판이 덮는 쪽 절반의 몸 점 가운데에서). 가까울수록 많이 따라감
+  const cand = [];
+  for (let v = 0; v < NW; v++) if (cap > 0 ? rest[v*3 + 1] >= CY : rest[v*3 + 1] <= CY) cand.push(v);
+  const nb = new Uint16Array(U*SKIN_K), nw = new Float32Array(U*SKIN_K);
+  const bd = new Float64Array(SKIN_K), bi = new Int32Array(SKIN_K);
+  for (let u = 0; u < U; u++) {
+    const x = ubl[u*3], y = ubl[u*3 + 1], z = ubl[u*3 + 2];
+    bd.fill(Infinity); bi.fill(0);
+    for (const v of cand) {
+      const d = (rest[v*3]-x)**2 + (rest[v*3+1]-y)**2 + (rest[v*3+2]-z)**2;
+      if (d >= bd[SKIN_K - 1]) continue;
+      let k = SKIN_K - 1;
+      while (k > 0 && bd[k - 1] > d) { bd[k] = bd[k - 1]; bi[k] = bi[k - 1]; k--; }
+      bd[k] = d; bi[k] = v;
+    }
+    let ws = 0;
+    for (let k = 0; k < SKIN_K; k++) { const w = 1/(bd[k] + 1e-4); nw[u*SKIN_K + k] = w; nb[u*SKIN_K + k] = bi[k]; ws += w; }
+    for (let k = 0; k < SKIN_K; k++) nw[u*SKIN_K + k] /= ws;
+  }
+  roomyBounds(g);
+  return {posA, arr, restL, inv, map, U, ubl, nb, nw, udisp: new Float32Array(U*3), udl: new Float32Array(U*3), outer: Uint32Array.from(outerSet)};
+}
+// 팔을 따라가게 준비 (한 번만): 점마다 「몸 쪽 끝 0 ~ 컵 쪽 끝 1」 값
+function rigArm(mesh, gInv) {
+  const g = mesh.geometry, posA = g.attributes.position; posA.setUsage(THREE.DynamicDrawUsage);
+  const arr = posA.array, n = posA.count, restL = Float32Array.from(arr), s = new Float32Array(n);
+  g.computeBoundingBox();
+  const y0 = g.boundingBox.min.y, y1 = g.boundingBox.max.y;
+  for (let i = 0; i < n; i++) { const u = clamp((arr[i*3 + 1] - y0)/(y1 - y0), 0, 1); s[i] = u*u*(3 - 2*u); }   // 팔 모양은 몸 → 컵 쪽이 +y
+  const rel = new THREE.Matrix4().multiplyMatrices(gInv, mesh.matrixWorld);
+  roomyBounds(g);
+  return {posA, arr, restL, s, inv: Float32Array.from(new THREE.Matrix4().copy(rel).invert().elements)};
+}
+// 장식 한 벌을 따라가게 준비 (그 종을 처음 고를 때 한 번만)
+function rigDeco(deco) {
+  if (deco.rigged) return;
+  deco.rigged = true;
+  deco.group.updateMatrixWorld(true);
+  const gInv = new THREE.Matrix4().copy(deco.group.matrixWorld).invert();
+  deco.hasTop = false; deco.hasBot = false;
+  for (const pc of deco.pieces) {
+    if (pc.cap) {
+      const ms = [];
+      pc.obj.traverse(o => { if (o.isMesh) ms.push(o); });
+      pc.skin = ms.map(m => rigCapMesh(m, pc.cap, gInv));
+      if (pc.cap > 0) deco.hasTop = true; else deco.hasBot = true;
+    } else if (pc.arm) pc.armRig = rigArm(pc.obj, gInv);
+  }
+}
+// 장식을 처음 모양 · 자리로
+function resetDeco(deco) {
+  for (const pc of deco.pieces) {
+    pc.obj.position.copy(pc.base); pc.d.set(0, 0, 0);
+    const rigs = pc.skin || (pc.armRig ? [pc.armRig] : []);
+    for (const r of rigs) { r.arr.set(r.restL); r.posA.needsUpdate = true; if (r.udisp) r.udisp.fill(0); }
+  }
+}
+// 바둑판 한 칸 자리의 값 (주변 네 꼭짓점을 거리로 섞음, 기록 없는 꼭짓점은 빼고). 하나도 없으면 NaN
+function gridAt(g, x, z) {
+  const fx = (x + GRID_R)/GRID_S, fz = (z + GRID_R)/GRID_S, i = Math.floor(fx), j = Math.floor(fz);
+  if (!(i >= 0 && j >= 0 && i < GRID_N - 1 && j < GRID_N - 1)) return NaN;
+  const u = fx - i, w = fz - j, n = j*GRID_N + i;
+  let s = 0, ws = 0, v, k;
+  v = g[n];              k = (1 - u)*(1 - w); if (v < GRID_EMPTY && v > -GRID_EMPTY) { s += v*k; ws += k; }
+  v = g[n + 1];          k = u*(1 - w);       if (v < GRID_EMPTY && v > -GRID_EMPTY) { s += v*k; ws += k; }
+  v = g[n + GRID_N];     k = (1 - u)*w;       if (v < GRID_EMPTY && v > -GRID_EMPTY) { s += v*k; ws += k; }
+  v = g[n + GRID_N + 1]; k = u*w;             if (v < GRID_EMPTY && v > -GRID_EMPTY) { s += v*k; ws += k; }
+  return ws > 1e-6 ? s/ws : NaN;
+}
+// 지금 몸 점들로 바둑판 채우기: 칸마다 위 판은 「가장 높은 몸 점 − 몸 윗면 높이」, 아래 판은 「가장 낮은 몸 점 − 밑면 높이」.
+// 몸 점 하나가 제 칸 둘레 한 칸씩까지 기록 → 판의 점이 이웃 칸에 있어도 그 몸 점보다 낮아지지 않음
+function fillGrids(top, bot) {
+  if (top) gridTop.fill(-GRID_EMPTY);
+  if (bot) gridBot.fill(GRID_EMPTY);
+  for (let v = 0; v < NW; v++) {
+    const a = v*3, i = Math.floor((pos[a] + GRID_R)/GRID_S), j = Math.floor((pos[a+2] + GRID_R)/GRID_S);
+    if (!(i >= 1 && j >= 1 && i < GRID_N - 2 && j < GRID_N - 2)) continue;
+    const ht = pos[a+1] - BODY.h, hb = pos[a+1];
+    for (let jj = j - 1; jj <= j + 2; jj++) for (let ii = i - 1; ii <= i + 2; ii++) {
+      const n = jj*GRID_N + ii;
+      if (top && ht > gridTop[n]) gridTop[n] = ht;
+      if (bot && hb < gridBot[n]) gridBot[n] = hb;
+    }
+  }
+}
+// 덮는 판 한 덩어리: 가까운 몸 점들을 따라 휘고, 밑에서 솟은 몸보다 낮아지지 않게 들어 올림
+function skinCap(r, cap) {
+  const {nb, nw, ubl, udisp, udl, inv, map, arr, restL} = r, grid = cap > 0 ? gridTop : gridBot;
+  for (let u = 0; u < r.U; u++) {
+    let sx = 0, sy = 0, sz = 0;
+    for (let k = u*SKIN_K, e = k + SKIN_K; k < e; k++) {
+      const b = nb[k]*3, w = nw[k];
+      sx += w*(pos[b] - rest[b]); sy += w*(pos[b+1] - rest[b+1]); sz += w*(pos[b+2] - rest[b+2]);
+    }
+    const u3 = u*3, h = gridAt(grid, ubl[u3] + sx, ubl[u3+2] + sz);
+    if (h === h) sy = cap > 0 ? Math.max(sy, h) : Math.min(sy, h);
+    udisp[u3] = sx; udisp[u3+1] = sy; udisp[u3+2] = sz;
+    // 몸 좌표로 옮긴 양 → 이 덩어리 자체 좌표로
+    udl[u3] = inv[0]*sx + inv[4]*sy + inv[8]*sz;
+    udl[u3+1] = inv[1]*sx + inv[5]*sy + inv[9]*sz;
+    udl[u3+2] = inv[2]*sx + inv[6]*sy + inv[10]*sz;
+  }
+  for (let i = 0, n = map.length; i < n; i++) {
+    const a = i*3, b = map[i]*3;
+    arr[a] = restL[a] + udl[b]; arr[a+1] = restL[a+1] + udl[b+1]; arr[a+2] = restL[a+2] + udl[b+2];
+  }
+  r.posA.needsUpdate = true;
+}
+// 팔: 몸 쪽 끝 = 몸(가까운 몸 점들의 평균)만큼, 컵 쪽 끝 = 컵만큼, 그 사이는 부드럽게 섞음
+function bendArm(pc) {
+  const r = pc.armRig, b = pc.d, m = pc.arm.d, inv = r.inv, {arr, restL, s} = r;
+  const bx = inv[0]*b.x + inv[4]*b.y + inv[8]*b.z, by = inv[1]*b.x + inv[5]*b.y + inv[9]*b.z, bz = inv[2]*b.x + inv[6]*b.y + inv[10]*b.z;
+  const mx = inv[0]*m.x + inv[4]*m.y + inv[8]*m.z, my = inv[1]*m.x + inv[5]*m.y + inv[9]*m.z, mz = inv[2]*m.x + inv[6]*m.y + inv[10]*m.z;
+  for (let i = 0, n = s.length; i < n; i++) {
+    const a = i*3, k = s[i];
+    arr[a] = restL[a] + bx + (mx - bx)*k; arr[a+1] = restL[a+1] + by + (my - by)*k; arr[a+2] = restL[a+2] + bz + (mz - bz)*k;
+  }
+  r.posA.needsUpdate = true;
+}
+// 매 프레임: 장식 한 벌을 지금 몸에 맞춤 (새 배열 · 객체를 만들지 않음)
+function followDeco(deco) {
+  for (const pc of deco.pieces) {
+    if (pc.cap) continue;
+    const A = pc.anchors; let sx = 0, sy = 0, sz = 0;
+    for (let k = 0; k < A.length; k++) { const a = A[k]*3; sx += pos[a] - rest[a]; sy += pos[a+1] - rest[a+1]; sz += pos[a+2] - rest[a+2]; }
+    const f = A.length ? pc.f/A.length : 0;
+    pc.d.set(sx*f, sy*f, sz*f);
+    if (!pc.arm) pc.obj.position.set(pc.base.x + pc.d.x, pc.base.y + pc.d.y, pc.base.z + pc.d.z);
+  }
+  for (const pc of deco.pieces) if (pc.arm) bendArm(pc);
+  if (deco.hasTop || deco.hasBot) {
+    fillGrids(deco.hasTop, deco.hasBot);
+    for (const pc of deco.pieces) if (pc.cap) for (const r of pc.skin) skinCap(r, pc.cap);
+  }
+}
+
 // 고른 마시멜로에 붙일 장식 (종마다 한 번만 만들어 두고 바꿔 끼움)
 const playDecos = KINDS.map(k => buildDeco(k.id));
 let playDeco = null;
@@ -938,6 +1164,8 @@ function applyKind(k) {
   if (playDeco) root.remove(playDeco.group);
   playDeco = playDecos[k.i];
   for (const pc of playDeco.pieces) pc.obj.position.copy(pc.base);
+  rigDeco(playDeco);           // 처음 고를 때 한 번만: 장식 점과 몸 점의 짝 계산
+  resetDeco(playDeco);
   root.add(playDeco.group);
   hitList = [body, ...playDeco.meshes];
   faceKey = '';
@@ -1450,14 +1678,9 @@ function advance(dt) {
   geo.computeVertexNormals();
   geo.attributes.normal.needsUpdate = true;
   syncFace();
-  // 장식: 따라갈 몸 점들이 옮겨진 만큼(평균) 같이 옮김 → 몸이 눌리거나 밀려도 장식이 따로 놀지 않음
+  // 장식: 몸을 따라 휘고 들림 (덮는 판 · 팔 · 김), 꼬챙이 · 컵은 붙은 몸 점들의 평균만큼 통째로 — followDeco 참고
   if (playDeco) {
-    for (const pc of playDeco.pieces) {
-      const A = pc.anchors; let sx = 0, sy = 0, sz = 0;
-      for (let k = 0; k < A.length; k++) { const a = A[k]*3; sx += pos[a] - rest[a]; sy += pos[a+1] - rest[a+1]; sz += pos[a+2] - rest[a+2]; }
-      const f = A.length ? pc.f/A.length : 0;
-      pc.obj.position.set(pc.base.x + sx*f, pc.base.y + sy*f, pc.base.z + sz*f);
-    }
+    followDeco(playDeco);
     playDeco.update(t);
   }
 
@@ -1815,7 +2038,35 @@ window.__SQ_TEST__ = {
     applyView(); renderer.render(scene, camera); return state();
   },
   front() { if (canTouch()) goHome(); return state(); },   // 「원위치」와 같은 일 (부드럽게 — step()으로 시간을 흘리면 돌아옴)
+  decoPoke,
 };
+// 뚫림 검사: 지금 종에서 덮는 판(크래커 · 빵 · 수건)이 덮고 있는 자리의 몸 점 가운데 판 바깥으로 나온 점의 수와 가장 많이 나온 거리(몸 좌표).
+// 「덮고 있는 자리」 = 몸 점 바로 위(아래 판은 바로 아래) 0.06 안에 판 바깥면의 점이 있는 곳. 판 두께의 절반까지는 나온 것으로 치지 않음.
+// worst는 셈에 든 점이 없어도 「판 바깥면보다 가장 많이 나온 거리」(0 이상)를 그대로 알려 줌
+function decoPoke() {
+  const kind = mode === 'play' ? curKind.id : null;
+  let count = 0, worst = 0;
+  if (mode !== 'play' || !playDeco) return {kind, count, worst};
+  const R2 = .06*.06;
+  for (const pc of playDeco.pieces) {
+    if (!pc.cap || !pc.skin) continue;
+    const pts = [];   // 판 바깥면 점들의 지금 자리
+    for (const r of pc.skin) for (const u of r.outer) { const a = u*3; pts.push(r.ubl[a] + r.udisp[a], r.ubl[a+1] + r.udisp[a+1], r.ubl[a+2] + r.udisp[a+2]); }
+    for (let v = 0; v < NW; v++) {
+      const a = v*3, px = pos[a], py = pos[a+1], pz = pos[a+2];
+      let best = R2, sy = NaN;
+      for (let k = 0; k < pts.length; k += 3) {
+        const d = (pts[k] - px)**2 + (pts[k+2] - pz)**2;
+        if (d < best) { best = d; sy = pts[k+1]; }
+      }
+      if (sy !== sy) continue;
+      const out = pc.cap > 0 ? py - sy : sy - py;
+      if (out > worst) worst = out;
+      if (out > pc.half) count++;
+    }
+  }
+  return {kind, count, worst};
+}
 </script>
 </body>
 </html>
