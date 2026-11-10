@@ -22,10 +22,18 @@
     display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto; gap: 10px;
   }
   .stage {
+    position: relative;
     min-height: 0; background: var(--bg); border-radius: 14px; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
   }
   canvas { display: block; image-rendering: pixelated; }
+  /* 그림 바꾸기: 그림판 오른쪽 위 구석의 작은 버튼. 누를 때마다 다음 그림 한 벌로 넘어간다 */
+  .art {
+    position: absolute; top: 8px; right: 8px; height: 30px; padding: 0 10px;
+    border: 2px solid var(--ink); border-radius: 9px; background: var(--bg); color: var(--ink);
+    font: inherit; font-size: 14px; font-weight: 800; line-height: 1; white-space: nowrap;
+    cursor: pointer; touch-action: none; outline: none;
+  }
 
   /* 숫자판: 왼쪽 위 최고 기록 · 가운데 큰 연승 수 · 오른쪽 아래 다음 도전의 성공 확률 */
   .panel {
@@ -72,7 +80,7 @@
 </head>
 <body>
 <main>
-  <div class="stage"><canvas aria-label="고양이와 쓰다듬는 손"></canvas></div>
+  <div class="stage"><canvas aria-label="고양이와 쓰다듬는 손"></canvas><button class="art" id="art" type="button" tabindex="-1" aria-label="그림 바꾸기">키캡 A</button></div>
   <div class="panel" id="panel">
     <div class="best"><svg id="crown" viewBox="0 0 7 5" shape-rendering="crispEdges" aria-label="최고 기록"></svg><b id="best">0</b></div>
     <div class="num" id="num">0연승</div>
@@ -81,6 +89,1397 @@
   <div class="dots" id="dots" aria-hidden="true"></div>
   <button class="btn" id="btn" type="button"></button>
 </main>
+<script>
+/* 그림 도구: 작은 판에 칸칸이 찍은 뒤 그대로 키운다. 부드러운 가장자리와 반투명은 쓰지 않는다.
+   그림 한 벌은 draw(g, v) 하나다. g는 가로 320 · 세로 240짜리 그림판, v는 고양이 기분을 부위별로 나눈 값이다 */
+(function () {
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, k) => a + (b - a) * k;
+  function rect(g, x, y, w, h, color) {
+    g.fillStyle = color;
+    g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  }
+  function disc(g, cx, cy, rx, ry, color) {
+    g.fillStyle = color;
+    const top = Math.round(cy - ry), bottom = Math.round(cy + ry);
+    for (let y = top; y <= bottom; y += 1) {
+      const k = (y - cy) / ry;
+      const half = rx * Math.sqrt(Math.max(0, 1 - k * k));
+      g.fillRect(Math.round(cx - half), y, Math.max(1, Math.round(half * 2)), 1);
+    }
+  }
+  function tri(g, x1, y1, x2, y2, x3, y3, color) {
+    const p = [[x1, y1], [x2, y2], [x3, y3]].sort((a, b) => a[1] - b[1]);
+    g.fillStyle = color;
+    // 끝점 밖으로 넘어가면 긴 줄이 튀어나오므로 0~1 안으로 묶는다
+    const cross = (a, b, y) => (a[1] === b[1] ? a[0] : a[0] + (b[0] - a[0]) * clamp((y - a[1]) / (b[1] - a[1]), 0, 1));
+    for (let y = Math.round(p[0][1]); y <= Math.round(p[2][1]); y += 1) {
+      const xa = cross(p[0], p[2], y);
+      const xb = y < p[1][1] ? cross(p[0], p[1], y) : cross(p[1], p[2], y);
+      g.fillRect(Math.round(Math.min(xa, xb)), y, Math.max(1, Math.round(Math.abs(xb - xa))), 1);
+    }
+  }
+  function line(g, x1, y1, x2, y2, width, color) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1)));
+    g.fillStyle = color;
+    for (let i = 0; i <= steps; i += 1) {
+      const k = i / steps;
+      g.fillRect(Math.round(lerp(x1, x2, k) - width / 2), Math.round(lerp(y1, y2, k) - width / 2), Math.ceil(width), Math.ceil(width));
+    }
+  }
+  window.HoldGame = { rect, disc, tri, line };
+
+  window.CAT_ARTS = window.CAT_ARTS || {};
+  window.CatArtKit = {
+    layer(w = 160, h = 120) {
+      const cv = document.createElement('canvas');
+      cv.width = w;
+      cv.height = h;
+      const c = cv.getContext('2d');
+      return {
+        c,
+        blit(g, shiftCells = 0) { // shiftCells: 판을 좌우로 칸 단위로 흔든다. 드러난 자리는 바탕색으로 채운다
+          g.imageSmoothingEnabled = false;
+          if (shiftCells) {
+            g.fillStyle = window.CatArtKit.LCD.bg;
+            g.fillRect(0, 0, 320, 240);
+          }
+          g.drawImage(cv, shiftCells * (320 / w), 0, 320, 240);
+        },
+      };
+    },
+    // 두 색 · 큰 칸 그림에 쓰는 색 두 가지
+    LCD: { bg: '#051310', ink: '#ccf4e4' },
+    // 글자 그림으로 칸을 찍는다. # 밝은 색, o 어두운 색(앞 그림을 지움), 그 밖의 글자는 건너뜀. flip이면 좌우를 뒤집는다
+    sprite(c, x, y, rows, flip = false) {
+      const { bg, ink } = window.CatArtKit.LCD;
+      rows.forEach((row, j) => {
+        for (let i = 0; i < row.length; i += 1) {
+          const ch = flip ? row[row.length - 1 - i] : row[i];
+          if (ch !== '#' && ch !== 'o') continue;
+          c.fillStyle = ch === '#' ? ink : bg;
+          c.fillRect(x + i, y + j, 1, 1);
+        }
+      });
+    },
+    // 글자 그림을 원하는 색으로 찍는다. # 는 fg, o 는 dk, 그 밖의 글자는 건너뜀. 단색과 컬러가 같은 칸을 쓴다
+    paint(c, x, y, rows, fg, dk, flip = false) {
+      rows.forEach((row, j) => {
+        for (let i = 0; i < row.length; i += 1) {
+          const ch = flip ? row[row.length - 1 - i] : row[i];
+          if (ch !== '#' && ch !== 'o') continue;
+          c.fillStyle = ch === '#' ? fg : dk;
+          c.fillRect(x + i, y + j, 1, 1);
+        }
+      });
+    },
+    // 두 색을 바둑판처럼 섞어 중간 밝기를 낸다. level: 0 없음, 1 성김, 2 바둑판, 3 빽빽
+    dither(c, x, y, w, h, base, dot, level) {
+      c.fillStyle = base;
+      c.fillRect(x, y, w, h);
+      if (level <= 0) return;
+      c.fillStyle = dot;
+      for (let py = y; py < y + h; py += 1) {
+        for (let px = x; px < x + w; px += 1) {
+          const on = level === 1 ? (px % 4 === 0 && py % 2 === 0 && (px + py) % 4 === 0)
+            : level === 2 ? (px + py) % 2 === 0
+              : !((px % 2 === 0) && (py % 2 === 0));
+          if (on) c.fillRect(px, py, 1, 1);
+        }
+      }
+    },
+  };
+})();
+</script>
+<script>
+/* 그림 「키캡 B」: 두 색 · 판 32×24칸 */
+(function () {
+  const kit = window.CatArtKit;
+  const layer = kit.layer(32, 24);
+  const blank = [
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+    'oooooooooooooooooooooooooooooooo',
+  ];
+  const cat = [
+    '.##..........##.',
+    '.###........###.',
+    '.#o##......##o#.',
+    '.#oo########oo#.',
+    '.##############.',
+    '################',
+    '################',
+    '################',
+    '.##############.',
+    '..############..',
+    '....########....',
+    '...##########...',
+    '...##########...',
+    '..############..',
+    '..####o##o####..',
+    '.#####o##o#####.',
+    '.##o##o##o##o##.',
+    '..############..',
+  ];
+  const tails = [
+    ['........', '........', '.##.....', '##......', '##......', '.##.....', '..######', '...#####'],
+    ['........', '.##.....', '##......', '##......', '.##.....', '.##.....', '..######', '...#####'],
+    ['..##....', '.##.....', '.##.....', '.##.....', '.##.....', '..##....', '..######', '...#####'],
+    ['....##..', '...##...', '..##....', '..##....', '..##....', '..##....', '..######', '...#####'],
+    ['......##', '.....##.', '....##..', '...##...', '..##....', '..##....', '..######', '...#####'],
+  ];
+  const hand = [
+    '..........#ooo',
+    '.........#oooo',
+    '........#oooo#',
+    '....#####ooo#.',
+    '..##ooooooo#..',
+    '.#oooooooo#...',
+    '..######oo#...',
+    '........##....',
+  ];
+  const closed = ['o..o', '.oo.'];
+  const sleepy = ['oooo', '.oo.'];
+  const awake = ['.oo.', '.oo.'];
+  const watchful = ['oooo', 'o#oo', 'oooo'];
+  const furious = ['.oo.', '.oo.', '.oo.'];
+
+  window.CAT_ARTS['keycap-b'] = {
+    name: '키캡 B',
+    noBang: true,
+    draw(g, v) {
+      const c = layer.c;
+      const draw = (x, y, rows, flip = false) => kit.sprite(c, x, y, rows, flip);
+      const dead = v.phase === 'dead';
+      const won = v.phase === 'won';
+      const holding = v.phase === 'hold';
+      const risk = Math.max(0, Math.floor(v.a));
+      const beat = Math.floor(v.time * 4);
+      const tail = holding ? (risk + beat) % tails.length : dead ? 4 : beat % 2;
+      draw(0, 0, blank);
+      draw(3, 15, tails[tail]);
+      draw(8, 5, cat);
+
+      if (!won && v.flat >= 0.35) {
+        draw(8, 5, ['oooooooooooooooo', 'oooooooooooooooo']);
+        draw(8, 7, v.flat < 0.72
+          ? ['###..........###', '.#o##########o#.', '.##############.']
+          : ['oooooooooooooooo', '###oooooooooo###', '.##############.']);
+      }
+
+      const turn = !won && v.turn > 0.5 ? 1 : 0;
+      const eye = won || v.open < 0.22 ? closed
+        : v.open < 0.65 ? sleepy
+          : v.pupil < 0.25 ? awake
+            : v.pupil < 0.7 ? watchful : furious;
+      draw(10 + turn, 10, eye);
+      draw(18 + turn, 10, eye, true);
+      if (!won && v.brow > 0.35) {
+        draw(10 + turn, 9, v.brow > 0.7 ? ['oo..', '..o.'] : ['oo..', '.oo.']);
+        draw(18 + turn, 9, v.brow > 0.7 ? ['..oo', '.o..'] : ['..oo', '.oo.']);
+      }
+      draw(15 + turn, 12, ['oo']);
+      if (dead) {
+        draw(14, 13, ['.oooo.', 'oooooo', 'oooooo', '.oooo.']);
+      } else if (won || v.mouth === 0) {
+        draw(13 + turn, 13, ['o.o.o', '.o.o.']);
+      } else if (v.mouth === 1) {
+        draw(14 + turn, 14, ['oooo']);
+      } else {
+        draw(14 + turn, 13, v.mouth === 3
+          ? ['oooo', 'o##o', 'oooo', 'o##o']
+          : v.gap > 0.35 ? ['oooo', 'oooo', 'oooo'] : ['oooo', 'oooo']);
+      }
+
+      if (v.belly > 0.3 || won) draw(14, 18, ['oooo', 'o##o', 'o##o', 'oooo']);
+      if (v.pawShown && !won) {
+        draw(20, v.pawUp > 0.5 ? 15 : 17, ['oooo', '.##o', '.##o', '.##.']);
+        if (v.claws) draw(20, v.pawUp > 0.5 ? 15 : 17, ['#o#o']);
+      }
+      if (holding && risk >= 10) draw(4, 10, ['#', '#']);
+      if (holding && risk >= 18) draw(3, 8, ['#.', '.#']);
+      if (holding && risk >= 25) draw(3, 12, ['.#', '#.']);
+      if (v.puff > 0.4 && !won) {
+        draw(7, 14, ['#.', '.#']);
+        draw(23, 14, ['.#', '#.']);
+      }
+
+      if (dead) {
+        draw(17, 13, [
+          '...############',
+          '###oooooooooooo',
+          '#oooooooooooooo',
+          '###oo##########',
+          '...##..........',
+        ]);
+        draw(17, 14, ['#', 'o', '#']);
+        draw(26, 10, ['.#.', '#.#']);
+        draw(28, 19, ['#.', '.#']);
+      } else if (won) {
+        const retreat = Math.min(16, Math.floor(v.phaseT * 5));
+        draw(18 + retreat, -retreat, hand);
+      } else if (holding) {
+        const stroke = [0, -1, -2, -1][Math.floor(v.time * 5) % 4];
+        const flinch = v.fear > 0.7 ? Math.floor(v.time * 13) % 2 : 0;
+        draw(18 + stroke + flinch, 0, hand);
+      } else {
+        draw(19, -3, hand);
+      }
+      layer.blit(g);
+    },
+  };
+})();
+</script>
+<script>
+/* 그림 「컬러 A」: 판 64×48칸, 고양이 가로 32칸.
+   칸은 글자 그림으로 직접 적었다. 글자마다 색이 정해져 있고 . 는 건너뜀.
+   표정은 단계로 바뀌고, 꼬리 · 손 떨림 · 머리 옆 김 · 귀가 조금씩 달라지는 일을 맡는다 */
+(function () {
+  const { layer } = window.CatArtKit;
+  const stage = layer(64, 48);
+  const CAT_X = 16, CAT_Y = 4; // 고양이 왼쪽 위 칸(귀 맨 위)
+
+  const C = { // 색은 15가지
+    wall: '#f3e3c8', wallDark: '#e6cfa8', floor: '#c99a6b', floorDark: '#c9792e', cushion: '#d8606a', cushionDark: '#8a2a35',
+    fur: '#f0a24a', furDark: '#c9792e', furLight: '#f3e3c8', line: '#3a2418', pink: '#e8787f', white: '#ffffff', iris: '#7ab648', pupil: '#3a2418',
+    mouth: '#8a2a35', nose: '#e8787f', skin: '#f5c9a2', skinDark: '#c99a6b', sleeve: '#5b7fbf', sleeveDark: '#3f5f96', steam: '#ffffff', ray: '#ffffff', bang: '#d8606a',
+  };
+  const fill = (c, x, y, w, h, color) => { c.fillStyle = color; c.fillRect(x, y, w, h); };
+  function spr(c, x, y, rows, map, flip = false) {
+    rows.forEach((row, j) => {
+      for (let i = 0; i < row.length; i += 1) {
+        const color = map[flip ? row[row.length - 1 - i] : row[i]];
+        if (color) fill(c, x + i, y + j, 1, 1, color);
+      }
+    });
+  }
+  const FUR = { o: C.line, f: C.fur, s: C.furDark, w: C.furLight, k: C.pink };
+
+  const EARS = [ // 쫑긋 → 눕는 중 → 납작. 머리 바로 위 여섯 줄
+    ['..oo........................oo..', '..ofo......................ofo..', '..ofko....................okfo..', '.ofkkfo..................ofkkfo.', '.ofkkkfo................ofkkkfo.', 'ofkkkkffoo............ooffkkkkfo'],
+    ['................................', '................................', '................................', 'ooo..........................ooo', 'offoo......................ooffo', 'ofkkfoo..................oofkkfo'],
+    ['................................', '................................', '................................', '................................', 'oooo........................oooo', 'offfoo....................oofffo'],
+  ];
+  const HEAD = [
+    '...oooooooooooooooooooooooooo...',
+    '..offffffffffffssffffffffffffo..',
+    '.offffffffffffssssffffffffffffo.',
+    '.offfffffffffffssfffffffffffffo.',
+    'o' + 'f'.repeat(30) + 'o',
+    'o' + 'f'.repeat(30) + 'o',
+    'o' + 'f'.repeat(30) + 'o',
+    'o' + 'f'.repeat(30) + 'o',
+    'o' + 'f'.repeat(30) + 'o',
+    'o' + 'f'.repeat(30) + 'o',
+    'o' + 'f'.repeat(30) + 'o',
+    'o' + 'f'.repeat(30) + 'o',
+    'o' + 'f'.repeat(30) + 'o',
+    'offfffffffwwwwwwwwwwwwfffffffffo',
+    'offffffffwwwwwwwwwwwwwwffffffffo',
+    '.offfffffwwwwwwwwwwwwwwfffffffo.',
+    '.offffffffwwwwwwwwwwwwffffffffo.',
+    '..offffffffwwwwwwwwwwffffffffo..',
+    '....ooffffffffffffffffffffoo....',
+    '......oooooooooooooooooooo......',
+  ];
+  const BODY = [
+    '..offffffffffffffffffffffo..',
+    '.offffffffwwwwwwwwffffffffo.',
+    '.offfffffwwwwwwwwwwfffffffo.',
+    'offfffffffwwwwwwwwwwfffffffo',
+    'offfffffffwwwwwwwwwwfffffffo',
+    'offfffffffwwwwwwwwwwfffffffo',
+    'offfffffffwwwwwwwwwwfffffffo',
+    'offfffffffwwwwwwwwwwfffffffo',
+    'offfffffffwwwwwwwwwwfffffffo',
+    'offfffffffwwwwwwwwwwfffffffo',
+    'offfffffffwwwwwwwwwwfffffffo',
+    'offffwwwwoffffffffowwwwffffo',
+    'offffwwwwoffffffffowwwwffffo',
+    '.oooooooooooooooooooooooooo.',
+  ];
+  // 왼쪽 눈 6×5. 오른쪽은 뒤집어 찍는다. w 흰자, i 눈동자, p 동공
+  const EYES = [
+    ['......', '.oooo.', 'o....o', '......', '......'], // 편하게 감음
+    ['......', '......', 'oooooo', '......', '......'], // 실눈
+    ['.oooo.', 'owiiio', 'owiiio', '.oooo.', '......'], // 뜸
+    ['.oooo.', 'owippo', 'owippo', 'owiiio', '.oooo.'], // 똑바로 쳐다봄
+    ['oo....', '.oooo.', 'owippo', 'owippo', '.oooo.'], // 눈썹이 내려옴
+    ['ooo...', '..oooo', '.oippo', '.oippo', '..ooo.'], // 찡그림
+  ];
+  const EYE_MAP = { o: C.line, w: C.white, i: C.iris, p: C.pupil };
+  const MOUTHS = [ // 10칸 폭, 코 바로 아래
+    ['....oo....', 'o..o..o..o', '.oo....oo.'], // 웃는 입
+    ['....oo....', '....oo....'], // 다문 입
+    ['....oo....', '..oooooo..'], // 일자
+    ['....oo....', '..oooooo..', '..orrrro..', '...oooo...'], // 벌림
+    ['....oo....', '.oooooooo.', '.otrrrrto.', '.orrrrrro.', '..oooooo..'], // 이빨
+    ['....oo....', 'oooooooooo', 'otrrrrrrto', 'orrrrrrrro', 'orrrrrrrro', '.oooooooo.'], // 크게 벌림
+  ];
+  const MOUTH_MAP = { o: C.line, r: C.mouth, t: C.white };
+  const TAILS = [ // 몸 오른쪽. 앞 둘은 편할 때, 뒤 둘은 화날 때 크게 부풀려 흔든다
+    ['......oo..', '.....offo.', '.....offo.', '....offo..', '....offo..', '...offo...', '..offo....', '.offo.....', 'offo......', 'ofo.......'],
+    ['..........', '.......oo.', '......offo', '.....offo.', '....offo..', '...offo...', '..offo....', '.offo.....', 'offo......', 'ofo.......'],
+    ['..ooo.....', '.offfo....', '.offfo....', '..offfo...', '..offfo...', '...offfo..', '...offfo..', '..offfo...', '.offfo....', 'offfo.....'],
+    ['..........', '........oo', '.......ofo', '......offo', '.....offfo', '....offfo.', '...offfo..', '..offfo...', '.offfo....', 'offfo.....'],
+  ];
+  const PAW = ['.oooo.', 'offffo', 'offffo', 'owwwwo', 'owwwwo', '.oooo.'];
+  const CLAWS = ['w.w.w.'];
+  const BANG = ['bb', 'bb', 'bb', 'bb', '..', 'bb'];
+  // 쓰다듬는 손(오른쪽 위에서 들어와 손바닥을 머리에 얹는다) 22×10. u 소매, k 소맷부리, s 손, d 손가락 사이
+  const HANDS = [
+    ['..............uuuuuuuu', '............uuuuuuuuuu', '..........uuuuuuuuuuuu', '.....ssssssssuuuuuuuuu', '...sssssssssssskuuuuuu', '.ssssssssssssssskuuuuu', 'ssssssssssssssssk.....', 'sdsdsdsdssssssss......', 'sdsdsdsdsssssss.......', '.d.d.d.d..............'],
+    ['..............uuuuuuuu', '............uuuuuuuuuu', '..........uuuuuuuuuuuu', '.....ssssssssuuuuuuuuu', '...sssssssssssskuuuuuu', '.ssssssssssssssskuuuuu', 'ssssssssssssssssk.....', 'dsdsdsdsssssssss......', 'dsdsdsdssssssss.......', 'd.d.d.d...............'],
+  ];
+  const HAND_MAP = { u: C.sleeve, k: C.sleeveDark, s: C.skin, d: C.skinDark };
+  // 물린 순간: 턱까지 크게 벌린 입 20×8, 옆에서 들어와 물린 손 26×7
+  const BITE_JAW = ['..oooooooooooooooo..', '.otrrrtrrrrrrtrrrto.', 'orrrrrrrrrrrrrrrrrro', 'orrrrrrrrrrrrrrrrrro', 'orrrrrrrrrrrrrrrrrro', 'orrrrrrrrrrrrrrrrrro', '.otrrrtrrrrrrtrrrto.', '..oooooooooooooooo..'];
+  const BITE_HAND = ['..........sssss.uuuuuuuuuu', '.........sssssskuuuuuuuuuu', 'ssssssssssssssskuuuuuuuuuu', 'dddddddddssssssskuuuuuuuuu', 'ssssssssssssssskuuuuuuuuuu', '.........sssssskuuuuuuuuuu', '..........ssss..uuuuuuuuuu'];
+  const RAYS = [[56, 18, 5], [56, 32, 5], [2, 20, 5], [2, 30, 5]];
+
+  const eyeIndex = (a) => (a < 3 ? 0 : a < 6 ? 1 : a < 12 ? 2 : a < 18 ? 3 : a < 24 ? 4 : 5);
+  const mouthIndex = (a) => (a < 6 ? 0 : a < 10 ? 1 : a < 23 ? 2 : a < 26 ? 3 : a < 31 ? 4 : 5);
+
+  function drawRoom(c) {
+    fill(c, 0, 0, 64, 48, C.wall);
+    fill(c, 0, 0, 64, 3, C.wallDark);
+    fill(c, 0, 42, 64, 6, C.floor);
+    fill(c, 0, 42, 64, 1, C.floorDark);
+    fill(c, 10, 38, 44, 6, C.cushion); // 고양이가 앉은 쿠션
+    fill(c, 12, 37, 40, 1, C.cushion);
+    fill(c, 10, 43, 44, 1, C.cushionDark);
+  }
+
+  function drawFace(c, v, ox, hy) {
+    const a = v.a;
+    const look = v.phase === 'won' ? -1 : (v.turn >= 0.5 ? 2 : v.turn > 0.2 ? 1 : 0); // 고개를 손 쪽으로 돌리면 얼굴이 오른쪽으로 민다
+    const biting = v.phase === 'dead';
+    const eye = EYES[biting ? 5 : eyeIndex(a)];
+    const ey = hy + 7 - (biting ? 1 : 0);
+    spr(c, ox + 7 + look, ey, eye, EYE_MAP);
+    spr(c, ox + 19 + look, ey, eye, EYE_MAP, true);
+    if (!biting) {
+      fill(c, ox + 15 + look, hy + 12, 2, 1, C.nose);
+      spr(c, ox + 11 + look, hy + 12, MOUTHS[mouthIndex(a)], MOUTH_MAP);
+    }
+    // 수염: 편할 땐 곧게, 화나면 뒤로 젖힌다
+    const tense = a >= 15 ? 1 : 0;
+    [12, 14].forEach((y, i) => {
+      const lift = tense ? (i === 0 ? -1 : 1) : 0;
+      fill(c, ox - 4, hy + y + lift, 6, 1, C.line);
+      fill(c, ox + 30, hy + y + lift, 6, 1, C.line);
+    });
+    if (v.brow > 0.3 && !biting) { // 미간 주름
+      fill(c, ox + 14 + look, hy + 5, 1, 2, C.furDark);
+      fill(c, ox + 17 + look, hy + 5, 1, 2, C.furDark);
+    }
+  }
+
+  function drawSteam(c, v, ox, hy) { // 머리 옆에서 김이 오른다. 위험값 따라 개수와 속도가 는다
+    const a = v.a;
+    if (a < 8 || v.phase === 'won' || v.phase === 'dead') return;
+    const speed = 0.5 + a * 0.05;
+    [[ox - 3, 0, 8], [ox + 33, 0.5, 14], [ox - 6, 0.25, 20], [ox + 36, 0.75, 26]].forEach(([x, offset, from]) => {
+      if (a < from) return;
+      const k = (v.time * speed + offset) % 1;
+      const y = hy + 2 - Math.floor(k * 9);
+      if (k < 0.5) fill(c, x, y, 3, 2, C.steam);
+      else fill(c, x + (k > 0.75 ? 1 : 0), y, 2, 1, C.steam);
+    });
+  }
+
+  function drawHand(c, v, ox, oy) {
+    let hx, hy, finger = 0;
+    if (v.phase === 'hold') {
+      const reach = Math.round(4 - v.fear * 2); // 무서워질수록 쓰다듬는 폭이 줄어든다
+      hx = ox + 6 + Math.round(Math.sin(v.time * 3.6) * reach);
+      hy = oy + 2;
+      finger = Math.floor(v.time * 5) % 2;
+      if (v.fear > 0.4 && Math.floor(v.time * 14) % 3 === 0) hx += Math.floor(v.time * 28) % 2 ? 1 : -1; // 손 떨림
+    } else if (v.phase === 'won') { // 슬그머니 뺀다
+      const out = Math.floor(v.phaseT * 20);
+      hx = ox + 6 + out;
+      hy = oy + 2 - out;
+    } else { // 기다림
+      hx = 40;
+      hy = -4;
+    }
+    for (let i = 1; i < 16; i += 1) { // 팔은 손등에서 오른쪽 위로 판 밖까지
+      const y = hy - i;
+      if (y < 0) break;
+      fill(c, hx + 13 + i, y, 9, 1, C.sleeve);
+    }
+    spr(c, hx, hy, HANDS[finger], HAND_MAP);
+  }
+
+  function drawBite(c, v, ox, hy) {
+    spr(c, ox + 6, hy + 11, BITE_JAW, MOUTH_MAP);
+    spr(c, ox + 12, hy + 12, BITE_HAND, HAND_MAP);
+    fill(c, ox + 38, hy + 12, 64 - ox - 38, 7, C.sleeve); // 팔은 판 밖까지
+    fill(c, ox + 38, hy + 18, 64 - ox - 38, 1, C.sleeveDark);
+    if (Math.floor(v.phaseT * 8) % 2 === 0) RAYS.forEach(([x, ry, len]) => fill(c, x, ry, len, 1, C.ray));
+  }
+
+  function draw(g, v) {
+    const c = stage.c;
+    const a = v.a;
+    drawRoom(c);
+    let ox = CAT_X;
+    const oy = CAT_Y;
+    // 몸 떨림: 화날수록 잦아진다
+    if (v.phase === 'hold' && v.tremble > 0.8) {
+      const gap = Math.max(2, 9 - Math.round(v.tremble * 2));
+      if (Math.floor(v.time * 18) % gap === 0) ox += Math.floor(v.time * 36) % 2 ? 1 : -1;
+    }
+    const hy = oy + 6; // 머리 맨 윗줄
+    const wide = v.tailSwing > 0.55;
+    spr(c, ox + 27, oy + 28, TAILS[(wide ? 2 : 0) + (Math.sin(v.tailPhase) > 0 ? 1 : 0)], FUR);
+    spr(c, ox + 2, oy + 26, BODY, FUR);
+    spr(c, ox, oy, EARS[v.flat < 0.34 ? 0 : v.flat < 0.67 ? 1 : 2], FUR);
+    spr(c, ox, hy, HEAD, FUR);
+    if (v.puff > 0) { // 드물게 보는 구간: 털이 곤두선다
+      [[ox - 2, hy + 4], [ox - 2, hy + 9], [ox - 2, hy + 14], [ox + 32, hy + 4], [ox + 32, hy + 9], [ox + 32, hy + 14]].forEach(([x, y]) => fill(c, x, y, 2, 1, C.furDark));
+    }
+    drawFace(c, v, ox, hy);
+    drawSteam(c, v, ox, hy);
+    if (v.pawShown) { // 앞발을 든다
+      const py = oy + 28 - Math.round(v.pawUp * 10);
+      spr(c, ox + 30, py, PAW, { o: C.line, f: C.fur, w: C.furLight });
+      if (v.claws) spr(c, ox + 30, py - 1, CLAWS, { w: C.white });
+    }
+    if (a >= 15 && v.phase !== 'won' && v.phase !== 'dead' && (a < 28 || Math.floor(v.time * 5) % 2 === 0)) { // 위험 표시
+      spr(c, 3, 4, BANG, { b: C.bang });
+      if (a >= 24) spr(c, 7, 4, BANG, { b: C.bang });
+    }
+    if (v.phase === 'dead') {
+      drawBite(c, v, ox, hy);
+      if (v.phaseT < 0.08) fill(c, 0, 0, 64, 48, C.ray); // 물린 순간 번쩍
+    } else {
+      drawHand(c, v, ox, oy);
+    }
+    if (v.phase === 'won' && v.phaseT > 0.3) [6, 10, 14].forEach((x) => fill(c, x, 8, 2, 2, C.line)); // 시치미
+    stage.blit(g);
+  }
+
+  window.CAT_ARTS['color-a'] = { name: '컬러 A', noBang: true, draw: (g, v) => draw(g, v) };
+})();
+</script>
+<script>
+/* 그림 「컬러 B」: 판 64×48칸. 글자 하나가 색 하나다 */
+(function () {
+  'use strict';
+
+  const stage = CatArtKit.layer(64, 48);
+  const colors = {
+    B: '#e9d8b5', F: '#c9ac83', D: '#583d32', O: '#c77c45',
+    G: '#e9a65d', L: '#f6c87e', C: '#fff0ce', P: '#d98679',
+    R: '#ad5149', E: '#302c30', Y: '#c4cd91', S: '#ecc09b',
+    H: '#c58e74', T: '#477d77', U: '#315b59',
+  };
+
+  function stamp(x, y, rows, flip = false) {
+    const used = new Set(rows.join(''));
+    used.delete('.');
+    used.forEach((key) => {
+      const mask = rows.map((row) => row.replace(/./g, (ch) => ch === key ? '#' : '.'));
+      CatArtKit.paint(stage.c, x, y, mask, colors[key], colors[key], flip);
+    });
+  }
+
+  const body = [
+    '.......DDDDDDDDDDDD.......',
+    '.....DDOOOOOOOOOOOOGDD.....',
+    '....DOOGGGGGGGGGGGGGGGD....',
+    '...DOOGGGGCCCCCCCCGGGGGD...',
+    '..DOOGGGCCCCCCCCCCCCGGGGD..',
+    '..DOGGGCCCCCCCCCCCCCCGGGD..',
+    '.DOOGGGCCCCCCCCCCCCCCGGGGD.',
+    '.DOGGGGCCCCCCCCCCCCCCGGGGD.',
+    '.DOGGGGCCCCCCCCCCCCCCGGGGD.',
+    '.DOGGGGCCCCCCCCCCCCCCGGGGD.',
+    '.DOGGGGGCCCCCCCCCCCCGGGGGD',
+    '.DOGGGGGGCCCCCCCCCCGGGGGGD',
+    '.DOOGGGGGGCCCCCCCCGGGGGGGD',
+    '..DOGGGGGGGCCCCCCGGGGGGGD.',
+    '..DOLLLLLGGGDDGGGLLLLLLGD.',
+    '..DLLLLLLLLLDDLLLLLLLLLLD.',
+    '..DLLLDLLDLLDDLLDLLDLLLD.',
+    '...DDDDDDDDD..DDDDDDDDD..',
+  ];
+  const head = [
+    '.......DDDDDDDDDDDDDDDD.......',
+    '.....DDGGGGGGGOOGGGGGGGDD.....',
+    '...DDGGGGGGGGGOOGGGGGGGGGDD...',
+    '..DGGGGGOGGGGGOOGGGGOGGGGGGD..',
+    '.DGGGGGGOGGGGGLLGGGGOGGGGGGGD.',
+    '.DGGGGGGGGGGGGLLGGGGGGGGGGGGD.',
+    'DGGGGGGGGGGGGGLLGGGGGGGGGGGGGD',
+    'DGGGGGGGGGGGGGLLGGGGGGGGGGGGGD',
+    'DGGGGGGGGGGGGGLLGGGGGGGGGGGGGD',
+    'DOGGGGGGGGGGGGLLGGGGGGGGGGGGGOD',
+    'DOGGGGGCCCCCCCCCCCCCCCCGGGGGGOD',
+    '.DOGGGCCCCCCCCCCCCCCCCCCGGGGOD.',
+    '.DOOGCCCCCCCCCCCCCCCCCCCCGGOD.',
+    '..DOOGCCCCCCCCCCCCCCCCCCGGOD..',
+    '...DOOGGCCCCCCCCCCCCCCGGGOD...',
+    '....DOOOGGGCCCCCCCCGGGGOOD....',
+    '......DDOOOOOGGGGOOOOODD......',
+    '........DDDDDDDDDDDDDD........',
+  ];
+  const ears = [
+    ['.DD.......', '.DGD......', '.DGGD.....', '.DGPGD....', '.DGPPGD...', '.DGPPPGD..', '.DGGGGGGD.', 'DDGGGGGGGD'],
+    ['..........', '..........', 'DDD.......', 'DGGDD.....', '.DGPPDD...', '.DGPPPGD..', '.DGGGGGGD.', 'DDGGGGGGGD'],
+    ['..........', '..........', '..........', '..........', 'DDDDD.....', 'DGGPPDDD..', '.DGGPPGGDD', '..DGGGGGGD'],
+    ['..........', '..........', '..........', '..........', '..........', 'DDDDDDD...', '.DGPPPGGDD', '..DDGGGGGD'],
+  ];
+  const eyes = [
+    ['..EEE..', '.E...E.', '.......', '.......'],
+    ['.EEEEE.', 'EYEEYYE', '.EEEEE.', '.......'],
+    ['.EEEEE.', 'EYYEYYE', 'EYYEYYE', '.EEEEE.'],
+    ['EE.....', '.EEEEEE', '.YYEEYE', '..EEEE.'],
+    ['EEE....', '.EEEEEE', '..YEEEE', '...EEE.'],
+  ];
+  const tail = [
+    '......DDDD..', '.....DGGLLD.', '.....DGGLDD.', '.....DGOD...',
+    '.....DGOD...', '.....DGGD...', '.....DGGD...', '....DGOGD...',
+    '....DGOGD...', '...DGGGD....', '..DGGGOD....', '.DGGGOOD....',
+    'DGGGODD.....', 'DGGDD.......', '.DD.........',
+  ];
+  const hand = [
+    '.............UUUUUUUUUUUU',
+    '.............UTTTTTTTTTTT',
+    '.........HHHHUTTTTTTTTTTT',
+    '......HHHSSSSUTTTTTTTTTTT',
+    '....HHSSSSSSSCTTTTTTTTTTT',
+    '..HHSSSSSSSSSCTTTTTTTTTTT',
+    '.HSSSSSSSSSSSCTTTTTTTTTTT',
+    'HSSSSSSSSSSHHUUUUUUUUUUUU',
+    'HSSSHSSSHHH..............',
+    '.HHHSHHSH................',
+    '....HH.HH................',
+  ];
+  const bittenHand = [
+    '..............UUUUUUUUUUUUUUUUUU',
+    '..HHHHHHHHHHHHUCTTTTTTTTTTTTTTT',
+    '.HSSSSSSSSSSSSSCTTTTTTTTTTTTTTT',
+    'HSSSSSSSSSSSSSSCTTTTTTTTTTTTTTT',
+    'HSSSSSSSSSSSSSSCTTTTTTTTTTTTTTT',
+    '.HHHHSSSSSSSSSHUUUUUUUUUUUUUUUU',
+    '.....HHHHHHHHHH................',
+  ];
+  const paw = [
+    '..DDDDD..', '.DLLLLLD.', 'DLLCLCLLD', 'DLLLLLLLD',
+    'DGGLLLGGD', '.DGGGGGD.', '.DGOOGGD.', '..DGGGD..', '...DDD...',
+  ];
+  const bite = [
+    '...DDDDDDDD...', '..DEEEEEEEED..', '.DECCEEECCEED.',
+    'DEECCEEECCEEED', 'DEEEEEEEEEEEED', 'DEEEEEEEEEEEED',
+    '.DEECEPEPCEED.', '..DECPPPPCED..', '...DDDDDDDD...',
+  ];
+  const unit = (value) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+  const finite = (value) => Number.isFinite(value) ? value : 0;
+
+  window.CAT_ARTS = window.CAT_ARTS || {};
+  window.CAT_ARTS['color-b'] = {
+    name: '컬러 B',
+    noBang: true,
+    draw(g, v) {
+      const a = Math.max(0, Math.min(100, finite(v.a)));
+      const time = finite(v.time);
+      const phaseT = Math.max(0, finite(v.phaseT));
+      const dead = v.phase === 'dead';
+      const hold = v.phase === 'hold';
+      const shake = hold && a >= 18 ? Math.round(Math.sin(time * 23) * Math.min(1, unit(v.fear))) : 0;
+      const x = 14 + shake + Math.round(unit(v.turn));
+      const y = dead ? 13 : 14;
+      const c = stage.c;
+      c.fillStyle = colors.B;
+      c.fillRect(0, 0, 64, 48);
+      c.fillStyle = colors.F;
+      c.fillRect(0, 44, 64, 1);
+
+      const swing = Math.round(Math.sin(finite(v.tailPhase)) * (1 + unit(v.tailSwing) * 3));
+      stamp(40 + swing, 27 - Math.min(5, Math.floor(a / 6)), tail);
+      stamp(17 + shake, 26, body);
+      if (unit(v.belly) < 0.5) {
+        stamp(22 + shake, 31, ['OOO..........OOO', '.OO..........OO.', '..O..........O..']);
+      }
+      if (unit(v.puff) > 0.2) {
+        stamp(x - 1, 26, ['G...............G...............G', '.GG.............G.............GG.', '..GG........................GG..']);
+      }
+      const ear = ears[Math.min(3, Math.floor(unit(v.flat) * 3.99))];
+      stamp(x + 1, y - 5, ear);
+      stamp(x + 20, y - 5, ear, true);
+      stamp(x, y, head);
+
+      let eye = unit(v.open) < 0.16 ? 0 : unit(v.open) < 0.65 ? 1 : 2;
+      if (unit(v.brow) >= 0.3) eye = 3;
+      if (unit(v.brow) >= 0.7 || dead) eye = 4;
+      stamp(x + 5, y + 6, eyes[eye]);
+      stamp(x + 20, y + 6, eyes[eye], true);
+      if (unit(v.pupil) > 0.45 && eye === 2) {
+        stamp(x + 8, y + 7, ['EE', 'EE']);
+        stamp(x + 22, y + 7, ['EE', 'EE']);
+      }
+      stamp(x + 13, y + 10, ['.RRRR.', '..RR..', '..DD..']);
+      stamp(x + 2, y + 11, ['OOO......................OOO', '............................', '.OO......................OO.']);
+
+      if (dead) {
+        stamp(x + 11, y + 12, bite);
+        stamp(x + 19, y + 15, bittenHand);
+        stamp(x + 20, y + 14, ['CC....CC', '.C....C.', '........', '........', '.C....C.', 'CC....CC']);
+        stamp(x + 22, y + 21, paw);
+        stamp(x + 4, y + 19, paw);
+        stamp(x + 31, y + 11, ['R..R', '.RR.', '.RR.', 'R..R']);
+      } else {
+        const mouth = Math.max(0, Math.min(3, Math.floor(finite(v.mouth))));
+        const mouths = [
+          ['D..D..D', '.DD.DD.'],
+          ['.DDDDD.', '.......'],
+          ['..DDD..', '.DEEED.', '..DDD..'],
+          ['.DDDDD.', 'DECECED', '.DPPPD.', '..DDD..'],
+        ];
+        stamp(x + 12, y + 13, mouths[mouth]);
+        if (mouth >= 2 && unit(v.gap) > 0.5) {
+          stamp(x + 13, y + 14, ['EEEEE', 'EPPPE', '.DDD.']);
+        }
+        if (v.pawShown) {
+          const py = 32 - Math.round(unit(v.pawUp) * 7);
+          stamp(x + 23, py, paw);
+          if (v.claws) stamp(x + 24, py - 1, ['C.C.C.C', 'C.C.C.C']);
+        }
+        let hx = 34;
+        let hy = 1;
+        if (hold) {
+          hx = 28 + Math.round(Math.sin(time * 5) * (3 - unit(v.fear) * 2));
+          hy = 3 + (a >= 17 ? Math.round(Math.sin(time * 19)) : 0);
+        } else if (v.phase === 'won') {
+          const retreat = Math.min(1, phaseT / 0.7);
+          hx = 30 + Math.round(retreat * 34);
+          hy = 3 - Math.round(retreat * 8);
+        }
+        stamp(hx, hy, hand);
+      }
+
+      if (hold && a >= 5) {
+        const tension = Math.min(25, Math.floor(a) - 4);
+        const marks = [
+          [53, 28], [54, 27], [55, 26], [55, 25], [55, 24],
+          [57, 30], [58, 29], [59, 28], [59, 27], [59, 26],
+          [10, 22], [9, 21], [8, 20], [8, 19], [8, 18],
+          [53, 19], [54, 18], [54, 17], [55, 16], [55, 15],
+          [8, 28], [7, 27], [6, 26], [6, 25], [6, 24],
+        ];
+        for (let i = 0; i < tension; i += 1) {
+          stamp(marks[i][0], marks[i][1], ['R']);
+        }
+      }
+      stage.blit(g);
+    },
+  };
+})();
+</script>
+<script>
+/* 그림 「픽셀」: 판 160×120칸. 같은 그림 뼈대에 물감(팔레트)만 바꿔 두 벌을 만든다.
+   초록 네 색 = 어두워질 땐 점을 섞음. 또렷한 색 = 검은 외곽선, 어두워질 땐 색을 바꿈. */
+(function () {
+  const { rect, disc, tri, line } = HoldGame;
+  const { layer, dither } = CatArtKit;
+  const lerp = (a, b, k) => a + (b - a) * k;
+
+  // 외곽선을 두른 타원: 어두운 색으로 한 칸 크게 칠한 뒤 안을 칠한다
+  function blob(c, x, y, rx, ry, fill, edge) {
+    disc(c, x, y, rx + 1, ry + 1, edge);
+    disc(c, x, y, rx, ry, fill);
+  }
+  function earShape(c, x, y, dir, flat, P) {
+    const tipX = x + dir * (4 + flat * 13), tipY = y - 14 + flat * 12;
+    tri(c, x - 8, y + 3, x + 8, y + 3, tipX, tipY - 1, P.edge);
+    tri(c, x - 7, y + 3, x + 7, y + 3, tipX, tipY + 1, P.fur);
+    tri(c, x - 3, y + 3, x + 3, y + 3, tipX, tipY + 5, P.pink);
+  }
+
+  function drawRoom(c, v, P) {
+    P.wall(c, v);
+    // 창문
+    rect(c, 10, 8, 38, 30, P.frame);
+    rect(c, 12, 10, 34, 26, P.sky(v));
+    rect(c, 28, 10, 2, 26, P.frame);
+    rect(c, 12, 22, 34, 2, P.frame);
+    P.floor(c, v);
+    // 쿠션
+    disc(c, 80, 103, 58, 13, P.edge);
+    disc(c, 80, 102, 56, 12, P.cushionDark);
+    disc(c, 80, 100, 52, 10, P.cushion);
+  }
+
+  function drawTail(c, v, P) {
+    const thick = 3 + Math.round(v.puff * 2);
+    const points = [];
+    for (let i = 0; i < 11; i += 1) {
+      const k = i / 10;
+      points.push([113 + i * 2.8, 96 - i * 1.3 + Math.sin(v.tailPhase - i * 0.55) * v.tailSwing * 12 * k]);
+    }
+    points.forEach(([x, y]) => rect(c, x - 1, y - 1, thick + 2, thick + 2, P.edge));
+    points.forEach(([x, y], i) => rect(c, x, y, thick, thick, i % 3 === 2 ? P.furDark : P.fur));
+  }
+
+  function drawBody(c, v, P, dy) {
+    const grow = 1 + v.puff * 0.2;
+    blob(c, 82, 88 + dy, 36 * grow, 20 * grow, P.fur, P.edge);
+    for (let i = 0; i < 4; i += 1) rect(c, 96 + i * 6, 73 + i + dy, 2, 8, P.furDark);
+    const bellyW = Math.round(25 * v.belly);
+    if (bellyW > 1) disc(c, 75, 94 + dy, bellyW, 9, P.cream);
+    if (!v.pawShown) {
+      blob(c, 59, 104 + dy, 7, 4, P.fur, P.edge);
+      blob(c, 99, 105 + dy, 7, 4, P.fur, P.edge);
+    }
+  }
+
+  function drawEyes(c, v, P, fx, cy) {
+    const lookX = Math.round(v.turn * 2), lookY = -Math.round(v.turn * 1.5);
+    [-10, 10].forEach((dx) => {
+      const ex = fx + dx, ey = cy - 3;
+      if (v.open <= 0.02) { // 편하게 감은 웃는 눈
+        rect(c, ex - 4, ey, 2, 1, P.edge);
+        rect(c, ex - 2, ey - 1, 4, 1, P.edge);
+        rect(c, ex + 2, ey, 2, 1, P.edge);
+        return;
+      }
+      const eyeH = 1 + v.open * 3.5;
+      disc(c, ex, ey, 5.5, eyeH + 1, P.edge);
+      disc(c, ex, ey, 4.5, eyeH, v.a > 40 ? P.eyeHot : P.eye);
+      const pupilW = lerp(1, 3.5, v.pupil);
+      const pupilH = Math.min(eyeH, lerp(3, 4.5, v.pupil));
+      disc(c, ex + lookX, ey + lookY, pupilW, pupilH, P.edge);
+      if (v.rare) { // 드문 구간: 핏줄
+        rect(c, ex - 5, ey, 2, 1, P.vein);
+        rect(c, ex + 3, ey - 1, 2, 1, P.vein);
+      }
+      if (v.brow > 0) { // 눈썹이 안쪽으로 내려오며 찡그림
+        const side = Math.sign(dx);
+        line(c, ex + side * 6, ey - 6 + v.brow, ex - side * 5, ey - 5 + v.brow * 3, 1, P.edge);
+        line(c, ex + side * 6, ey - 7 + v.brow, ex - side * 5, ey - 6 + v.brow * 3, 1, P.edge);
+      }
+    });
+  }
+
+  function drawMouth(c, v, P, x, cy) {
+    const y = cy + 7;
+    if (v.mouth === 0) { // ω
+      rect(c, x - 4, y + 1, 1, 1, P.edge);
+      rect(c, x - 3, y + 2, 2, 1, P.edge);
+      rect(c, x - 1, y + 1, 2, 1, P.edge);
+      rect(c, x + 1, y + 2, 2, 1, P.edge);
+      rect(c, x + 3, y + 1, 1, 1, P.edge);
+      return;
+    }
+    if (v.mouth === 1) { // 일자로 점점 길어진다
+      const half = 4 + Math.round((v.a - 10) * 0.12);
+      rect(c, x - half, y + 2, half * 2, 1, P.edge);
+      return;
+    }
+    const gap = Math.round(1 + v.gap * 7);
+    const half = 6 + Math.round(v.gap * 4);
+    rect(c, x - half - 1, y - 1, half * 2 + 2, gap + 2, P.edge);
+    rect(c, x - half, y, half * 2, gap, P.mouth);
+    if (v.mouth === 3) {
+      const fang = Math.min(gap, 3);
+      tri(c, x - half + 1, y, x - half + 4, y, x - half + 2, y + fang, P.tooth);
+      tri(c, x + half - 4, y, x + half - 1, y, x + half - 2, y + fang, P.tooth);
+    }
+  }
+
+  function drawHead(c, v, P, dy) {
+    const cx = 79 - (v.phase === 'won' ? Math.min(1, v.phaseT * 2) * 5 : 0);
+    const cy = 58 - Math.round(v.turn) + dy;
+    const r = 23 * (1 + v.puff * 0.1);
+    if (v.puff > 0) { // 곤두선 털
+      const len = v.puff * 7 + 2;
+      for (let i = 0; i < 14; i += 1) {
+        const ang = (i / 14) * Math.PI * 2;
+        const bx = cx + Math.cos(ang) * r * 0.92, by = cy + Math.sin(ang) * r * 0.78;
+        const nx = Math.cos(ang + 1.57) * 3, ny = Math.sin(ang + 1.57) * 3;
+        tri(c, bx - nx, by - ny, bx + nx, by + ny, bx + Math.cos(ang) * (len + 2), by + Math.sin(ang) * (len + 2), P.edge);
+      }
+    }
+    earShape(c, cx - 14, cy - 14, -1, v.flat, P);
+    earShape(c, cx + 14, cy - 14, 1, v.flat, P);
+    blob(c, cx, cy, r, r * 0.82, P.fur, P.edge);
+    for (let i = -1; i <= 1; i += 1) rect(c, cx + i * 6 - 1, cy - 18, 2, 6 - Math.abs(i) * 2, P.furDark);
+    const fx = cx + Math.round(v.turn * 4);
+    disc(c, fx, cy + 8, 10, 6, P.cream);
+    drawEyes(c, v, P, fx, cy);
+    tri(c, fx - 2, cy + 3, fx + 2, cy + 3, fx, cy + 6, P.pink);
+    drawMouth(c, v, P, fx, cy);
+    // 수염은 찡그릴수록 앞으로 내려온다
+    const droop = v.fear * 3;
+    [[-1, -2], [-1, 1], [1, -2], [1, 1]].forEach(([side, off]) => {
+      const bx = fx + side * 8, by = cy + 5 + off;
+      line(c, bx, by, bx + side * 13, by + off - droop, 1, P.whisker);
+    });
+    return { cx, cy };
+  }
+
+  function drawPaw(c, v, P, cx) {
+    if (!v.pawShown) return;
+    const x = cx + 31, y = lerp(100, 64, v.pawUp) + Math.sin(v.time * 40) * Math.min(1.5, v.puff * 3);
+    line(c, 98, 105, x, y + 7, 8, P.edge);
+    line(c, 98, 105, x, y + 7, 6, P.fur);
+    blob(c, x, y, 7, 6, P.fur, P.edge);
+    disc(c, x, y + 1, 3, 3, P.pink);
+    if (v.claws) {
+      for (let i = -1; i <= 1; i += 1) tri(c, x + i * 4 - 1, y - 5, x + i * 4 + 1, y - 5, x + i * 4, y - 10, P.tooth);
+    }
+  }
+
+  function drawHand(c, v, P, head) {
+    let hx, hy, fromX = 166, fromY = -8;
+    if (v.phase === 'hold') {
+      const width = lerp(12, 4, v.fear);
+      hx = head.cx + 8 + Math.sin(v.time * 3.6) * width + (Math.random() - 0.5) * v.fear * 2;
+      hy = head.cy - 26 + Math.abs(Math.cos(v.time * 3.6)) * 2;
+    } else if (v.phase === 'won') {
+      hx = head.cx + 8 + v.phaseT * 40;
+      hy = head.cy - 26 - v.phaseT * 32;
+    } else if (v.phase === 'dead') {
+      hx = head.cx + 12;
+      hy = head.cy + 9;
+      fromY = head.cy + 13;
+    } else {
+      hx = 133; hy = 22;
+    }
+    line(c, fromX, fromY, hx + 9, hy - 1, 12, P.edge);
+    line(c, fromX, fromY, hx + 9, hy - 1, 10, P.sleeve);
+    blob(c, hx, hy, 9, 6, P.skin, P.edge);
+    for (let i = 0; i < 4; i += 1) {
+      const fx = hx - 10 + i * 4.5, len = i === 0 || i === 3 ? 5 : 6;
+      rect(c, fx - 1, hy + 2, 5, len + 1, P.edge);
+      rect(c, fx, hy + 2, 3, len, P.skin);
+    }
+    if (v.phase === 'dead') {
+      for (let i = 0; i < 3; i += 1) rect(c, hx - 7 + i * 6, hy + 7, 1, 3 + i, P.vein);
+    }
+  }
+
+  function makeArt(P) {
+    let board = null;
+    return (g, v) => {
+      if (!board) board = layer();
+      const c = board.c;
+      const dy = v.phase === 'hold' ? Math.round((Math.random() - 0.5) * v.tremble) : 0;
+      drawRoom(c, v, P);
+      drawTail(c, v, P);
+      drawBody(c, v, P, dy);
+      const head = drawHead(c, v, P, dy);
+      drawPaw(c, v, P, head.cx);
+      drawHand(c, v, P, head);
+      board.blit(g);
+    };
+  }
+
+  /* 초록 네 색만 쓰는 물감. 그림 목록에는 넣지 않았다(아래 또렷한 색 물감이 「픽셀」로 보인다) */
+  const GB = { dark: '#0f380f', mid: '#306230', light: '#8bac0f', pale: '#9bbc0f' };
+  CAT_ARTS['pixel-green'] = {
+    name: '픽셀 초록',
+    bang: [GB.pale, GB.dark],
+    draw: makeArt({
+      edge: GB.dark,
+      fur: GB.pale,
+      furDark: GB.mid,
+      cream: GB.light,
+      pink: GB.mid,
+      eye: GB.pale,
+      eyeHot: GB.light,
+      vein: GB.mid,
+      mouth: GB.mid,
+      tooth: GB.pale,
+      whisker: GB.dark,
+      skin: GB.light,
+      sleeve: GB.mid,
+      frame: GB.dark,
+      cushion: GB.mid,
+      cushionDark: GB.dark,
+      sky: (v) => (v.room > 0.5 ? GB.mid : GB.pale),
+      wall(c, v) {
+        // 어두워질수록 어두운 점이 늘어난다
+        const level = v.room <= 0.05 ? 0 : v.room < 0.35 ? 1 : v.room < 0.7 ? 2 : 3;
+        dither(c, 0, 0, 160, 88, GB.light, GB.mid, level);
+      },
+      floor(c, v) {
+        dither(c, 0, 88, 160, 32, GB.mid, GB.dark, v.room < 0.35 ? 1 : 2);
+      },
+    }),
+  };
+
+  /* 검은 외곽선, 또렷한 색. 어두워지면 벽 색이 단계별로 붉어진다 */
+  const WALLS = ['#fce0a8', '#f8d878', '#f8b800', '#e45c10', '#a81000'];
+  const SKIES = ['#3cbcfc', '#3cbcfc', '#0078f8', '#0058f8', '#0000bc'];
+  const step = (v) => Math.min(4, Math.floor(v.room * 5));
+  CAT_ARTS['pixel'] = {
+    name: '픽셀',
+    bang: ['#fcfcfc', '#000000'],
+    draw: makeArt({
+      edge: '#000000',
+      fur: '#fc9838',
+      furDark: '#c84c0c',
+      cream: '#fcfcfc',
+      pink: '#f878f8',
+      eye: '#b8f818',
+      eyeHot: '#f8f858',
+      vein: '#d82800',
+      mouth: '#a81000',
+      tooth: '#fcfcfc',
+      whisker: '#000000',
+      skin: '#fcd8a8',
+      sleeve: '#0058f8',
+      frame: '#fcfcfc',
+      cushion: '#f83800',
+      cushionDark: '#a81000',
+      sky: (v) => SKIES[step(v)],
+      wall(c, v) { rect(c, 0, 0, 160, 88, WALLS[step(v)]); },
+      floor(c, v) {
+        rect(c, 0, 88, 160, 32, v.room > 0.6 ? '#881400' : '#ac7c00');
+        for (let i = 0; i < 3; i += 1) rect(c, 0, 94 + i * 9, 160, 1, '#503000');
+      },
+    }),
+  };
+})();
+</script>
+<script>
+/* 그림 「패미컴」: 판 160×120칸 */
+(function () {
+  'use strict';
+
+  const layer = CatArtKit.layer(160, 120);
+  const c = layer.c;
+  const ink = '#000000';
+  const cream = '#f8d878';
+  const fur = '#f87858';
+  const rust = '#a81000';
+  const white = '#fcfcfc';
+  const blue = '#0078f8';
+  const navy = '#0000bc';
+  const pink = '#f85898';
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const box = (x, y, w, h, color) => HoldGame.rect(c, x, y, w, h, color);
+
+  // 줄마다 시작 칸과 길이를 정해, 둥근 도형 대신 손으로 깎은 외곽선을 만든다.
+  function rows(x, y, data, color, height) {
+    data.forEach((row, i) => box(x + row[0], y + i * (height || 1), row[1], height || 1, color));
+  }
+
+  function stitch(x, y, color) {
+    box(x + 1, y, 1, 3, color);
+    box(x, y + 1, 3, 1, color);
+  }
+
+  function room(v) {
+    // 불을 낮출 때 물감 자체를 네 단계로 바꾼다.
+    const level = Math.min(3, Math.floor(v.room * 4));
+    const wall = ['#f8d878', '#f87858', '#881400', '#503000'][level];
+    const trim = ['#f87858', '#a81000', '#503000', '#000000'][level];
+    const floor = ['#f87858', '#881400', '#503000', '#000000'][level];
+    box(-8, -8, 176, 136, wall);
+    box(0, 0, 160, 5, trim);
+    box(0, 76, 160, 4, ink);
+    box(0, 80, 160, 40, floor);
+    box(0, 81, 160, 2, trim);
+    for (let y = 89; y < 120; y += 12) {
+      box(0, y, 160, 1, trim);
+      for (let x = (y % 2 ? 8 : 29); x < 160; x += 43) box(x, y + 1, 1, 11, trim);
+    }
+    box(10, 13, 36, 43, ink);
+    box(12, 15, 32, 39, trim);
+    box(15, 18, 26, 33, level > 1 ? ink : navy);
+    box(31, 22, 6, 7, cream);
+    box(29, 24, 9, 3, cream);
+    box(34, 21, 4, 5, level > 1 ? ink : navy);
+    box(20, 23, 1, 1, white);
+    box(36, 38, 1, 1, white);
+    box(21, 44, 2, 1, cream);
+    box(27, 17, 2, 35, ink);
+    box(14, 34, 28, 2, ink);
+    box(8, 12, 7, 36, level > 1 ? navy : blue);
+    box(10, 14, 2, 25, level > 1 ? ink : navy);
+    box(7, 49, 41, 3, ink);
+    box(7, 52, 41, 3, trim);
+    box(123, 46, 31, 3, ink);
+    box(125, 49, 2, 6, trim);
+    box(149, 49, 2, 6, trim);
+    box(126, 39, 8, 7, ink);
+    box(127, 40, 6, 4, level > 1 ? '#503000' : rust);
+    box(129, 28, 2, 12, level > 1 ? ink : '#006800');
+    rows(122, 29, [[1, 4], [0, 7], [2, 5], [4, 3]], level > 1 ? '#005800' : '#58d854');
+    rows(131, 25, [[3, 4], [1, 6], [0, 6], [0, 4]], level > 1 ? '#005800' : '#58d854');
+    box(138, 41, 13, 4, ink);
+    box(139, 42, 10, 2, level > 1 ? navy : blue);
+    box(140, 36, 9, 5, ink);
+    box(141, 37, 7, 2, level > 1 ? '#503000' : cream);
+    rows(30, 91, [[8, 84], [3, 94], [0, 100], [0, 100], [2, 96], [7, 86]], ink, 3);
+    rows(32, 93, [[8, 80], [2, 92], [0, 96], [2, 92]], navy, 3);
+    box(38, 94, 83, 3, blue);
+    box(35, 99, 3, 5, blue);
+    box(122, 98, 3, 5, blue);
+    box(43, 106, 74, 1, blue);
+    for (let x = 43; x < 119; x += 9) box(x, 106, 3, 1, cream);
+    stitch(38, 98, cream);
+    stitch(119, 98, cream);
+  }
+
+  function tail(v, dx, dy) {
+    // 위험값 한 칸마다 꼬리 끝을 한 칸씩 올려 작은 변화도 읽히게 한다.
+    const rise = Math.floor(clamp(v.a, 0, 30));
+    const swing = Math.round(Math.sin(v.tailPhase) * (2 + v.tailSwing * 5));
+    const tipX = 38 + swing + dx;
+    const tipY = 84 - rise + dy;
+    const path = [[57 + dx, 93 + dy], [46 + dx, 93 + dy], [40 + dx, 88 + dy],
+      [tipX, tipY + 9], [tipX, tipY], [tipX + 5, tipY - 3], [tipX + 9, tipY - 3]];
+    for (let i = 1; i < path.length; i += 1) {
+      HoldGame.line(c, ...path[i - 1], ...path[i], 7, ink);
+    }
+    for (let i = 1; i < path.length; i += 1) {
+      HoldGame.line(c, ...path[i - 1], ...path[i], 3, fur);
+    }
+    box(tipX + 5, tipY - 5, 5, 5, rust);
+    box(45 + dx, 89 + dy, 3, 6, rust);
+  }
+
+  function ear(x, y, side, flat) {
+    const lean = Math.round(flat * 6);
+    const tip = side < 0 ? x - lean : x + 9 + lean;
+    const top = y + Math.round(flat * 7);
+    for (let row = 0; row < 13 - Math.round(flat * 5); row += 1) {
+      const left = side < 0 ? tip + Math.floor(row / 3) : tip - row;
+      const width = Math.min(14, row + 3);
+      box(left, top + row, width, 1, ink);
+      if (row > 2 && row < 10) box(left + 2, top + row, Math.max(1, width - 4), 1, row < 6 ? rust : fur);
+    }
+  }
+
+  function eye(x, y, v, right) {
+    const open = Math.round(v.open * 5);
+    const tilt = Math.round(v.brow * 3);
+    const glance = Math.round(v.turn * 2);
+    if (open === 0) {
+      box(x + 1, y + 2, 7, 2, ink);
+      box(x, y + 1, 2, 2, ink);
+      box(x + 7, y + 1, 2, 2, ink);
+      return;
+    }
+    box(x, y - 1, 10, open + 3, ink);
+    box(x + 1, y, 8, open + 1, cream);
+    const pupil = 1 + Math.round(v.pupil * 3);
+    box(x + 4 + glance - Math.floor(pupil / 2), y, pupil, open + 1, ink);
+    if (v.pupil > 0.45) box(x + 4 + glance, y + 1, 1, 1, white);
+    for (let n = 0; n < 5; n += 1) {
+      const h = Math.round((right ? 4 - n : n) * tilt / 4);
+      box(x + n * 2, y - 1, 2, 1 + h, ink);
+    }
+  }
+
+  function cat(v) {
+    const dx = Math.round(Math.sin(v.time * (10 + v.a * 0.4)) * v.tremble * 0.55);
+    const dy = v.rare ? Math.round(Math.sin(v.time * 24) * v.puff) : 0;
+    const headX = 58 + dx + Math.round(v.turn * 4);
+    const headY = 47 + dy - Math.round(v.turn * 2);
+    const puff = Math.round(v.puff * 5);
+    tail(v, dx, dy);
+    rows(53 + dx - puff, 67 + dy, [[8, 38 + puff * 2], [4, 46 + puff * 2],
+      [2, 50 + puff * 2], [0, 54 + puff * 2], [0, 54 + puff * 2], [3, 48 + puff * 2]], ink, 5);
+    rows(56 + dx - puff, 69 + dy, [[7, 34 + puff * 2], [3, 42 + puff * 2],
+      [1, 46 + puff * 2], [0, 48 + puff * 2], [3, 42 + puff * 2]], fur, 5);
+    const bellyY = 80 + Math.round((1 - v.belly) * 3);
+    rows(68 + dx, bellyY + dy, [[4, 14], [1, 20], [0, 22], [2, 18]], cream, 3);
+    box(58 + dx, 80 + dy, 7, 3, rust);
+    box(59 + dx, 85 + dy, 5, 2, rust);
+    box(98 + dx, 80 + dy, 6, 3, rust);
+    rows(58 + dx, 89 + dy, [[2, 14], [0, 18], [0, 18], [2, 14]], ink, 2);
+    rows(85 + dx, 89 + dy, [[2, 14], [0, 18], [0, 18], [2, 14]], ink, 2);
+    box(60 + dx, 91 + dy, 14, 4, rust);
+    box(87 + dx, 91 + dy, 14, 4, rust);
+    box(64 + dx, 94 + dy, 1, 2, cream);
+    box(69 + dx, 94 + dy, 1, 2, cream);
+    box(91 + dx, 94 + dy, 1, 2, cream);
+    box(96 + dx, 94 + dy, 1, 2, cream);
+    ear(headX + 1, headY - 13, -1, v.flat);
+    ear(headX + 25, headY - 13, 1, v.flat);
+    rows(headX - 2, headY, [[8, 30], [3, 40], [0, 46], [0, 46], [2, 42], [5, 36], [11, 24]], ink, 4);
+    rows(headX, headY + 2, [[7, 28], [2, 38], [0, 42], [1, 40], [4, 34], [10, 22]], fur, 4);
+    rows(headX + 15, headY + 2, [[0, 19], [0, 21], [2, 18], [4, 13], [7, 8], [9, 4]], rust, 2);
+    box(headX + 4, headY + 16, 5, 2, rust);
+    box(headX + 33, headY + 17, 6, 2, rust);
+    eye(headX + 5, headY + 10, v, false);
+    eye(headX + 26, headY + 9 - Math.round(v.turn), v, true);
+    rows(headX + 13, headY + 18, [[3, 10], [0, 16], [1, 14], [4, 8]], cream, 2);
+    box(headX + 19, headY + 17, 5, 2, ink);
+    box(headX + 20, headY + 19, 3, 1, ink);
+    const mouthY = headY + 22;
+    if (v.phase === 'dead' || v.mouth >= 2) {
+      const gap = v.phase === 'dead' ? 7 : 3 + Math.round(v.gap * 5);
+      box(headX + 16, mouthY - 1, 12, gap + 2, ink);
+      box(headX + 19, mouthY + gap - 2, 6, 2, rust);
+      if (v.mouth === 3 || v.phase === 'dead') {
+        box(headX + 17, mouthY, 3, 3, white);
+        box(headX + 24, mouthY, 3, 3, white);
+      }
+    } else if (v.mouth === 1) {
+      box(headX + 17, mouthY + 1, 10, 1, ink);
+      box(headX + 25, mouthY, 2, 1, ink);
+    } else {
+      box(headX + 21, mouthY - 2, 1, 3, ink);
+      box(headX + 17, mouthY + 1, 4, 1, ink);
+      box(headX + 22, mouthY + 1, 4, 1, ink);
+      box(headX + 16, mouthY, 1, 1, ink);
+      box(headX + 26, mouthY, 1, 1, ink);
+    }
+    box(headX - 4, headY + 19, 8, 1, ink);
+    box(headX - 3, headY + 23, 7, 1, ink);
+    box(headX + 40, headY + 18, 8, 1, ink);
+    box(headX + 40, headY + 22, 7, 1, ink);
+    if (v.pawShown) {
+      const py = 82 - Math.round(v.pawUp * 20) + dy;
+      rows(100 + dx, py, [[2, 9], [0, 13], [0, 13], [2, 9]], ink, 3);
+      box(102 + dx, py + 2, 9, 7, fur);
+      box(105 + dx, py + 5, 4, 3, rust);
+      if (v.claws) for (let n = 0; n < 3; n += 1) box(102 + n * 4 + dx, py - 2, 2, 4, white);
+    }
+    if (v.rare) {
+      for (let n = 0; n < 3; n += 1) {
+        box(48 + dx - n * 2, 72 + n * 6, 5 + n * 2, 2, ink);
+        box(109 + dx, 75 + n * 5, 5 + n * 2, 2, ink);
+      }
+      const jolt = Math.floor(v.time * 8) % 2;
+      box(115, 23 + jolt, 2, 8, ink);
+      box(117, 29 + jolt, 7, 2, ink);
+      box(120, 20 + jolt, 2, 6, ink);
+      box(122, 24 + jolt, 5, 2, ink);
+      box(115, 24 + jolt, 1, 5, white);
+      box(121, 21 + jolt, 1, 4, white);
+      if (v.puff > 0.4) {
+        box(21, 67, 2, 10, cream);
+        box(18, 71, 8, 2, cream);
+        box(132, 62, 2, 9, cream);
+        box(129, 65, 8, 2, cream);
+      }
+    }
+    return { x: headX, y: headY };
+  }
+
+  function hand(v, head) {
+    if (v.phase === 'dead') {
+      // 물린 손은 입 높이에서만 들어와 두 눈을 온전히 남긴다.
+      const y = head.y + 24;
+      box(head.x + 24, y, 77, 9, ink);
+      box(head.x + 25, y + 2, 76, 5, cream);
+      box(head.x + 39, y + 3, 15, 2, fur);
+      box(136, y - 2, 24, 14, ink);
+      box(138, y, 22, 10, blue);
+      box(139, y, 3, 10, white);
+      box(head.x + 24, y - 1, 3, 3, white);
+      box(head.x + 25, y + 6, 3, 3, white);
+      box(head.x + 20, y + 2, 3, 4, ink);
+      return;
+    }
+    const retreat = v.phase === 'won' ? Math.round(clamp(v.phaseT * 30, 0, 60)) : 0;
+    const stroke = v.phase === 'hold' ? Math.round(Math.sin(v.time * 6) * (5 - v.fear * 3)) : 0;
+    const tremor = v.phase === 'hold' ? Math.round(Math.sin(v.time * 23) * v.fear) : 0;
+    const x = (v.phase === 'ready' ? 107 : head.x + 20) + stroke + retreat;
+    const y = (v.phase === 'ready' ? 25 : head.y - 8) - retreat + tremor;
+    rows(x, y, [[19, 49], [12, 56], [6, 62], [1, 20], [0, 15], [0, 10], [2, 5]], ink, 2);
+    rows(x + 2, y + 2, [[12, 50], [5, 57], [0, 16], [0, 11], [1, 5]], cream, 2);
+    box(x + 5, y + 7, 12, 2, fur);
+    box(x + 2, y + 11, 1, 2, rust);
+    box(x + 7, y + 9, 1, 2, rust);
+    box(x + 29, y - 3, 40, 12, ink);
+    box(x + 31, y - 1, 38, 8, blue);
+    box(x + 31, y - 1, 3, 8, white);
+    box(x + 38, y + 5, 31, 2, navy);
+  }
+
+  CAT_ARTS['famicom'] = {
+    name: '패미컴',
+    bang: [cream, ink],
+    draw(g, v) {
+      room(v);
+      const head = cat(v);
+      hand(v, head);
+      layer.blit(g);
+    },
+  };
+})();
+</script>
+<script>
+/* 그림 「게임보이」: 판 160×120칸, 초록 네 색 */
+(function () {
+  'use strict';
+  const layer = CatArtKit.layer(160, 120);
+  const c = layer.c;
+  const ink = '#0f380f', shade = '#306230', fur = '#8bac0f', light = '#9bbc0f';
+  const r = (x, y, w, h, color) => HoldGame.rect(c, x, y, w, h, color);
+  const stroke = (x, y, xx, yy, width, color) => HoldGame.line(c, x, y, xx, yy, width, color);
+
+  function rows(x, y, bands, color) {
+    bands.forEach(([dx, dy, w, h]) => r(x + dx, y + dy, w, h, color));
+  }
+
+  function room(v) {
+    const darkness = Math.min(6, Math.floor(v.room * 7));
+    CatArtKit.dither(c, 0, 0, 160, 120, darkness < 3 ? fur : shade,
+      darkness < 3 ? shade : ink, darkness === 6 ? 3 : darkness % 3);
+    r(9, 10, 37, 40, ink); r(11, 12, 33, 35, shade);
+    r(13, 14, 13, 14, fur); r(29, 14, 13, 14, fur);
+    r(13, 31, 13, 14, fur); r(29, 31, 13, 14, fur);
+    r(16, 17, 2, 2, light); r(35, 21, 1, 1, light);
+    rows(32, 16, [[0, 0, 5, 2], [0, 2, 3, 3], [1, 5, 5, 2]], light);
+    r(7, 49, 41, 3, ink); r(9, 49, 37, 1, light);
+    r(0, 78, 160, 4, ink); r(0, 79, 160, 1, fur);
+    CatArtKit.dither(c, 0, 82, 160, 38, shade, ink, darkness > 2 ? 2 : 1);
+    [93, 109].forEach(y => r(0, y, 160, 1, ink));
+    [[21, 82], [141, 94], [32, 110]].forEach(([x, y]) => r(x, y, 1, 15, ink));
+    r(119, 23, 23, 17, ink); r(121, 25, 19, 13, fur);
+    rows(124, 28, [[2, 0, 6, 1], [0, 1, 10, 4], [2, 5, 6, 1], [10, 0, 2, 6]], shade);
+    r(126, 30, 1, 1, light);
+    rows(0, 0, [[35, 98, 91, 16], [30, 102, 101, 8], [40, 95, 79, 22]], ink);
+    rows(0, 0, [[35, 102, 91, 8], [41, 98, 77, 15]], fur);
+    r(41, 100, 77, 1, light); r(42, 112, 75, 2, shade);
+    for (let x = 40; x < 123; x += 6) r(x, 108, 2, 1, shade);
+  }
+
+  function hand(x, y, bite) {
+    // 물렸을 때는 손가락을 입 높이에서 수평으로 넣어 눈을 비워 둔다.
+    if (bite) {
+      rows(x, y, [[0, 2, 36, 9], [8, 0, 25, 13], [31, -2, 42, 17]], ink);
+      r(x + 2, y + 4, 36, 5, light); r(x + 10, y + 2, 25, 9, light);
+      r(x + 37, y, 38, 13, fur); r(x + 10, y + 9, 24, 2, shade);
+      r(x + 27, y + 3, 1, 5, shade); r(x + 31, y + 1, 2, 10, ink);
+    } else {
+      rows(x, y, [[0, 7, 22, 7], [3, 3, 23, 9], [12, 0, 19, 9], [23, -8, 35, 16]], ink);
+      rows(x, y, [[2, 8, 19, 4], [5, 5, 20, 6], [14, 2, 16, 6], [25, -6, 33, 12]], light);
+      r(x + 8, y + 9, 1, 3, shade); r(x + 14, y + 8, 1, 4, shade);
+      r(x + 20, y + 7, 1, 4, shade); r(x + 30, y - 5, 2, 11, shade);
+    }
+  }
+
+  CAT_ARTS['gameboy'] = {
+    name: '게임보이',
+    bang: [light, ink],
+    draw(g, v) {
+      room(v);
+      const risk = Math.max(0, Math.min(60, Math.floor(v.a)));
+      const shake = Math.round(Math.sin(v.time * (12 + v.a)) * v.tremble);
+      const bx = 77 + shake;
+      const hx = bx + Math.round(v.turn * 5);
+      const hy = 48 - Math.round(v.turn * 3) - (v.rare ? 3 : 0);
+      const dead = v.phase === 'dead';
+      // 꼬리 끝의 높이도 위험값마다 한 칸씩 달라진다.
+      const tip = 94 - Math.min(30, risk) + Math.round(Math.sin(v.tailPhase) * v.tailSwing * 8);
+      stroke(bx + 21, 93, bx + 38, 89, 9, ink);
+      stroke(bx + 38, 89, bx + 43, tip + 5, 8, ink);
+      stroke(bx + 43, tip + 5, bx + 38, tip, 7, ink);
+      stroke(bx + 21, 92, bx + 37, 88, 5, fur);
+      stroke(bx + 37, 88, bx + 42, tip + 5, 4, fur);
+      r(bx + 37, tip - 2, 5, 5, light);
+      r(bx + 37, 82, 5, 3, shade);
+      rows(bx, 0, [[-20, 69, 40, 33], [-25, 78, 50, 21], [-29, 91, 58, 11]], ink);
+      rows(bx, 0, [[-18, 71, 36, 29], [-23, 81, 46, 17], [-26, 93, 52, 7]], fur);
+      rows(bx, 0, [[-10, 77, 20, 22], [-14, 83, 28, 14]], light);
+      r(bx - 21, 81, 7, 3, shade); r(bx + 15, 80, 7, 3, shade);
+      r(bx - 23, 88, 8, 3, shade); r(bx + 17, 87, 7, 3, shade);
+      const foot = Math.round(v.pawUp * 16);
+      rows(bx, 0, [[-22, 95, 17, 8], [7, 95 - foot, 17, 8]], ink);
+      r(bx - 20, 96, 13, 5, light); r(bx + 9, 96 - foot, 13, 5, light);
+      for (let i = 0; i < 3; i++) {
+        r(bx - 18 + i * 4, 99, 1, 2, shade);
+        r(bx + 11 + i * 4, 99 - foot, 1, v.claws ? 5 : 2, v.claws ? light : shade);
+      }
+      const ear = Math.round(v.flat * 10);
+      for (let i = 0; i < 14; i++) {
+        const spread = Math.floor(i / 2);
+        r(hx - 23 - Math.round(v.flat * 4), hy - 16 + ear + i, 3 + spread, 1, ink);
+        r(hx + 19 - spread + Math.round(v.flat * 4), hy - 16 + ear + i, 3 + spread, 1, ink);
+        if (i > 3) {
+          r(hx - 21 - Math.round(v.flat * 4), hy - 16 + ear + i, Math.max(1, spread - 2), 1, shade);
+          r(hx + 21 - spread + Math.round(v.flat * 4), hy - 16 + ear + i, Math.max(1, spread - 2), 1, shade);
+        }
+      }
+      rows(hx, hy, [[-17, -7, 34, 4], [-23, -3, 46, 7], [-27, 4, 54, 19], [-24, 23, 48, 6], [-17, 29, 34, 4]], ink);
+      rows(hx, hy, [[-16, -5, 32, 4], [-21, -1, 42, 7], [-25, 6, 50, 15], [-22, 21, 44, 6], [-16, 27, 32, 4]], fur);
+      rows(hx, hy, [[-6, -4, 4, 9], [1, -4, 3, 6], [7, -3, 3, 8], [-24, 8, 7, 3], [18, 6, 7, 3]], shade);
+      rows(hx, hy, [[-13, 19, 26, 9], [-18, 21, 36, 4]], light);
+      const eyeH = Math.max(1, Math.round(v.open * 8));
+      [-15, 7].forEach((x, index) => {
+        if (v.open < 0.12) {
+          r(hx + x, hy + 12, 9, 2, ink); r(hx + x + 2, hy + 10, 5, 2, ink);
+        } else {
+          r(hx + x, hy + 9, 10, eyeH + 2, ink);
+          r(hx + x + 1, hy + 10, 8, eyeH, light);
+          const pupil = 2 + Math.round(v.pupil * 4);
+          r(hx + x + 3 + Math.round(v.turn), hy + 10, pupil, eyeH, ink);
+          const brow = Math.round(v.brow * 4);
+          for (let k = 0; k < 10; k++) r(hx + x + k, hy + 8, 1, 1 + Math.floor((index ? 9 - k : k) * brow / 9), ink);
+        }
+      });
+      r(hx - 2, hy + 19, 5, 2, ink); r(hx, hy + 21, 1, 2, ink);
+      if (dead || v.mouth >= 2) {
+        const gap = dead ? 9 : 3 + Math.round(v.gap * 6);
+        r(hx - 6, hy + 23, 14, gap, ink);
+        if (dead) hand(hx + 2, hy + 23, true);
+        if (dead || v.mouth === 3) {
+          r(hx - 4, hy + 23, 3, 3, light); r(hx + 5, hy + 23, 3, 3, light);
+          r(hx - 2, hy + gap + 21, 3, 2, light);
+        }
+      } else if (v.mouth === 1) r(hx - 4, hy + 25, 9, 1, ink);
+      else {
+        r(hx - 5, hy + 24, 5, 1, ink); r(hx + 1, hy + 24, 5, 1, ink);
+        r(hx - 6, hy + 22, 1, 2, ink); r(hx + 6, hy + 22, 1, 2, ink);
+      }
+      [-1, 1].forEach(side => {
+        r(hx + side * 19 - 4, hy + 19, 8, 1, ink);
+        r(hx + side * 22 - 3, hy + 23, 6, 1, ink);
+      });
+      if (v.rare) {
+        for (let i = 0; i < 5; i++) {
+          r(bx - 28 - i % 2 * 3, 75 + i * 4, 5, 2, ink);
+          r(bx + 24, 76 + i * 4, 6 + i % 2 * 3, 2, ink);
+        }
+        [[51, 23], [108, 18]].forEach(([x, y]) => {
+          r(x, y, 3, 8, ink); r(x - 3, y + 6, 5, 3, ink); r(x - 3, y + 9, 2, 5, ink);
+        });
+        r(hx + 17, hy - 1, 2, 5, ink); r(hx + 14, hy + 1, 7, 1, ink);
+      }
+      if (!dead) {
+        const retreat = v.phase === 'won' ? Math.min(1, v.phaseT * 2) : 0;
+        const pet = v.phase === 'hold' ? Math.round(Math.sin(v.time * 5) * (6 - v.fear * 4)) : 0;
+        const y = v.phase === 'ready' ? 18 : hy - 16;
+        hand(hx - 4 + pet + Math.round(retreat * 74), y - Math.round(retreat * 28), false);
+      }
+      layer.blit(g);
+    },
+  };
+})();
+</script>
 <script>
 /* 고양이 100연승 — 한 번 누름 = 한 번 쓰다듬기.
    비유: 자판기 버튼. 누르는 그 순간 결과가 나오고, 숫자판과 버튼 글이 같은 순간에 바뀐다.
@@ -107,6 +1506,75 @@
   const BG = '#051310', INK = '#ccf4e4';
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const now = () => performance.now();
+
+  /* ---------- 그림 일곱 벌 ----------
+     첫 벌은 이 파일이 직접 그린다(아래 render). 나머지 여섯 벌은 원래 「꾹 누르는」 게임용 그림이라,
+     연승 게임의 상태를 그 그림이 알아듣는 값으로 바꿔 주는 다리(bridge)를 거쳐 그린다.
+     grid 가로 칸 수 · bg 그림판 바탕색 · fx 10단위 연승의 하트와 별 색
+     stroke 쓰다듬기 한 번(0~1)을 그 그림의 손 시계로 바꾸는 함수 */
+  const ART_KEY = 'hold-on-streak-cat-art';
+  const sweep = (rate) => (k) => (Math.PI / 2 + Math.PI * k) / rate; // 손이 오른쪽 끝에서 왼쪽 끝까지 한 번 쓸고 간다
+  const ARTS = [
+    { id: 'keycap-a', name: '키캡 A', grid: 32, bg: BG, native: true },
+    { id: 'keycap-b', name: '키캡 B', grid: 32, bg: '#051310', fx: '#ccf4e4', stroke: (k) => k * 0.8 }, // 손 그림 네 장을 차례로
+    { id: 'color-a', name: '컬러 A', grid: 64, bg: '#f3e3c8', fx: '#d8606a', stroke: sweep(3.6) },
+    { id: 'color-b', name: '컬러 B', grid: 64, bg: '#e9d8b5', fx: '#ad5149', stroke: sweep(5) },
+    { id: 'pixel', name: '픽셀', grid: 160, bg: '#000000', fx: '#d82800', stroke: sweep(3.6) },
+    { id: 'famicom', name: '패미컴', grid: 160, bg: '#000000', fx: '#f85898', stroke: sweep(6) },
+    { id: 'gameboy', name: '게임보이', grid: 160, bg: '#0f380f', fx: '#0f380f', stroke: sweep(5) },
+  ];
+  ARTS.forEach((item) => { if (!item.native) item.draw = window.CAT_ARTS[item.id].draw; });
+  const findArt = (id) => ARTS.find((item) => item.id === id) || null;
+  let memoryArt = ARTS[0].id;
+  function loadArt() {
+    try {
+      const found = findArt(localStorage.getItem(ART_KEY));
+      if (found) return found;
+    } catch (e) { /* 메모리 값으로 */ }
+    return findArt(memoryArt) || ARTS[0];
+  }
+  function saveArt(id) {
+    memoryArt = id;
+    try { localStorage.setItem(ART_KEY, id); } catch (e) { /* 메모리에만 */ }
+  }
+  let art = loadArt();
+
+  /* 고양이 표정 계산: 위험값 하나를 "눈, 귀, 고개, 입" 같은 부위별 값(0~1)으로 나눈다.
+     그림들은 이 값만 받아 그리므로, 어느 벌이든 같은 시점에 같은 반응을 한다 */
+  function angerOf(phase, risk, endRisk, phaseT) {
+    if (phase === 'hold') return risk;
+    if (phase === 'won') return Math.max(0, endRisk - phaseT * 30);
+    if (phase === 'dead') return Math.max(endRisk, 30);
+    return 0;
+  }
+  function compute({ phase, risk, endRisk, phaseT, time, tailPhase }) {
+    const a = angerOf(phase, risk, endRisk, phaseT);
+    const turn = phase === 'won'
+      ? clamp(1 - phaseT * 2.5, 0, 1) * clamp((endRisk - 15) / 7, 0, 1)
+      : clamp((a - 15) / 7, 0, 1);
+    const pawShown = phase === 'dead' ? endRisk >= 30 : a >= 30;
+    return {
+      phase, phaseT, time, a,
+      open: clamp((a - 3) / 9, 0, 1), // 눈 뜬 정도
+      pupil: clamp((a - 20) / 10, 0, 1), // 동공 커짐
+      brow: clamp((a - 14) / 16, 0, 1), // 찡그림
+      flat: clamp((a - 8) / 17, 0, 1), // 귀 납작
+      turn, // 고개가 손 쪽으로
+      mouth: a < 10 ? 0 : a < 23 ? 1 : a < 26 ? 2 : 3, // 0 웃음, 1 일자, 2 벌림, 3 이빨
+      gap: clamp((a - 23) / 12, 0, 1), // 입 벌린 정도
+      belly: clamp(1 - a / 12, 0, 1), // 배 드러낸 정도
+      pawShown,
+      pawUp: pawShown ? clamp((a - 30) / 8, 0, 1) : 0, // 앞발 든 정도
+      claws: a > 40 || (phase === 'dead' && endRisk >= 30), // 발톱
+      puff: clamp((a - 30) / 30, 0, 1), // 털 곤두섬, 몸 부풀기
+      rare: a > 30, // 드물게 보는 구간
+      tremble: a < 6 ? 0 : Math.min(3.5, (a - 6) * 0.08 + Math.max(0, a - 30) * 0.12), // 몸 떨림(칸)
+      tailPhase: tailPhase || 0,
+      tailSwing: Math.min(1, (2 + a * 0.6) / 24), // 꼬리 흔드는 폭
+      fear: clamp(a / 25, 0, 1), // 손이 떨리고 쓰다듬는 폭이 줄어드는 정도
+      room: clamp((a - 12) / 45, 0, 0.5) * 2, // 방이 어두워지는 정도(0~1)
+    };
+  }
 
   /* ---------- 최고 기록 저장: 저장소가 막혀 있어도 게임은 돈다 ---------- */
   let memoryBest = 0;
@@ -351,6 +1819,8 @@
     lastFrame = t;
     tailPhase += dt * Math.min(22, 1.6 + a * 0.55);
 
+    if (!art.native) { renderBridged(t, time, dead, deadT, a, happy); return; }
+
     fill(0, 0, 32, 24, BG);
     let ox = CAT_X;
     const oy = CAT_Y;
@@ -442,10 +1912,55 @@
     // 작은 판을 큰 그림판에 옮긴다. 물린 직후에는 한 칸씩 좌우로 흔든다
     const cell = canvas.width / 32;
     const shift = dead && deadT < 0.3 ? (Math.floor(deadT * 30) % 2 ? 1 : -1) : 0;
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.imageSmoothingEnabled = false;
     g.fillStyle = BG;
     g.fillRect(0, 0, canvas.width, canvas.height);
     g.drawImage(board, shift * cell, 0, canvas.width, canvas.height);
+  }
+
+  /* 다리: 첫 벌이 아닌 그림을 그린다. 연승 게임의 상태를 그림이 알아듣는 값으로 바꿔 넘긴다.
+     - 평소: 손이 쉬는 자리(ready). 표정은 「지금 연승 수 = 위험 %」
+     - 누른 뒤 0.2초: 쓰다듬는 중(hold). 손 시계를 처음부터 다시 돌려 한 번 쓸고 간다
+     - 성공 직후(10단위는 더 길게) · 100연승: 위험 0%의 편한 얼굴
+     - 실패: 무는 그림(dead). 위험값은 실패한 연승 수(30보다 낮으면 30) */
+  function renderBridged(t, time, dead, deadT, a, happy) {
+    const k = (t - petAt) / PET_MS;
+    const petting = !dead && k >= 0 && k < 1;
+    const v = compute({
+      phase: dead ? 'dead' : 'hold', // 표정은 「쓰다듬는 중」 기준으로 계산한 뒤, 손이 쉴 때만 아래에서 상태 이름을 바꾼다
+      risk: happy ? 0 : a,
+      endRisk: failedStreak,
+      phaseT: dead ? deadT : petting ? (k * PET_MS) / 1000 : 0,
+      time: petting ? art.stroke(k) : time,
+      tailPhase,
+    });
+    if (!dead && !petting) v.phase = 'ready';
+    if (happy) v.room = clamp((a - 12) / 45, 0, 0.5) * 2; // 방 밝기는 연승 수를 그대로 따른다(성공할 때마다 방이 번쩍이지 않게)
+
+    // 그림은 가로 320 · 세로 240 기준으로 그리므로, 그림판 크기에 맞춰 통째로 키운다. 물린 직후에는 좌우로 흔든다
+    const scale = canvas.width / 320;
+    const shift = dead && deadT < 0.3 ? (Math.floor(deadT * 30) % 2 ? 10 : -10) : 0;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = art.bg;
+    g.fillRect(0, 0, canvas.width, canvas.height);
+    g.setTransform(scale, 0, 0, scale, shift * scale, 0);
+    art.draw(g, v);
+
+    // 10단위 연승: 하트와 별이 떴다 사라진다. 100연승은 계속 깜빡인다
+    const fxK = cleared ? (time % 1) : (t - fxAt) / FX_MS;
+    if (!dead && fxK >= 0 && fxK < 1) {
+      g.fillStyle = art.fx;
+      FX_SPOTS.forEach(([x, y, rows], i) => {
+        if (fxK > 0.7 && (i + Math.floor(fxK * 20)) % 2) return;
+        const top = y - Math.floor(fxK * 3);
+        rows.forEach((row, j) => {
+          for (let n = 0; n < row.length; n += 1) if (row[n] === '#') g.fillRect((x + n) * 10, (top + j) * 10, 10, 10);
+        });
+      });
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   // 그림판을 남는 자리에 맞춘다. 한 칸이 화면의 점 몇 개인지를 정수로 맞춰 칸이 고르게 보이게 한다
@@ -453,15 +1968,47 @@
   function fit() {
     const box = stageEl.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
-    const cellCss = Math.max(2, Math.floor(Math.min(box.width / 32, box.height / 24)));
-    const cellPx = Math.max(1, Math.round(cellCss * ratio));
-    if (canvas.width !== 32 * cellPx) { canvas.width = 32 * cellPx; canvas.height = 24 * cellPx; }
-    canvas.style.width = `${(32 * cellPx) / ratio}px`;
-    canvas.style.height = `${(24 * cellPx) / ratio}px`;
+    const cols = art.grid, lines = art.grid * 0.75; // 그림 한 벌의 가로 · 세로 칸 수(4:3)
+    let cellPx;
+    if (cols === 32) { // 큰 칸 그림: 화면 글자 크기 단위로 정수
+      const cellCss = Math.max(2, Math.floor(Math.min(box.width / 32, box.height / 24)));
+      cellPx = Math.max(1, Math.round(cellCss * ratio));
+    } else { // 작은 칸 그림: 화면의 실제 점 단위로 정수
+      cellPx = Math.max(1, Math.floor(Math.min(box.width / cols, box.height / lines) * ratio));
+    }
+    if (canvas.width !== cols * cellPx) { canvas.width = cols * cellPx; canvas.height = lines * cellPx; }
+    canvas.style.width = `${(cols * cellPx) / ratio}px`;
+    canvas.style.height = `${(lines * cellPx) / ratio}px`;
     render(now());
   }
   if (window.ResizeObserver) new ResizeObserver(fit).observe(stageEl);
   window.addEventListener('resize', fit);
+
+  /* ---------- 그림 바꾸기: 게임 누름과는 따로 논다 ---------- */
+  const artBtn = document.getElementById('art');
+  function showArt() {
+    stageEl.style.background = art.bg;
+    setText(artBtn, art.name);
+    fit();
+  }
+  function setArt(id) {
+    const found = findArt(id);
+    if (!found) return false;
+    art = found;
+    saveArt(art.id);
+    showArt();
+    return true;
+  }
+  function nextArt() {
+    setArt(ARTS[(ARTS.indexOf(art) + 1) % ARTS.length].id);
+    return art.id;
+  }
+  artBtn.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    nextArt();
+  });
 
   /* ---------- 입력: 손가락이 닿는 순간 판정한다 ---------- */
   el.btn.addEventListener('pointerdown', (e) => {
@@ -470,6 +2017,11 @@
     press();
   });
   window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey) { // A: 다음 그림
+      e.preventDefault();
+      if (!e.repeat) nextArt();
+      return;
+    }
     if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
     e.preventDefault();
     if (!e.repeat) press();
@@ -486,7 +2038,7 @@
     render(t);
   }
   syncText(now());
-  fit();
+  showArt(); // 고른 그림의 바탕색 · 버튼 이름 · 그림판 크기를 맞춘다
   requestAnimationFrame(frame);
 
   /* ---------- 검사용 손잡이: 게임 규칙에는 영향이 없다 ---------- */
@@ -502,9 +2054,13 @@
         phase: fail ? 'fail' : 'idle',
         label: labelNow(t),
         petCount,
+        art: art.id,
+        arts: ARTS.map((item) => item.id),
       };
     },
     setRandom(fn) { rand = typeof fn === 'function' ? fn : Math.random; },
+    setArt,
+    nextArt,
     press,
     reset() {
       streak = 0; best = 0; taps = 0; petCount = 0;
