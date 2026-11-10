@@ -163,7 +163,7 @@
       const raw = localStorage.getItem(key);
       if (raw !== null) {
         const value = Math.floor(Number(raw));
-        if (Number.isFinite(value) && value >= 0) return value;
+        if (Number.isFinite(value) && value >= 0) return Math.min(value, Number.MAX_SAFE_INTEGER); // 터무니없이 큰 저장값은 숫자 글씨로 못 그린다
       }
     } catch (e) { /* 메모리 값으로 */ }
     return memory[key] || 0;
@@ -868,9 +868,12 @@
       // 배치 0: 예전처럼 왼쪽 위에 작은 숫자 한 줄만(손 · 깃발은 아래 숫자판이 맡는다)
       boardText([...String(slideOn ? height : count)], 3, 3, 1);
     } else {
-      // 왼쪽 위 숫자(끔=누른 횟수, 켬=지금 높이): 칸 두 배 크기. 너무 길어 화면을 넘으면 한 배로
+      // 왼쪽 위 숫자(끔=누른 횟수, 켬=지금 높이): 칸 두 배 크기. 너무 길어 화면을 넘거나, 바위 윗부분을 덮게 되면 한 배로
+      // (세로로 긴 배치는 바위가 숫자보다 아래에 있어 덮이지 않는다)
       const big = [...String(slideOn ? height : count)];
-      const bigK = (measure(big).w * 2 <= W - 6) ? 2 : 1;
+      const bigW = measure(big).w * 2;
+      const hitsBoulder = 3 + bigW > BOULDER_X + 2 && BOULDER_Y + oy < 3 + 7 * 2 + 2;
+      const bigK = (bigW <= W - 6 && !hitsBoulder) ? 2 : 1;
       let y = 3 + boardText(big, 3, 3, bigK) + 3;
       // 밀림 켬: 그 아래 작게 손 모양 + 누른 횟수, 깃발 + 최고 높이
       if (slideOn) {
@@ -1078,6 +1081,8 @@
       // 손가락을 키에 묶어 두지 않아야 키 밖으로 미끄러진 것을 알아챈다
       const t = e.currentTarget;
       try { if (t.hasPointerCapture && t.hasPointerCapture(e.pointerId)) t.releasePointerCapture(e.pointerId); } catch (err) { /* 그대로 */ }
+      // 새로 닿은 첫 손가락인데 키가 눌린 채 남아 있으면, 떼는 신호를 놓친 낡은 누름이다 → 풀고 받는다(키가 먹통이 되지 않게)
+      if (e.isPrimary) ['push', 'slide'].forEach((k) => { if (keyHold[k] !== null && keyHold[k] !== e.pointerId) releaseKey(k); });
       holdKey(name, e.pointerId);
     });
   });
@@ -1118,10 +1123,14 @@
       return;
     }
     if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
+    if (!plain) return; // Cmd · Ctrl · Alt와 같이 누른 것은 밀기가 아니다(떼는 신호가 안 와서 키가 눌린 채 남는 것도 막음)
     e.preventDefault();
     if (e.repeat) return; // 꾹 누르고 있어 저절로 반복되는 입력은 무시
-    if (layout === 'E') holdKey('push', `kb:${e.code}`); // 오른쪽 키를 누른 것과 같음(떼면 keyup에서 올라옴)
-    else press();
+    if (layout === 'E') {
+      // 같은 키가 눌린 채 남아 있는데 새로 눌렸다면 떼는 신호를 놓친 것이다 → 풀고 받는다(키보드가 먹통이 되지 않게)
+      if (keyHold.push === `kb:${e.code}`) releaseKey('push');
+      holdKey('push', `kb:${e.code}`); // 오른쪽 키를 누른 것과 같음(떼면 keyup에서 올라옴)
+    } else press();
   });
   // 연타할 때 화면이 확대되거나 끌리거나, 길게 눌러 메뉴가 뜨지 않게 막는다
   const block = (e) => e.preventDefault();
