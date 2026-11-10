@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>고양이 100연승</title>
+<title>고양이 연승</title>
 <style>
   /* 화면은 세 덩어리다: 위 고양이 그림판 · 가운데 숫자판 · 아래 큰 버튼. 색은 두 가지만 쓴다 */
   :root { --bg: #051310; --ink: #ccf4e4; --page: #0c231d; --shade: #7fb5a0; }
@@ -55,6 +55,19 @@
   .btn .l { display: block; white-space: nowrap; }
   .btn .sep { display: none; }
   .btn.is-fail { background: var(--bg); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink), 0 6px 0 var(--shade); }
+  /* 가로로 눕힌 폰처럼 낮은 화면: 왼쪽에 고양이 그림판, 오른쪽에 숫자판 · 점 줄 · 버튼 */
+  @media (orientation: landscape) and (max-height: 520px) {
+    main {
+      width: min(100vw, 860px);
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); grid-template-rows: auto auto auto;
+      column-gap: 14px; align-content: center;
+    }
+    .stage { grid-column: 1; grid-row: 1 / span 3; height: 100%; }
+    .panel { grid-column: 2; height: 150px; }
+    .num { font-size: 68px; }
+    .dots { grid-column: 2; }
+    .btn { grid-column: 2; height: 96px; }
+  }
 </style>
 </head>
 <body>
@@ -86,7 +99,7 @@
   const PET_MS = 200; // 쓰다듬기 한 번
   const FAIL_LOCK_MS = 350; // 실패 직후 실수로 연달아 누른 것을 막는 시간
   const FAIL_SHOW_MS = 1500; // 무는 그림과 실패 문구가 보이는 시간(그 전에 눌러도 된다)
-  const CLEAR_LOCK_MS = 1000; // 100연승 직후 연타가 이어져 바로 넘어가지 않게 막는 시간
+  const CLEAR_LOCK_MS = 350; // 100연승 직후 연타가 이어져 바로 넘어가지 않게 막는 시간(실패 때와 같게)
   const HAPPY_MS = 300, HAPPY_BIG_MS = 700; // 기분 좋은 얼굴(10단위는 길게)
   const FX_MS = 700; // 10단위 연승의 하트 · 별
 
@@ -221,7 +234,7 @@
         el.dots.textContent = '';
         if (need > 1) {
           const perRow = need <= 25 ? need : Math.ceil(need / 2);
-          const size = clamp(Math.floor(340 / perRow) - 2, 3, 12);
+          const size = clamp(Math.floor((el.dots.clientWidth || 340) / perRow) - 2, 2, 12); // 점 줄이 화면 폭을 넘지 않게 실제 폭으로 계산
           for (let i = 0; i < need; i += 1) {
             if (i % perRow === 0) el.dots.appendChild(document.createElement('div'));
             const dot = document.createElement('i');
@@ -304,7 +317,7 @@
   const STAR = ['.#.', '###', '.#.'];
   const FX_SPOTS = [[2, 8, HEART], [28, 9, STAR], [4, 14, STAR], [29, 15, HEART], [1, 19, HEART]];
   // 쓰다듬기 한 번의 손 자리(고양이 기준 칸): 내려와서 → 왼쪽으로 쓸고 → 올라간다
-  const PET_PATH = [[0.3, 5, 0], [0.6, 2, 0], [0.85, 0, 0], [1, 4, -2]];
+  const PET_PATH = [[0.15, 5, 0], [0.4, 2, 0], [0.8, 0, 0], [1, 4, -2]]; // 빠르게 연타해도 쓸어내리는 자리까지 가게 앞쪽을 짧게
   const HAND_REST = [19, -3];
 
   const canvas = document.querySelector('canvas');
@@ -412,7 +425,7 @@
       if (k >= 0 && k < 1) {
         const step = PET_PATH.find((p) => k < p[0]);
         hx = ox + step[1]; hy = step[2];
-        if (k < 0.6) finger = (petCount + 1) % 2; // 쓸면서 손가락이 바뀐다
+        if (k < 0.4) finger = (petCount + 1) % 2; // 쓸면서 손가락이 바뀐다
       }
       sprite(hx, hy, HANDS[finger]);
     }
