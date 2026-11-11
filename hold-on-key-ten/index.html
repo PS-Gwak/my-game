@@ -596,12 +596,22 @@
      몸통 폭 dw = min(창 폭 − 28, 460). 위에서 아래로: 버튼 띠(band) → 검은 화면 → 틈 → 키캡 → 틈 → 오돌토돌한 띠 → 몸통 끝.
      높이가 창 높이 − 28을 넘으면 화면 칸 → 키캡 순으로 줄이고(키캡은 72 아래로 안 줄임),
      줄인 뒤 남는 자리가 있으면 화면 칸을 처음 크기까지 다시 키운다(화면이 쓸데없이 작아지지 않게) */
+  // 창이 낮으면(가로로 눕힌 폰 등) 몸통 폭부터 줄인다 — 검수 지적: 폭은 그대로 두고 화면만 줄이니 화면이 점 하나 크기가 됐다.
+  // 화면 칸 · 키캡을 제 크기로 놓았을 때(위 띠 + 화면 + 키캡 + 틈 넷) 창 높이 안에 들어가는 가장 큰 폭을 찾는다
+  function fitWidth(maxW, roomH, band, rows, keyShare) {
+    const r = dpr();
+    for (let w = maxW; w > 160; w -= 4) {
+      const cell = Math.max(1, Math.floor(w * 0.86 * r / 128));
+      if (band + (rows * cell) / r + Math.max(72, w * keyShare) + 4 * Math.round(w * 0.07) <= roomH) return w;
+    }
+    return Math.min(maxW, 160);
+  }
   function fit() {
     const r = dpr(), L = LAYOUTS[layout];
     const btnH = drawLayoutBtn();
     drawSkinBtn();
-    const dw = Math.max(120, Math.min(window.innerWidth - EDGE, DEVICE_MAX));
     const band = btnH + 20;
+    const dw = fitWidth(Math.max(120, Math.min(window.innerWidth - EDGE, DEVICE_MAX)), window.innerHeight - EDGE, band, L.rows, KEY_SHARE);
     const gap = Math.round(dw * GAP_SHARE);
     const grillH = gap, grillW = Math.round(dw * GRILL_SHARE);
     // 키캡: 20칸 × 정수 점 크기 중 목표(dw × 0.40)에 가장 가까운 것, 72 ~ 190 사이

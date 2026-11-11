@@ -506,6 +506,7 @@
   /* ---------- 상태 ---------- */
   let layout = loadLayout();
   let skin = loadSkin();
+  let autoDuel = false;     // 들어오자마자 저절로 시작한 판(안 누르고 지면 연승을 깎지 않는다 — 게임을 넘겨 다니다 연승이 사라지지 않게)
   let firstDuel = true;     // 게임에 들어와 아직 한 판도 시작 안 함(첫 판만 신호가 3초 안에)
   let windDir = 1;          // 이번 판 첫 바람 방향: 1 = 왼쪽 → 오른쪽, -1 = 오른쪽 → 왼쪽(판마다 무작위, 덩어리마다 번갈아)
   let streak = loadInt(KEYS.streak) || 0;
@@ -542,6 +543,7 @@
   /* ---------- 대결 흐름 ---------- */
   function startDuel(t) {
     phase = 'wait';
+    autoDuel = false;
     startT = t;
     const [lo, hi] = firstDuel ? [FIRST_WAIT_MIN, FIRST_WAIT_MAX] : [WAIT_MIN, WAIT_MAX];
     waitMs = fixedWait !== null ? fixedWait : lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -578,7 +580,8 @@
   // 내가 안 눌러서 상대가 먼저 쏨
   function oppShoots(at) {
     autoLoseFrom = streak;
-    outcome = 'lose'; streak = 0; shotMs = duelOpp; myMs = null;
+    const spared = autoDuel; // 저절로 시작한 판에서 한 번도 안 누르고 졌으면 연승은 그대로
+    outcome = 'lose'; if (!spared) streak = 0; shotMs = duelOpp; myMs = null;
     endDuel(at);
   }
   // 정해진 시각이 지난 일을 차례로 처리: 신호 뜨기 → 상대가 쏘기
@@ -642,7 +645,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { releaseAllKeys(); cancelDuel(); return; }
     // 뒤쪽 탭으로 열려서 아직 첫 판을 못 했으면, 화면이 보이는 순간 첫 판을 시작한다
-    if (firstDuel && phase === 'ready' && manual === null) { startDuel(now()); return; }
+    if (firstDuel && phase === 'ready' && manual === null) { startDuel(now()); autoDuel = true; return; }
     render(); startLoop();
   });
 
@@ -1206,6 +1209,16 @@
      몸통 폭 dw = min(창 폭 − 28, 460). 위에서부터: 띠(작은 버튼 줄 + 위아래 10) → 검은 화면 → 7% → 키캡 둘(사이 7%) → 7% → 오돌토돌한 띠(7%) → 7%.
      합이 창 높이 − 28을 넘으면 화면 칸 크기부터, 그다음 키캡 크기를 줄인다(키캡은 72 아래로 안 줄임).
      몸통은 창 가운데(받침대 main이 창 전체이고 가운데 정렬) */
+  // 창이 낮으면(가로로 눕힌 폰 등) 몸통 폭부터 줄인다 — 검수 지적: 폭은 그대로 두고 화면만 줄이니 화면이 점 하나 크기가 됐다.
+  // 화면 칸 · 키캡을 제 크기로 놓았을 때(위 띠 + 화면 + 키캡 + 틈 넷) 창 높이 안에 들어가는 가장 큰 폭을 찾는다
+  function fitWidth(maxW, roomH, band, rows, keyShare) {
+    const r = dpr();
+    for (let w = maxW; w > 160; w -= 4) {
+      const cell = Math.max(1, Math.floor(w * 0.86 * r / 128));
+      if (band + (rows * cell) / r + Math.max(72, w * keyShare) + 4 * Math.round(w * 0.07) <= roomH) return w;
+    }
+    return Math.min(maxW, 160);
+  }
   function fitDevice() {
     const r = dpr(), ms = el.main.style, rows = LAYOUTS[layout].rows;
     ms.gridTemplateColumns = 'minmax(0, 1fr)';
@@ -1216,8 +1229,8 @@
     const band = btnH + 2 * BAND_PAD;
 
     const mb = el.main.getBoundingClientRect();
-    const dw = Math.max(120, Math.floor(Math.min(mb.width - EDGE, DEVICE_MAX)));
     const limitH = mb.height - EDGE;
+    const dw = fitWidth(Math.max(120, Math.floor(Math.min(mb.width - EDGE, DEVICE_MAX))), limitH, band, rows, KEY_SHARE_TWO);
     const gap = Math.round(dw * GAP_SHARE);
     const gh = gap; // 띠 높이 = 몸통 폭의 7%
 
@@ -1474,7 +1487,7 @@
 
   fit();
   // 들어오자마자 첫 결투 시작(신호는 3초 안에). 뒤쪽 탭으로 열렸으면 화면이 보이는 순간 시작(visibilitychange)
-  if (!document.hidden) startDuel(now());
+  if (!document.hidden) { startDuel(now()); autoDuel = true; }
 
   /* ---------- 검사용 손잡이: 게임에는 영향이 없다 ---------- */
   const toInt = (n) => {

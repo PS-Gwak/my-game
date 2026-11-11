@@ -1111,6 +1111,16 @@
   // 배치 E · F 자리 맞추기(네 게임 같은 계산). 비유: 기기를 위에서 아래로 한 층씩 쌓는다 —
   // 맨 위 띠(작은 버튼 줄) → 검은 화면 → 키캡 두 개 → 오돌토돌한 띠 → 몸통 끝. 몸통 높이 = 이 층들의 합(빈 아랫부분 없음).
   // 창 높이에 안 들어가면 화면 칸 크기부터, 그다음 키캡 크기를 줄인다(키캡은 72 아래로는 안 줄임)
+  // 창이 낮으면(가로로 눕힌 폰 등) 몸통 폭부터 줄인다 — 검수 지적: 폭은 그대로 두고 화면만 줄이니 화면이 점 하나 크기가 됐다.
+  // 화면 칸 · 키캡을 제 크기로 놓았을 때(위 띠 + 화면 + 키캡 + 틈 넷) 창 높이 안에 들어가는 가장 큰 폭을 찾는다
+  function fitWidth(maxW, roomH, band, rows, keyShare) {
+    const r = dpr();
+    for (let w = maxW; w > 160; w -= 4) {
+      const cell = Math.max(1, Math.floor(w * 0.86 * r / 128));
+      if (band + (rows * cell) / r + Math.max(72, w * keyShare) + 4 * Math.round(w * 0.07) <= roomH) return w;
+    }
+    return Math.min(maxW, 160);
+  }
   function fitDevice() {
     const r = dpr(), ms = el.main.style, rows = LAYOUTS[layout].rows;
     ms.gridTemplateColumns = 'minmax(0, 1fr)';
@@ -1121,8 +1131,8 @@
     const band = btnH + 2 * BAND_PAD; // 몸통 맨 위 띠: 버튼 줄 위아래로 10씩
 
     const winW = window.innerWidth, winH = window.innerHeight;
-    const dw = Math.max(120, Math.floor(Math.min(winW - WIN_MARGIN, DEVICE_MAX_W)));
     const roomH = winH - WIN_MARGIN;
+    const dw = fitWidth(Math.max(120, Math.floor(Math.min(winW - WIN_MARGIN, DEVICE_MAX_W))), roomH, band, rows, KEY_SHARE);
     const gap = Math.round(dw * GAP_SHARE);   // 화면 ~ 키캡 · 키캡 ~ 띠 · 띠 ~ 몸통 끝 · 두 키캡 사이
     const gripW = Math.round(dw * GRIP_SHARE), gripH = gap;
 

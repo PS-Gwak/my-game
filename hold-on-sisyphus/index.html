@@ -736,6 +736,16 @@
      몸통 폭 dw = min(창 폭 − 28, 460). 위에서부터: 띠(작은 버튼 줄 + 위아래 10) → 검은 화면 → 7% → 키캡 → 7% → 오돌토돌한 띠(7%) → 7%.
      합이 창 높이 − 28을 넘으면 화면 칸 크기부터, 그다음 키캡 크기를 줄인다(키캡은 72 아래로 안 줄임) */
   function fit() { fitDevice(); placeGameBtn(); }
+  // 창이 낮으면(가로로 눕힌 폰 등) 몸통 폭부터 줄인다 — 검수 지적: 폭은 그대로 두고 화면만 줄이니 화면이 점 하나 크기가 됐다.
+  // 화면 칸 · 키캡을 제 크기로 놓았을 때(위 띠 + 화면 + 키캡 + 틈 넷) 창 높이 안에 들어가는 가장 큰 폭을 찾는다
+  function fitWidth(maxW, roomH, band, rows, keyShare) {
+    const r = dpr();
+    for (let w = maxW; w > 160; w -= 4) {
+      const cell = Math.max(1, Math.floor(w * 0.86 * r / 128));
+      if (band + (rows * cell) / r + Math.max(72, w * keyShare) + 4 * Math.round(w * 0.07) <= roomH) return w;
+    }
+    return Math.min(maxW, 160);
+  }
   function fitDevice() {
     const r = dpr(), rows = LAYOUTS[layout].rows;
     const btnH = drawLayoutBtn();
@@ -743,8 +753,8 @@
     const band = btnH + 2 * BAND_PAD;
 
     const mb = el.main.getBoundingClientRect();
-    const dw = Math.max(120, Math.floor(Math.min(mb.width - EDGE, DEVICE_MAX)));
     const limitH = mb.height - EDGE;
+    const dw = fitWidth(Math.max(120, Math.floor(Math.min(mb.width - EDGE, DEVICE_MAX))), limitH, band, rows, KEY_SHARE_ONE);
     const gap = Math.round(dw * GAP_SHARE);
     const gh = gap; // 띠 높이 = 몸통 폭의 7%
 
