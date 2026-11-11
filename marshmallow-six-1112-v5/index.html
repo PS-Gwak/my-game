@@ -1263,6 +1263,8 @@ const FLAME2 = {
   colors: [[1, .93, .6], [1, .6, .12], [1, .22, .05]],   // 속 흰 노랑 → 가운데 주황 → 윤곽 주황빨강 (빨 · 초 · 파 0~1, 화면에 보이는 색 그대로)
   heat: [1.15, .8],                            // 뜨거운 정도 = 정면일수록 × (1.15 − 0.8 × 높이) → 아래 · 속이 흰 노랑
   edge: .42, tipFade: .5,                      // 윤곽이 투명하게 풀리는 폭(클수록 넓게 풀림) · 끝으로 갈수록 옅어지는 정도
+  // 밝은 화면(라이트 모드)에서만 쓰는 값: 맨 바깥 어두운 빨강 띠 색 · 그 띠의 폭 · 윤곽 풀리는 폭 배수 · 끝 옅어짐 배수 · 이음매 빛 / 속 빛 / 불티 색(덮어 그릴 때)
+  lightRim: [.72, .1, .03], lightRimW: .3, lightEdge: .6, lightTip: .4, lightGlow: [0xffb060, 0xffe9a0, 0xff7a1e],
   ember: 0xffb347, emberA: .9, emberSize: [.05, .025],   // 불티: 색 · 처음 진하기 · 크기(흐릿한 빛 그림의 지름 0.05 ~ 0.075 — 밝은 속은 그 절반쯤)
   blobs: 14,                                   // 떨어져 나와 오르는 불티 칸 수 (돌려 씀)
   light: {color: 0xff8a3a, base: .55, gain: 1.25, y: .2, z: .26},   // 주황 조명: 색 · 밝기 = 0.55 + 1.25 × 세기 · 자리(윗면 위 0.2, 얼굴 쪽으로 0.26 — 얼굴 면에는 비스듬히만 닿음)
@@ -1273,7 +1275,9 @@ const FLAME3 = {
      - 가장자리: 무늬를 문턱값에 살짝 더하던 것(가장자리가 0.01도 안 움직여 곧은 선이었음) → 「자리 비틀기」로 바꿈: 불을 그릴 자리 자체를 구름 무늬만큼 밀어서 굵직한 혹이 생기고 위로 흘러감
      - 겹마다 무늬 자리 · 빠르기 · 기우는 쪽을 달리해 크기만 다른 복사본이 아니게. 맨 바깥(어두운 빨강)은 연기: 옆은 얇고 위로 길고 더 투명하고 가장 느림
      - 밑동: 일자로 딱 자르지 않고 윗면 가장자리의 둥근 금을 따라, 0.035 높이에 걸쳐 서서히 나타나 이음매 빛에 녹음 */
-  w: .9, top: .95, pad: .1,                    // 판 크기: 가로 · 윗면 위로 · 윗면 아래로(밑동 선을 둥글게 자를 여유)
+  // 11/12 검수 반영 3: 판을 키움(가로 0.9 → 1.1 · 위로 0.95 → 1.1) — 세기 1일 때의 폭(약 0.4) · 연기 키(약 0.9) + 자리 비틀기 여유를 담고도 가장자리 가림막에 안 눌리게. 불 크기는 그대로
+  w: 1.1, top: 1.1, pad: .1,                   // 판 크기: 가로 · 윗면 위로 · 윗면 아래로(밑동 선을 둥글게 자를 여유)
+  mask: [.09, .04],                            // 가장자리 가림막: 판 끝에서 4%는 완전히 투명 · 그 안쪽 9% 폭에 걸쳐 서서히 나타남 (판 크기에 대한 비율)
   baseR: .215, fwd: .8,                        // 밑동 반지름(윗면 0.231에 맞춤) · 판을 윗면 앞 가장자리 쪽으로 당기는 정도
   h: [.27, .2],                                // 키(주황 겹 기준) = 0.27 + 0.2 × 세기 (가만히 0.36 ~ 흔들 때 0.47) — 연기는 그 1.3배까지
   flow: [1.6, 2.6],                            // 위로 흐르는 빠르기 = 1.6 + 2.6 × 세기
@@ -1294,6 +1298,21 @@ const FLAME3 = {
 };
 const flames = [];             // 만들어 둔 불 전부 (「A / B / 예전」을 한꺼번에 바꿀 때 씀)
 window.__SQ_APPLY_FIRE__ = () => { toastU.value = fireStyle === 'old' ? 0 : 1; for (const f of flames) f.setStyle(fireStyle); };
+/* 불 v5 검수 반영(11/12): 밝은 화면(라이트 모드)에서 불 A가 묻히던 것.
+   불 A · 이음매 빛 · 불티는 바탕에 빛을 「더해」 그리는데, 밝은 베이지 벽에 밝은 색을 더하면 하얗게 넘쳐 윤곽이 안 보임(흰 종이에 형광펜을 칠한 꼴).
+   → 벽이 밝을 때만 「덮어 그리기」(보통 섞기)로 바꾸고 맨 바깥에 어두운 빨강 띠를 둠. 어두운 화면의 모습은 그대로.
+   밝은지 어두운지는 이 파일의 색 정하는 곳(CSS의 벽 색 --wall-top)을 그대로 읽어 가름 → 화면 모드나 data-theme가 바뀌면 바로 따라감 */
+const fireThemeMQ = window.matchMedia('(prefers-color-scheme: dark)');
+function fireBgIsLight() {
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--wall-top').trim(), m = /^#([0-9a-f]{6})$/i.exec(v);
+  if (m) { const c = parseInt(m[1], 16); return .299*(c >> 16) + .587*((c >> 8) & 255) + .114*(c & 255) > 140; }   // 벽 색의 밝기(0~255)가 140을 넘으면 밝은 화면
+  const th = document.documentElement.getAttribute('data-theme');   // 벽 색을 못 읽으면 CSS와 같은 규칙으로
+  return th === 'light' || (th !== 'dark' && !fireThemeMQ.matches);
+}
+let fireLight = fireBgIsLight();
+const applyFireTheme = () => { fireLight = fireBgIsLight(); for (const f of flames) f.setLight(fireLight); };
+fireThemeMQ.addEventListener('change', applyFireTheme);
+new MutationObserver(applyFireTheme).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
 // 흐릿한 빛 그림 한 장: 가운데가 밝고 가장자리로 갈수록 사라지는 동그라미 (불마다 같이 씀)
 let glowTex = null;
 function glowTexture() {
@@ -1437,6 +1456,7 @@ function buildFlame(withLight) {
   //  · 윤곽으로 갈수록 투명해져 가장자리가 사라지듯 풀림. 바탕에 빛을 「더해」 그림(겹치면 더 밝아짐)
   //  · 깊이는 재기만 하고 남기지 않음 → 몸 뒤로 가면 몸에 가려지고, 불 뒤의 것이 이상하게 잘리지 않음
   const glv = a => 'vec3(' + a.map(f6).join(', ') + ')';
+  const uA = {uLight: {value: 0}};   // 밝은 화면인가(1) — setLight가 고쳐 씀
   const lump = new THREE.Mesh(geoN, new THREE.ShaderMaterial({
     vertexShader: `
 attribute float aK;
@@ -1454,16 +1474,19 @@ void main() {
 varying vec3 vN;
 varying vec3 vV;
 varying float vK;
+uniform float uLight;   // 0 = 어두운 화면(빛을 더해 그림) · 1 = 밝은 화면(덮어 그림)
 void main() {
   float f = abs(dot(normalize(vN), normalize(vV)));   // 1 = 덩이 한가운데 · 0 = 윤곽
   float heat = f*f*(${f6(F.heat[0])} - ${f6(F.heat[1])}*vK);   // 뜨거운 정도: 가운데 · 아래일수록 큼
   vec3 col = mix(${glv(F.colors[2])}, ${glv(F.colors[1])}, smoothstep(0.05, 0.42, heat));
   col = mix(col, ${glv(F.colors[0])}, smoothstep(0.38, 0.82, heat));
-  float a = smoothstep(0.0, ${f6(F.edge)}, f)*(1.0 - ${f6(F.tipFade)}*smoothstep(0.5, 1.0, vK));
+  // 밝은 화면: 맨 바깥에 어두운 빨강 띠가 남고(윤곽이 벽에 묻히지 않게), 윤곽이 풀리는 폭과 끝이 옅어지는 정도를 줄임 — 그래도 가장자리는 부드럽게 풀리고 속이 밝음
+  col = mix(col, mix(${glv(F.lightRim)}, col, smoothstep(0.0, ${f6(F.lightRimW)}, f)), uLight);
+  float a = smoothstep(0.0, ${f6(F.edge)}*mix(1.0, ${f6(F.lightEdge)}, uLight), f)*(1.0 - ${f6(F.tipFade)}*mix(1.0, ${f6(F.lightTip)}, uLight)*smoothstep(0.5, 1.0, vK));
   a *= smoothstep(${f6(F.baseFade[0])}, ${f6(F.baseFade[1])}, vK);   // 밑동 맨 아래는 투명에서 시작 (윗면과 엇갈리는 자리가 안 보이게)
   gl_FragColor = vec4(col, a);
 }`,
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending}));
+    uniforms: uA, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending}));
   lump.renderOrder = 3; lump.frustumCulled = false; lump.userData.noHit = true; n.add(lump);
   // 불티: 끝에서 떨어져 나와 오르며 사라지는 작은 빛 덩이
   // 11/12 검수 반영: 단색 공이라 「납작한 주황 원판」으로 보였음 → 흐릿한 빛 그림(가운데가 밝고 가장자리가 풀림)으로, 더 작게, 오르며 작아지고 흐려지게.
@@ -1640,8 +1663,10 @@ void main() {
   float rough = ${f6(G.rough[0])} + ${f6(G.rough[1])}*uLevel;   // 불이 셀수록 가장자리가 더 거칠고 조각이 큼
   vec4 o = vec4(0.0);
 ${layGl}
-  // 판 가장자리(왼쪽 · 오른쪽 · 위)에 닿기 전에 모두 사라지게 → 네모난 판이 보이지 않음
-  float edge = (1.0 - smoothstep(0.72, 0.9, abs(vQ.x)))*(1.0 - smoothstep(0.8, 0.93, vQ.y));
+  // 가장자리 가림막: 무늬가 어디로 밀리든 상관없이 「판 자체의 자리」로만 정함(vQ — 자리 비틀기와 무관) → 네 변 모두 판 끝에서는 반드시 투명 = 네모난 판이 안 보임
+  // 왼쪽 · 오른쪽 · 위: 판 끝 4%는 0, 그 안쪽 9% 폭에서 서서히. 아래: 밑동 선이 이미 그 위에서 자르므로 판 끝 1.2%만
+  float qx = 0.5*(1.0 - abs(vQ.x));   // 왼쪽 · 오른쪽 변에서 안쪽으로 들어온 거리(판 가로에 대한 비율)
+  float edge = smoothstep(${f6(G.mask[1])}, ${f6(G.mask[0] + G.mask[1])}, qx)*smoothstep(${f6(G.mask[1])}, ${f6(G.mask[0] + G.mask[1])}, 1.0 - vQ.y)*smoothstep(0.002, 0.012, vQ.y);
   o.a *= cut*edge;
   if (o.a < 0.004) discard;
   gl_FragColor = o;
@@ -1649,7 +1674,10 @@ ${layGl}
     transparent: true, depthWrite: false}));
   plane.renderOrder = 3; plane.frustumCulled = false; plane.userData.noHit = true; n.add(plane);
   const updateB = (t, dt, level) => {   // 불 B 움직임 — 숫자 세 개만 고쳐 넘김(나머지는 그래픽 카드가 그림)
-    flowB += dt*(G.flow[0] + G.flow[1]*level); if (flowB > 512) flowB -= 512;   // 흐른 시간: 불이 셀수록 빨리. 너무 커지면 무늬가 깨지므로 되감음
+    // 흐른 시간: 불이 셀수록 빨리(1초에 1.6 + 2.6 × 세기씩 — 가만히 약 2.8 · 흔들 때 4.2).
+    // 11/12 검수 반영: 512를 넘으면 되감던 것을 없앰 — 겹마다 이 값에 다른 빠르기를 곱해 쓰므로 되감는 순간 구름 무늬와 물결이 한꺼번에 튀었음(2~3분마다).
+    // 되감지 않아도 됨: 몇 시간 켜 둬도 값이 몇만 정도라 그래픽 카드 숫자 정밀도로 충분히 매끈함(시계 바늘을 되돌리지 않고 그냥 계속 가게 둠)
+    flowB += dt*(G.flow[0] + G.flow[1]*level);
     uB.uFlow.value = flowB; uB.uLevel.value = level;
     height = heightAvg = uB.uH.value = G.h[0] + G.h[1]*level;   // 키: 세기를 따라감
     n.rotation.set(tiltX, 0, tiltZ);   // 윗면 기울기
@@ -1676,6 +1704,16 @@ ${layGl}
       // A로 돌아올 때: 그동안 공중에 멈춰 있던 불티를 전부 치움(안 그러면 허공에서 이어 움직임)
       if (style === 'A' && was !== 'A') { bAge.fill(1); bSpawn = 0; alive = 0; }
     },
+    // 불 v5 검수 반영(11/12): 밝은 화면이면 불 A · 이음매 빛 · 속 빛 · 불티를 「덮어 그리기」로, 어두운 화면이면 원래대로 「더해 그리기」로 (B는 원래 덮어 그림)
+    setLight(on) {
+      const bl = on ? THREE.NormalBlending : THREE.AdditiveBlending;
+      uA.uLight.value = on ? 1 : 0; lump.material.blending = bl;
+      seam.material.blending = bl; seam.material.color.setHex(on ? F.lightGlow[0] : 0xffe08a);
+      core.material.blending = bl; core.material.color.setHex(on ? F.lightGlow[1] : 0xffd24a);
+      for (const s of bS) { s.material.blending = bl; s.material.color.setHex(on ? F.lightGlow[2] : F.ember); }
+    },
+    // 검사용: 불 B의 「흐른 시간」을 읽거나(값 없이) 바로 그 값으로 맞춤 — 아주 큰 값에서도 무늬가 멀쩡한지 볼 때 씀
+    flowB(v) { if (v !== undefined) flowB = Math.max(0, Number(v) || 0); return flowB; },
     // 마시멜로 윗면이 기운 각도를 받아 둠 (앞뒤 · 좌우, 라디안). 불 A · B만 기울임 — 예전 불은 v3 그대로
     setTilt(x, z) { tiltX = x; tiltZ = z; },
     // 검사용: 불 밑동 가운데(a)와 거기서 「불의 위」로 1만큼 간 곳(b)이 세상 어디인지 적어 줌
@@ -1698,6 +1736,7 @@ ${layGl}
     },
   };
   flame.setStyle(fireStyle);
+  flame.setLight(fireLight);
   flames.push(flame);
   return flame;
 }
@@ -3567,8 +3606,12 @@ window.__SQ_TEST__ = {
   setFire(name) { setFireStyle(name); return fireStyle; },   // 불 고르기: 'A'(불꽃 한 송이, 처음 값) · 'B'(겹불) · 'old'(예전 = v3 불)
   // ── 불 v5 ──
   fireStyle() { return fireStyle; },                         // 지금 고른 불: 'A' · 'B' · 'old' (종 · 화면과 상관없이 읽힘)
+  // 11/12 검수 반영: 불이 지금 「밝은 화면」 방식으로 그려지고 있나(true = 덮어 그리기 · false = 더해 그리기)
+  fireLight() { return fireLight; },
+  // 11/12 검수 반영: 불 B의 「흐른 시간」 — 값 없이 부르면 읽기, 값을 주면 바로 그 값으로 맞춤(만지는 화면의 꼬치구이 것만). 꼬치구이가 아니면 null
+  fireClock(v) { return mode === 'play' && curKind.id === 'skewer' && playDeco && playDeco.flame ? playDeco.flame.flowB(v) : null; },
   // 불 자리의 한 점이 화면 어디인가(px) — x = 불 가운데에서 옆으로(오른쪽 +), y = 윗면에서 「불의 위」로 (보이는 크기). 사진에서 그 자리 색을 잴 때 씀
-  // B의 판은 가로 -0.45 ~ 0.45 · 세로 -0.1 ~ 0.95 (FLAME3)
+  // B의 판은 가로 -0.55 ~ 0.55 · 세로 -0.1 ~ 1.1 (FLAME3)
   flamePx(x = 0, y = 0) {
     if (mode !== 'play' || curKind.id !== 'skewer' || !playDeco || !playDeco.flame) return null;
     playDeco.flame.axisTo(tmpV2, tmpV3);
