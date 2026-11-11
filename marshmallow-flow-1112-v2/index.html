@@ -3011,7 +3011,8 @@ function flowLoad() {
     if (typeof o.heart === 'number' && isFinite(o.heart)) flow.heart = clamp(o.heart, 0, 1);
     if (typeof o.kind === 'string' && flow.owned.includes(o.kind)) flow.kind = o.kind;
     if (FLOW.speeds.includes(o.speed)) flow.speed = flow.speedSaved = o.speed;
-    if (o.asked === true) flow.asked = true;
+    // 팝업을 본 표시가 빠져 있어도 가진 종이 둘 이상이면 이미 실험을 해 본 것 → 본 것으로 침 (옛 저장 · 손으로 고친 저장에서 팝업이 한 번 더 뜨지 않게)
+    if (o.asked === true || flow.owned.length >= 2) flow.asked = true;
   } catch (e) { flow.stored = false; }
 }
 function flowSave() {
@@ -3129,7 +3130,7 @@ function flowMainPress() {
 // 진짜 버튼 누름이 들어오는 문: 글자(역할)가 막 바뀐 버튼은 잠깐 누름을 받지 않음.
 // 같은 자리의 버튼 하나를 돌려쓰기 때문 — 「돌아가기」를 톡톡 두 번 누르면 둘째 누름이 「마시멜로 실험 참여하기」가 되어 버림 (성공 → 「만져 보기」도 같은 규칙)
 function flowMainTap() {
-  if (flowTapAt('mainDownAt') - flow.mainAt < FLOW.mainGuard*1000) return false;   // 닿은 때 기준 (flowTapAt 설명 참고)
+  if (flowTapAt('mainDownAt') - flow.mainAt < FLOW.mainGuard*1000) { flow.mainBlocked = (flow.mainBlocked || 0) + 1; return false; }   // 닿은 때 기준 (flowTapAt 설명 참고). 막은 횟수는 검사가 「누름이 여기까지 왔다가 막혔다」를 확인하는 데 씀
   flowMainPress();
   return true;
 }
@@ -3371,7 +3372,8 @@ Object.assign(window.__SQ_TEST__, {
   flow() { flowSync(); return flowInfo(); },                                       // 가진 종 · 하트 · 단계 · 남은 초 · 빠르기 · 다음 종
   flowAddHeart(x = 1) { flow.heart = clamp(flow.heart + (Number(x) || 0), 0, 1); flowAskCheck(); flowSave(); flowSync(); return flowInfo(); },   // 처음 가득 차면 팝업도 뜸
   flowAsk(ans) { flowAskCheck(); flowAskAnswer(ans !== 'no' && ans !== false); return flowInfo(); },   // v2: 팝업에 답함('yes' · 'no'). 0.45초 잠금을 거치지 않음 (떠 있지 않으면 아무 일 없음)
-  flowAskAt() { return flow.ask ? performance.now() - flow.ask.at : -1; },         // v2: 팝업이 뜬 지 몇 ms 지났나 (안 떠 있으면 -1)
+  flowBlocked() { return flow.mainBlocked || 0; },                                 // 큰 버튼의 0.45초 잠금이 진짜 누름을 막은 횟수 (시작부터 센 값)
+  flowAskAt() { return flow.ask ? performance.now() - flow.ask.at : -1; },        // v2: 팝업이 뜬 지 몇 ms 지났나 (안 떠 있으면 -1)
   flowTick(sec = 1) {                                                              // 기다리는 시간을 바로 흘림 (빨리 감기와 상관없이 그 초만큼)
     const e = flow.exp;
     if (e && (e.phase === 'hold' || e.phase === 'wait')) {
