@@ -52,10 +52,14 @@
     main { width: min(100vw, 860px); column-gap: 14px; }
   }
 
-  /* 배치 E: 손바닥만 한 기기 하나. 흰 몸통 안에 검은 화면, 그 아래 키캡 두 개.
-     크기와 자리는 스크립트가 정하고, 몸통 아래 두 모서리는 비스듬히 깎는다(clip-path = 오려 내기) */
-  .device-e { position: relative; display: none; flex: none; background: var(--white); line-height: 0; }
+  /* 배치 E · F: 손바닥만 한 기기 하나. 몸통 안에 검은 화면, 그 아래 키캡 두 개, 맨 아래 오돌토돌한 띠.
+     크기와 자리는 스크립트가 창 크기에 맞춰 정한다. 몸통 겉모양(둥근 위 · 깎인 아래 · 몸통 색)은 안쪽 그림(#bodyArt)이 그린다 */
+  .device-e { position: relative; display: none; flex: none; line-height: 0; }
   .device-e .screen { position: absolute; }
+  .body-art { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+  .grip { position: absolute; display: block; image-rendering: pixelated; pointer-events: none; }
+  /* 기기 모양일 때 받침대는 창 전체: 기기를 가로 · 세로 가운데에 올려 둔다(창 바깥 배경은 검정) */
+  main.layout-e { width: 100vw; height: 100vh; height: 100dvh; padding: 0; }
   .key {
     position: absolute; padding: 0; margin: 0; border: 0; background: transparent;
     line-height: 0; cursor: pointer; touch-action: none; outline: none;
@@ -87,8 +91,11 @@
     </div>
     <!-- 배치 E 기기 몸통: 검은 화면과 배치 버튼은 배치 E일 때 스크립트가 이 안으로 옮겨 온다 -->
     <div class="device-e" id="deviceE">
-      <button class="key" id="keySlide" type="button" tabindex="-1"><canvas id="keySlideCanvas"></canvas><span class="ghost">쏴</span></button>
+      <svg class="body-art" id="bodyArt" aria-hidden="true"><path id="bodyFill"></path><path id="bodyLine" fill="none"></path></svg>
+      <button class="corner-btn skin-btn" id="skinBtn" type="button" tabindex="-1"><canvas id="skinCanvas"></canvas><span class="ghost" id="skinLabel">몸통 white</span></button>
+      <button class="key" id="keySlide" type="button" tabindex="-1"><canvas id="keySlideCanvas"></canvas><span class="ghost">다시</span></button>
       <button class="key" id="keyPush" type="button" tabindex="-1"><canvas id="keyPushCanvas"></canvas><span class="ghost">쏴</span></button>
+      <canvas class="grip" id="grip"></canvas>
     </div>
   </div>
   <!-- 배치 0 숫자판: 다른 배치에서는 숨는다 -->
@@ -102,7 +109,10 @@
 /* 결투 — 서부 총잡이 대결.
    비유: 운동회 달리기 출발 총. 「!」가 뜨기 전에 움직이면 부정 출발(반칙패), 뜨고 나서는 먼저 누른 쪽이 이긴다.
    멀리서 넓게 잡은 장면: 화면 왼쪽 끝에 나, 오른쪽 끝에 상대가 마주 보고 서 있다.
-   이길 때마다 다음 상대가 조금씩 빨라지고, 지면 연승이 0으로 돌아간다. */
+   이길 때마다 다음 상대가 조금씩 빨라지고, 지면 연승이 0으로 돌아간다.
+   11/11 16:29 피드백판: 기기 모양만 남김(배치 E = 2:1 화면, F = 4:3 화면) · 기기를 크게 · 몸통 색 넷 ·
+   게임 버튼은 누른 번호로 바로 · 왼쪽 키 = 다시(RE), 오른쪽 키 = 쏘기(권총 그림) · 들어오면 3초 안에 첫 신호 ·
+   기다리는 동안 굴러가는 마른 풀 덩어리와 바람 줄 · 상대는 검은 모자 · 시작 때 내 머리 위 「나」 · 왼쪽 위 「N연승」. */
 (function () {
   'use strict';
 
@@ -115,11 +125,14 @@
     best: 'hold-on-key-duel-best',       // 최고 연승
     bestMs: 'hold-on-key-duel-best-ms',  // 이긴 판 중 가장 빠른 반응(1/1000초)
   };
-  const LAYOUT_KEY = 'hold-on-key-duel-layout'; // 고른 배치(0 · A~E). 「처음부터」 지우기에는 안 들어감
+  const LAYOUT_KEY = 'hold-on-keys-layout'; // 고른 배치(E · F). 네 게임이 함께 쓴다. 「처음부터」 지우기에는 안 들어감
+  const SKIN_KEY = 'hold-on-keys-skin';     // 고른 몸통 색(0~3). 네 게임이 함께 쓴다
   const LABEL = '쏴';
 
   // 대결 규칙 값(시간 단위는 전부 1/1000초)
   const WAIT_MIN = 1500, WAIT_MAX = 4500; // 대결 시작 ~ 신호까지 무작위 시간
+  const FIRST_WAIT_MIN = 1200, FIRST_WAIT_MAX = 3000; // 게임에 막 들어온 첫 판만: 3초 안에 신호(그냥 서 있는 시간이 길지 않게)
+  const ME_MARK_MS = 1500; // 결투가 시작되면 내 머리 위 「나」 표시가 떠 있는 시간
   const OPP_FIRST = 600, OPP_STEP = 40, OPP_FLOOR = 160; // 상대 반응: 첫 상대 0.6초, 이길 때마다 0.04초 빨라짐, 0.16초 밑으로는 안 줄어듦
   const oppFor = (n) => Math.max(OPP_FLOOR, OPP_FIRST - OPP_STEP * n);
   const IGNORE_AFTER = 400; // 결과가 나온 직후 이만큼은 누름을 무시(늦게 누른 것이 다음 판 반칙이 되지 않게)
@@ -138,15 +151,31 @@
     C: { rows: 128, btn: 96, btnLand: 150, tapScreen: false },        // 1:1 화면 + 얇은 버튼
     D: { rows: 'fill', btn: 64, btnLand: 88, tapScreen: true },       // 화면이 거의 전부 + 맨 아래 띠 버튼
     E: { rows: 64, keys: true, tapScreen: false },                    // 기기 모양: 몸통 안에 2:1 화면 + 키캡 두 개
+    F: { rows: 96, keys: true, tapScreen: false },                    // 같은 기기 모양: 4:3 화면 + 키캡 두 개
   };
-  const LAYOUT_IDS = ['0', 'A', 'B', 'C', 'D', 'E']; // 배치 버튼 · L 키로 도는 순서
+  // 11/11 16:29부터 고를 수 있는 배치는 E · F 둘뿐(0 · A~D는 코드만 남고 화면에서 고를 수 없다)
+  const LAYOUT_IDS = ['E', 'F']; // 배치 버튼 · L 키로 도는 순서
   const FIRST_LAYOUT = 'E'; // 처음 여는 사람의 배치
 
-  // 배치 E 치수(단위는 화면 점, 비율은 몸통 폭에 대한 몫)
-  const DEVICE_SHARE = 0.85;  // 몸통 폭 = 화면 폭의 85%
-  const DEVICE_ASPECT = 1.3;  // 몸통 세로 = 폭 × 1.3(본보기 기기 비율쯤)
-  const SCREEN_SHARE = 0.78;  // 검은 화면 폭은 몸통 폭의 78%까지(칸이 고르게 정수로 맞춰 조금 작아질 수 있음)
-  const KEY_MIN = 72, KEY_MAX = 84; // 키캡 한 변(실제 키보드 키 크기쯤)
+  /* ---------- 몸통 색 넷: 누를 때마다 다음 색. 띠 = 몸통보다 한 단계 어두운 색 ---------- */
+  const SKINS = [
+    { name: 'white', body: '#f2f2f2', grip: '#cfcfcf' },
+    { name: 'gray', body: '#c9cbcc', grip: '#a9abac' },
+    { name: 'cream', body: '#e7dfcb', grip: '#c9c0aa' },
+    { name: 'black', body: '#1c1c1c', grip: '#3a3a3a', line: true }, // 검은 몸통은 둘레 안쪽에 2점 흰 선
+  ];
+
+  // 기기 치수(단위는 화면 점, 비율은 몸통 폭 dw에 대한 몫)
+  const DEVICE_MAX = 460;     // 몸통 폭 상한
+  const EDGE = 28;            // 창 가장자리와 몸통 사이에 남기는 여유(양쪽 합)
+  const SCREEN_SHARE = 0.86;  // 검은 화면 폭 목표 = 몸통 폭의 86%
+  const GAP_SHARE = 0.07;     // 화면~키캡 · 두 키 사이 · 키캡~띠 · 띠 높이 · 띠~몸통 끝 = 몸통 폭의 7%
+  const KEY_SHARE_TWO = 0.34; // 키 둘 게임: 키캡 한 변 목표 = 몸통 폭의 34%
+  const GRIP_SHARE = 0.46;    // 오돌토돌한 띠 폭 = 몸통 폭의 46%
+  const BODY_TALL = 1.5;      // 몸통 세로 = 폭의 1.5배까지 늘림(남는 높이는 틈에 나눠 넣음)
+  const CORNER_SHARE = 0.1;   // 위 모서리 둥글기 · 아래 모서리 깎기 = 몸통 폭의 10%
+  const BAND_PAD = 10;        // 몸통 위 띠: 작은 버튼 줄 위아래 여유
+  const KEY_MIN = 72, KEY_MAX = 190; // 키캡 한 변 범위
   const KEY_CELLS = 20;       // 키캡 그림은 20×20칸
   const KEY_PRESS_DROP = 3;   // 누르면 윗면이 내려가는 칸 수
   const A_MIN_BTN = 200;   // 배치 A에서 버튼이 적어도 이만큼은 남게(화면 점)
@@ -177,7 +206,11 @@
   }
   function loadLayout() {
     const raw = loadRaw(LAYOUT_KEY);
-    return LAYOUTS[raw] ? raw : FIRST_LAYOUT;
+    return LAYOUT_IDS.includes(raw) ? raw : FIRST_LAYOUT;
+  }
+  function loadSkin() {
+    const n = loadInt(SKIN_KEY);
+    return n !== null && n < SKINS.length ? n : 0;
   }
 
   /* ---------- 그림 재료: 글자 그림. # 흰 점, . 건너뜀 ---------- */
@@ -255,8 +288,49 @@
     fall: { rows: FALL, ax: 6 },
     down: { rows: DOWN, ax: 3 },
   };
-  const HAT = ['.###.', '#####']; // 벗겨진 모자
-  const FLASH = [[14, 6], [15, 5], [15, 7], [16, 6], [17, 4], [17, 8], [18, 6]]; // 총구 불꽃(쏨 그림 기준 열 · 줄)
+  const HAT = ['.###.', '#####']; // 벗겨진 모자(나: 속이 꽉 찬 흰 모자)
+  // 상대는 검은 모자: 검은 화면 위라 테두리만 흰 점으로 그리고 속은 검게 남긴다(내 흰 모자보다 한 칸씩 넓다)
+  const OPP_HAT_ROWS = ['...#####...', '...#...#...', '.#########.']; // 서 있을 때 · 쏠 때 그림의 맨 위 세 줄을 이것으로 바꾼다
+  const OPP_HAT = ['.#####.', '.#...#.', '#######']; // 벗겨진 검은 모자
+  const withOppHat = (rows) => rows.map((row, j) => (j < OPP_HAT_ROWS.length ? OPP_HAT_ROWS[j] + '.'.repeat(row.length - OPP_HAT_ROWS[j].length) : row));
+  const OPP_POSES = {
+    stand: { rows: withOppHat(STAND), ax: 5 },
+    shoot: { rows: withOppHat(SHOOT), ax: 5 },
+    fall: POSES.fall,
+    down: POSES.down,
+  };
+
+  // 굴러가는 마른 풀 덩어리(텀블위드): 둥근 테두리 + 안쪽 잔가지 세 갈래가 굴러간 거리만큼 돈다
+  const TUMBLE_R = 3;            // 반지름(칸)
+  const TUMBLE_ROLL_MS = 2600;   // 화면 한쪽 끝에서 반대쪽 끝까지 굴러가는 시간
+  const TUMBLE_EVERY_MS = 3600;  // 한 번 지나간 뒤 다음 덩어리까지(굴러가는 시간 포함)
+  const TUMBLE_LEAD_MS = 250;    // 결투 시작 ~ 첫 덩어리가 출발하기까지
+  const TUMBLE_HOP_MS = 520;     // 한 번 통통 튀는 데 걸리는 시간
+  const TUMBLE_HOP = 3;          // 튀어 오르는 높이(칸)
+  const TUMBLE_RING = [];        // 테두리 칸(가운데 기준 좌표)
+  for (let y = -TUMBLE_R; y <= TUMBLE_R; y += 1) {
+    for (let x = -TUMBLE_R; x <= TUMBLE_R; x += 1) {
+      const d = Math.hypot(x, y);
+      if (d > TUMBLE_R - 0.5 && d <= TUMBLE_R + 0.5) TUMBLE_RING.push([x, y]);
+    }
+  }
+  // 바람 줄: 하늘 아래쪽(왼쪽 위 숫자들보다 아래, 두 사람 머리보다 위)의 세 줄. [기준 그림의 줄, 길이, 출발 늦춤(1/1000초)]
+  const WIND_LINES = [[33, 9, 0], [37, 6, 380], [40, 11, 760]];
+  const WIND_SPEED = 0.16;       // 바람 줄이 1/1000초에 가는 칸 수(덩어리보다 빠르게)
+
+  // 「나」 표시: 작은 점 글씨 「나」 + 아래 화살표. 결투가 시작될 때 왼쪽 사람 머리 위에 잠깐 뜬다
+  const ME_MARK = [
+    '#..#.',
+    '#..#.',
+    '#..##',
+    '#..#.',
+    '##.#.',
+    '.....',
+    '#...#',
+    '.#.#.',
+    '..#..',
+  ];
+  const FLASH =[[14, 6], [15, 5], [15, 7], [16, 6], [17, 4], [17, 8], [18, 6]]; // 총구 불꽃(쏨 그림 기준 열 · 줄)
 
   // 해: 오른쪽 위, 둥근 해와 빛살 점
   const SUN = [
@@ -329,6 +403,10 @@
     C: ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'],
     D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'],
     E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'],
+    F: ['#####', '#....', '#....', '####.', '#....', '#....', '#....'],
+    // 「N연승」의 한글 두 자(숫자와 같은 5×7칸)
+    '연': ['.#.##', '#.#.#', '.#.##', '....#', '#....', '#....', '#####'],
+    '승': ['..#..', '.#.#.', '#...#', '#####', '.###.', '#...#', '.###.'],
     // 깃발(최고 연승) · 번개(가장 빠른 반응)
     '⚑': ['##.....', '####...', '######.', '####...', '##.....', '#......', '#......'],
     '⚡': ['...##', '..##.', '.##..', '#####', '..##.', '.##..', '##...'],
@@ -362,6 +440,23 @@
     '⚑': ['##.', '###', '##.', '#..', '#..'],
     '⚡': ['..#', '.#.', '###', '.#.', '#..'],
   };
+  // 키캡 윗면 그림(윗면 안쪽 12×8칸 안에 들어가는 크기)
+  const KEY_RE = [ // 왼쪽 키: 다시
+    '##..###',
+    '#.#.#..',
+    '##..##.',
+    '#.#.#..',
+    '#.#.###',
+  ];
+  const KEY_GUN = [ // 오른쪽 키: 옆에서 본 리볼버(총구가 오른쪽 = 상대 쪽)
+    '.#.......#',
+    '##########',
+    '##########',
+    '#####.....',
+    '##..#.#...',
+    '##...##...',
+    '##........',
+  ];
   function measure(keys, font = GLYPHS) {
     let w = 0, h = 0;
     keys.forEach((k, i) => { const gl = font[k]; w += gl[0].length + (i ? 1 : 0); h = Math.max(h, gl.length); });
@@ -410,6 +505,9 @@
 
   /* ---------- 상태 ---------- */
   let layout = loadLayout();
+  let skin = loadSkin();
+  let firstDuel = true;     // 게임에 들어와 아직 한 판도 시작 안 함(첫 판만 신호가 3초 안에)
+  let windDir = 1;          // 이번 판 첫 바람 방향: 1 = 왼쪽 → 오른쪽, -1 = 오른쪽 → 왼쪽(판마다 무작위, 덩어리마다 번갈아)
   let streak = loadInt(KEYS.streak) || 0;
   let best = Math.max(loadInt(KEYS.best) || 0, streak);
   let bestMs = loadInt(KEYS.bestMs); // 없으면 null
@@ -445,7 +543,10 @@
   function startDuel(t) {
     phase = 'wait';
     startT = t;
-    waitMs = fixedWait !== null ? fixedWait : WAIT_MIN + Math.floor(Math.random() * (WAIT_MAX - WAIT_MIN + 1));
+    const [lo, hi] = firstDuel ? [FIRST_WAIT_MIN, FIRST_WAIT_MAX] : [WAIT_MIN, WAIT_MAX];
+    waitMs = fixedWait !== null ? fixedWait : lo + Math.floor(Math.random() * (hi - lo + 1));
+    firstDuel = false;
+    windDir = Math.random() < 0.5 ? 1 : -1;
     duelOpp = oppFor(streak);
     myMs = null; outcome = null; shotMs = null; autoLoseFrom = null; signalT = 0;
     render(); startLoop();
@@ -516,6 +617,12 @@
     duelOpp = oppFor(streak);
     render();
   }
+  // 다시(왼쪽 키 · R): 연승을 0으로 하고 새 결투를 바로 시작. 반칙으로 치지 않는다(최고 기록은 그대로)
+  function restart(t) {
+    streak = 0; autoLoseFrom = null;
+    saveRecords(); syncText();
+    startDuel(t);
+  }
 
   /* ---------- 실제 시간: 화면이 보이는 동안 매 장면마다 신호 · 상대 · 쓰러짐을 챙긴다 ---------- */
   let rafId = 0;
@@ -525,7 +632,7 @@
     rafId = 0;
     if (manual !== null || document.hidden) return;
     advanceTo(now());
-    if (phase === 'result') render(); // 쓰러지는 그림
+    if (phase !== 'ready') render(); // 노려보는 동안 = 굴러가는 풀 · 바람 · 「나」 표시, 결과 = 쓰러지는 그림
     if (!rafId && needsLoop()) rafId = requestAnimationFrame(loop); // 위에서 이미 다음 장면을 걸어 두었으면 또 걸지 않는다
   }
   function startLoop() {
@@ -533,12 +640,15 @@
     rafId = requestAnimationFrame(loop);
   }
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { releaseAllKeys(); cancelDuel(); } else { render(); startLoop(); }
+    if (document.hidden) { releaseAllKeys(); cancelDuel(); return; }
+    // 뒤쪽 탭으로 열려서 아직 첫 판을 못 했으면, 화면이 보이는 순간 첫 판을 시작한다
+    if (firstDuel && phase === 'ready' && manual === null) { startDuel(now()); return; }
+    render(); startLoop();
   });
 
-  /* ---------- 배치 바꾸기 ---------- */
+  /* ---------- 배치 바꾸기(E ↔ F) ---------- */
   function setLayout(id) {
-    if (!LAYOUTS[id]) return false;
+    if (!LAYOUTS[id] || !LAYOUT_IDS.includes(id)) return false;
     releaseAllKeys(); // 키를 누른 채 배치를 바꾸면 뗀 것으로 친다
     layout = id;
     saveRaw(LAYOUT_KEY, id);
@@ -546,6 +656,17 @@
     return true;
   }
   const nextLayout = () => setLayout(LAYOUT_IDS[(LAYOUT_IDS.indexOf(layout) + 1) % LAYOUT_IDS.length]);
+
+  /* ---------- 몸통 색 바꾸기 ---------- */
+  function setSkin(n) {
+    n = Math.floor(Number(n));
+    if (!(n >= 0 && n < SKINS.length)) return false;
+    skin = n;
+    saveRaw(SKIN_KEY, n);
+    fit();
+    return true;
+  }
+  const nextSkin = () => setSkin((skin + 1) % SKINS.length);
 
   /* ---------- 버튼 · 숫자판 · 배치 버튼(점 글씨) ---------- */
   const el = {
@@ -556,6 +677,9 @@
     btn: document.getElementById('btn'), btnCanvas: document.getElementById('btnCanvas'), btnLabel: document.getElementById('btnLabel'),
     panel: document.getElementById('panel'), panelCanvas: document.getElementById('panelCanvas'), num: document.getElementById('num'),
     deviceE: document.getElementById('deviceE'),
+    bodyArt: document.getElementById('bodyArt'), bodyFill: document.getElementById('bodyFill'), bodyLine: document.getElementById('bodyLine'),
+    skinBtn: document.getElementById('skinBtn'), skinCanvas: document.getElementById('skinCanvas'), skinLabel: document.getElementById('skinLabel'),
+    grip: document.getElementById('grip'),
     keySlide: document.getElementById('keySlide'), keySlideCanvas: document.getElementById('keySlideCanvas'),
     keyPush: document.getElementById('keyPush'), keyPushCanvas: document.getElementById('keyPushCanvas'),
   };
@@ -616,7 +740,7 @@
     cv.style.width = `${cw / r}px`; cv.style.height = `${ch / r}px`;
   }
 
-  // 배치 버튼: 테두리 안에 0 A B C D E 여섯 글자. 지금 배치 글자만 검게 칠한 칸에 흰 글씨. 버튼 높이(화면 점)를 돌려준다
+  // 배치 버튼: 테두리 안에 E F 두 글자. 지금 배치 글자만 검게 칠한 칸에 흰 글씨. 버튼 높이(화면 점)를 돌려준다
   function drawLayoutBtn() {
     const cv = el.layoutCanvas, ctx = cv.getContext('2d'), r = dpr(), cc = cornerCell();
     const BOX_W = 7, BOX_H = 9;                       // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
@@ -624,6 +748,7 @@
     const cw = cols * cc, ch = rowsN * cc;
     sizeCorner(cv, cw, ch);
     ctx.clearRect(0, 0, cw, ch);
+    pixelBlock(ctx, cw, ch, cc, INK); // 몸통 색과 상관없이 흰 바탕
     pixelFrame(ctx, cw, ch, cc, BG);
     LAYOUT_IDS.forEach((id, i) => {
       const bx = (3 + i * (BOX_W + 1)) * cc, by = Math.floor((rowsN - BOX_H) / 2) * cc;
@@ -639,9 +764,34 @@
     return ch / r;
   }
 
-  /* ---------- 배치 E의 키캡 두 개: 둘 다 「쏴」 ----------
-     비유: 진짜 키보드 키. 누르는 순간 한 번 쏘고, 손을 떼기 전까지는 같은 키든 다른 키든 다시 세지 않는다.
-     keyHold = 지금 그 키를 누르고 있는 것(손가락 번호 · 'kb:Space' 같은 키보드 · 'test'), 안 누르면 null */
+  // 몸통 색 버튼: 테두리 안에 7×9칸 네모 넷(네모마다 그 색 견본 + 검은 테두리 한 칸).
+  // 지금 고른 네모만 바깥에 한 칸 더 둘러 굵은 테두리. 네모 사이는 두 칸(굵은 테두리가 옆 네모에 붙지 않게)
+  function drawSkinBtn() {
+    const cv = el.skinCanvas, ctx = cv.getContext('2d'), cc = cornerCell();
+    const BOX_W = 7, BOX_H = 9, GAP = 2;
+    const cols = 3 + SKINS.length * BOX_W + (SKINS.length - 1) * GAP + 3, rowsN = 17;
+    const cw = cols * cc, ch = rowsN * cc;
+    sizeCorner(cv, cw, ch);
+    ctx.clearRect(0, 0, cw, ch);
+    pixelBlock(ctx, cw, ch, cc, INK);
+    pixelFrame(ctx, cw, ch, cc, BG);
+    const by = Math.floor((rowsN - BOX_H) / 2);
+    SKINS.forEach((s, i) => {
+      const bx = 3 + i * (BOX_W + GAP);
+      ctx.fillStyle = BG;
+      if (i === skin) ctx.fillRect((bx - 1) * cc, (by - 1) * cc, (BOX_W + 2) * cc, (BOX_H + 2) * cc);
+      ctx.fillRect(bx * cc, by * cc, BOX_W * cc, BOX_H * cc);
+      ctx.fillStyle = s.body;
+      ctx.fillRect((bx + 1) * cc, (by + 1) * cc, (BOX_W - 2) * cc, (BOX_H - 2) * cc);
+    });
+    const label = `몸통 ${SKINS[skin].name}`;
+    if (el.skinLabel.textContent !== label) el.skinLabel.textContent = label;
+  }
+
+  /* ---------- 기기의 키캡 두 개: 왼쪽 = 다시(RE), 오른쪽 = 쏘기(권총 그림) ----------
+     비유: 진짜 키보드 키. 누르는 순간 한 번 작동하고, 손을 떼기 전까지는 같은 키든 다른 키든 다시 세지 않는다.
+     keyHold = 지금 그 키를 누르고 있는 것(손가락 번호 · 'kb:Space' 같은 키보드 · 'test'), 안 누르면 null
+     push = 오른쪽 쏘기 키, slide = 왼쪽 다시 키(예전 이름 그대로 둠) */
   const keyHold = { push: null, slide: null };
   const keyEl = () => ({ push: el.keyPush, slide: el.keySlide });
   const anyKeyDown = () => keyHold.push !== null || keyHold.slide !== null;
@@ -653,7 +803,7 @@
     if (anyKeyDown()) return false; // 한 키가 눌려 있는 동안 다른 키는 무시
     keyHold[name] = who;
     pushFlash = false;
-    fire(t);
+    if (name === 'slide') restart(t); else fire(t);
     drawKeys();
     return true;
   }
@@ -674,8 +824,8 @@
   }
 
   // 키캡 하나 그리기(20×20칸, 두 색). 바깥 네모 = 스위치 집, 안쪽 작은 네모 = 키 윗면, 그 아래 무늬 띠 = 키 옆면.
-  // 누르면 윗면이 3칸 내려가고 옆면이 그만큼 짧아진다(바닥 쪽 끝은 그대로)
-  function drawKey(cv, down) {
+  // 누르면 윗면이 3칸 내려가고 옆면이 그만큼 짧아진다(바닥 쪽 끝은 그대로). legend = 윗면 가운데에 찍을 그림
+  function drawKey(cv, down, legend) {
     const ctx = cv.getContext('2d'), c = keyCell, n = KEY_CELLS * c;
     const R = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x * c, y * c, w * c, h * c); };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -690,16 +840,22 @@
       for (let x = capX + 1; x < capX + capW - 1; x += 1) if ((x + y) % 2 === 0) R(x, y, 1, 1, BG);
     }
     R(capX + 1, sideY + sideH - 1, capW - 2, 1, BG);
-    // 윗면: 흰 판 + 모서리 깎은 검은 테두리(표시 없음)
+    // 윗면: 흰 판 + 모서리 깎은 검은 테두리
     ctx.setTransform(1, 0, 0, 1, capX * c, topY * c);
     pixelBlock(ctx, capW * c, topH * c, c, INK);
     pixelFrame(ctx, capW * c, topH * c, c, BG);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // 윗면 가운데 그림(테두리 안쪽 12×8칸 안, 남는 칸은 반으로 나눠 왼쪽 · 위에 적게)
+    if (legend) {
+      const lw = legend[0].length, lh = legend.length;
+      const lx = capX + 1 + Math.floor((capW - 2 - lw) / 2), ly = topY + 1 + Math.floor((topH - 2 - lh) / 2);
+      legend.forEach((row, j) => { for (let i = 0; i < row.length; i += 1) if (row[i] === '#') R(lx + i, ly + j, 1, 1, BG); });
+    }
   }
   function drawKeys() {
-    if (layout !== 'E') return;
-    drawKey(el.keyPushCanvas, keyHold.push !== null || pushFlash);
-    drawKey(el.keySlideCanvas, keyHold.slide !== null);
+    if (!LAYOUTS[layout].keys) return;
+    drawKey(el.keyPushCanvas, keyHold.push !== null || pushFlash, KEY_GUN);
+    drawKey(el.keySlideCanvas, keyHold.slide !== null, KEY_RE);
   }
 
   // 검은 화면과 배치 버튼을 지금 배치의 몸통으로 옮긴다(E = 기기 몸통, 0 · A~D = 원래 몸통)
@@ -778,9 +934,10 @@
   }
 
   // 총잡이 한 명: anchor = 몸 한가운데 열, right = 오른쪽을 보는지(나), gy = 땅 줄.
-  // 둘레를 한 칸 검게 비워 능선 위에 겹쳐도 몸이 또렷하게 보이게 한다
+  // 둘레를 한 칸 검게 비워 능선 위에 겹쳐도 몸이 또렷하게 보이게 한다. 상대(right = false)는 검은 모자
   function drawPerson(anchor, right, pose, gy) {
-    const { rows, ax } = POSES[pose];
+    const { rows, ax } = (right ? POSES : OPP_POSES)[pose];
+    const hat = right ? HAT : OPP_HAT;
     const top = gy - rows.length;
     const sx = (i) => (right ? anchor - ax + i : anchor + ax - i);
     const cells = [];
@@ -790,10 +947,55 @@
     cells.forEach(([x, y]) => dot(x, y, INK));
     // 넘어가는 중 = 모자가 공중에, 누움 = 모자가 등 뒤 땅에
     if (pose === 'fall' || pose === 'down') {
-      const hx = right ? anchor - 9 : anchor + 9 - (HAT[0].length - 1);
-      sprite(hx, pose === 'fall' ? gy - 12 : gy - HAT.length, HAT);
+      const hx = right ? anchor - 9 : anchor + 9 - (hat[0].length - 1);
+      sprite(hx, pose === 'fall' ? gy - 12 : gy - hat.length, hat);
     }
   }
+
+  /* ---------- 기다리는 동안의 바람: 굴러가는 마른 풀 덩어리 + 바람 줄 ----------
+     비유: 서부 영화에서 결투 전 정적을 채우는 장면. 결투가 시작된 뒤 흐른 시간만 보고 그리므로
+     (무작위는 판마다 바람 방향 하나뿐) 검사용 손 시계로 돌려도 같은 그림이 나온다.
+     노려보는 동안 · 신호가 뜬 동안만 보이고, 결과가 나면 사라진다 */
+  function windNow() {
+    if (phase !== 'wait' && phase !== 'signal') return null;
+    const t = now() - startT - TUMBLE_LEAD_MS;
+    if (t < 0) return null;
+    const n = Math.floor(t / TUMBLE_EVERY_MS), within = t - n * TUMBLE_EVERY_MS;
+    if (within >= TUMBLE_ROLL_MS) return null; // 다음 덩어리까지 잠깐 조용
+    const dir = n % 2 === 0 ? windDir : -windDir; // 덩어리마다 방향을 번갈아
+    const span = W + 4 * TUMBLE_R + 4;            // 화면 밖에서 나와 화면 밖으로 사라질 때까지
+    const dist = (within / TUMBLE_ROLL_MS) * span;
+    const x = Math.round(dir > 0 ? -2 * TUMBLE_R - 2 + dist : W + 2 * TUMBLE_R + 1 - dist);
+    const hop = (within % TUMBLE_HOP_MS) / TUMBLE_HOP_MS;
+    const lift = Math.round(TUMBLE_HOP * Math.sin(Math.PI * hop)); // 통통: 땅에 닿았다 튀어 오름
+    return { x, lift, angle: (dir * dist) / TUMBLE_R, dir, within };
+  }
+  function drawWind(w, oy, gy) {
+    // 바람 줄: 점선처럼 끊긴 가로줄이 바람 방향으로 빠르게 스친다(1.3초마다 다시)
+    WIND_LINES.forEach(([row, len, delay]) => {
+      const local = w.within - delay;
+      if (local < 0) return;
+      const head = ((local % 1300) * WIND_SPEED);
+      const x0 = w.dir > 0 ? Math.round(head - len) : Math.round(W - head);
+      for (let k = 0; k < len; k += 1) if (k % 4 !== 3) dot(x0 + k, row + oy, INK);
+    });
+    // 덩어리: 둘레를 검게 비운 뒤 둥근 테두리 + 굴러간 만큼 도는 잔가지 세 갈래 + 삐져나온 잔가지 둘
+    const cx = w.x, cy = gy - 1 - TUMBLE_R - w.lift;
+    for (let y = -TUMBLE_R - 1; y <= TUMBLE_R + 1; y += 1) {
+      for (let x = -TUMBLE_R - 1; x <= TUMBLE_R + 1; x += 1) if (Math.hypot(x, y) <= TUMBLE_R + 1.2) dot(cx + x, cy + y, BG);
+    }
+    TUMBLE_RING.forEach(([x, y]) => dot(cx + x, cy + y, INK));
+    for (let s = 0; s < 3; s += 1) {
+      const a = w.angle + (s * 2 * Math.PI) / 3;
+      for (let rr = 1; rr < TUMBLE_R; rr += 1) dot(cx + Math.round(Math.cos(a) * rr), cy + Math.round(Math.sin(a) * rr), INK);
+    }
+    [0.5, 0.5 + Math.PI].forEach((off) => {
+      const a = w.angle + off;
+      dot(cx + Math.round(Math.cos(a) * (TUMBLE_R + 1)), cy + Math.round(Math.sin(a) * (TUMBLE_R + 1)), INK);
+    });
+  }
+  // 「나」 표시가 떠 있는지: 결투가 시작되고 1.5초 동안
+  const meMarkNow = () => (phase === 'wait' || phase === 'signal') && now() - startT < ME_MARK_MS;
 
   function render() {
     const oy = skyShift, gy = GROUND_Y + oy;
@@ -813,6 +1015,9 @@
     for (let y = gy + 2; y < H; y += 1) {
       for (let x = 0; x < W; x += 1) if (GROUND_TEX[(y - gy) % th][x % tw] === '#') dot(x, y, INK);
     }
+    // 바람(노려보는 동안): 사람보다 먼저 그려서, 덩어리가 사람 앞을 지나도 사람은 그대로 또렷하게(사람 둘레 비움이 덮는다)
+    const w = windNow();
+    if (w) drawWind(w, oy, gy);
     // 두 사람(나 = 왼쪽 끝, 상대 = 오른쪽 끝)
     const p = poses();
     drawPerson(ME_X, true, p.me, gy);
@@ -838,12 +1043,24 @@
       // 배치 0: 지금 연승만 작게(깃발 · 번개는 아래 숫자판이 맡는다)
       boardText([...String(streak)], 3, 3, 1);
     } else {
-      // 지금 연승은 칸 두 배 크기. 그 아래 작게 깃발 + 최고 연승, 번개 + 가장 빠른 반응(기록 있을 때만)
-      const big = [...String(streak)];
-      const bigK = (measure(big).w * 2 <= W - 6) ? 2 : 1;
-      let y = 3 + boardText(big, 3, 3, bigK) + 3;
+      // 「N연승」: 숫자는 칸 두 배 크기, 「연승」은 한 배 크기로 숫자 바닥에 맞춰 붙인다.
+      // 숫자가 길어 위 가운데 반응 시간 자리(38번째 칸부터)를 넘보게 되면 숫자도 한 배로.
+      // 그 아래 작게 깃발 + 최고 연승, 번개 + 가장 빠른 반응(기록 있을 때만)
+      const big = [...String(streak)], unit = ['연', '승'];
+      const bw = measure(big).w, uw = measure(unit).w;
+      const bigK = (3 + bw * 2 + 2 + uw <= 38) ? 2 : 1;
+      const bigH = boardText(big, 3, 3, bigK);
+      boardText(unit, 3 + bw * bigK + 2, 3 + bigH - 7, 1);
+      let y = 3 + bigH + 3;
       if (best > 0) y += boardText(['⚑', ' '].concat([...String(best)]), 3, y, 1, SMALL) + 2;
       if (bestMs !== null) boardText(['⚡', ' '].concat([...secText(bestMs)]), 3, y, 1, SMALL);
+    }
+
+    // 「나」 표시: 결투가 시작되면 1.5초 동안 왼쪽 사람(나) 모자 위 한 칸 띄워서. 뒤만 검게 비운다(모자 쪽은 안 지움)
+    if (meMarkNow()) {
+      const mx = ME_X - Math.floor(ME_MARK[0].length / 2), my = gy - STAND.length - 1 - ME_MARK.length;
+      box(mx - 1, my, ME_MARK[0].length + 2, ME_MARK.length, BG);
+      sprite(mx, my, ME_MARK);
     }
 
     // 작은 판을 큰 그림판에 옮긴다
@@ -941,64 +1158,115 @@
     render();
   }
 
-  // 배치 E 자리 맞추기: 몸통 폭을 먼저 정하고(화면 폭의 85%, 높이가 모자라면 높이에 맞춰 줄임),
-  // 그 안에 위쪽 띠(배치 버튼) → 검은 화면 → 키캡 두 개를 차례로 놓는다. 남는 아래쪽은 깎인 모서리 자리
+  /* ---------- 몸통 겉모양: 위 두 모서리는 둥글게, 아래 두 모서리는 비스듬히 깎기 ----------
+     inset = 바깥선에서 안으로 들어온 거리(검은 몸통의 안쪽 흰 선을 그릴 때 씀) */
+  function bodyPath(w, h, rad, bevel, inset) {
+    const i = inset, R = Math.max(0, rad - i), B = Math.max(0, bevel - i * 0.41);
+    const x0 = i, y0 = i, x1 = w - i, y1 = h - i;
+    return `M ${x0} ${y0 + R} A ${R} ${R} 0 0 1 ${x0 + R} ${y0} L ${x1 - R} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y0 + R} `
+      + `L ${x1} ${y1 - B} L ${x1 - B} ${y1} L ${x0 + B} ${y1} L ${x0} ${y1 - B} Z`;
+  }
+  function drawBody(dw, dh, rad, bevel) {
+    const sk = SKINS[skin];
+    el.bodyArt.setAttribute('viewBox', `0 0 ${dw} ${dh}`);
+    el.bodyArt.setAttribute('width', dw); el.bodyArt.setAttribute('height', dh);
+    el.bodyFill.setAttribute('d', bodyPath(dw, dh, rad, bevel, 0));
+    el.bodyFill.setAttribute('fill', sk.body);
+    if (sk.line) {
+      el.bodyLine.setAttribute('d', bodyPath(dw, dh, rad, bevel, 1)); // 굵기 2 선의 가운데를 1 안쪽에 → 바깥선 안쪽 0~2점
+      el.bodyLine.setAttribute('stroke', INK); el.bodyLine.setAttribute('stroke-width', '2');
+    } else {
+      el.bodyLine.removeAttribute('d');
+    }
+  }
+
+  // 오돌토돌한 띠: 본보기 기기 아래쪽 회색 띠. 모서리 둥근 직사각형을 띠 색으로 칠하고, 몸통 색 점을 흩뿌린다
+  function drawGrip(gw, gh) {
+    const cv = el.grip, r = dpr(), ctx = cv.getContext('2d'), sk = SKINS[skin];
+    const w = Math.max(1, Math.round(gw * r)), h = Math.max(1, Math.round(gh * r));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    cv.style.width = `${w / r}px`; cv.style.height = `${h / r}px`;
+    ctx.clearRect(0, 0, w, h);
+    const rr = Math.min(h / 2, Math.round(h * 0.3));
+    ctx.beginPath();
+    ctx.moveTo(rr, 0); ctx.lineTo(w - rr, 0); ctx.arcTo(w, 0, w, rr, rr); ctx.lineTo(w, h - rr); ctx.arcTo(w, h, w - rr, h, rr);
+    ctx.lineTo(rr, h); ctx.arcTo(0, h, 0, h - rr, rr); ctx.lineTo(0, rr); ctx.arcTo(0, 0, rr, 0, rr); ctx.closePath();
+    ctx.fillStyle = sk.grip; ctx.fill();
+    // 점 무늬(네 게임 같은 규칙): 점 하나 = 화면 점 2개, 가로 6 · 세로 4 간격, 한 줄 걸러 반 칸 어긋나게
+    ctx.save(); ctx.clip();
+    const p = Math.max(1, Math.round(2 * r));
+    ctx.fillStyle = sk.body;
+    for (let row = 0, y = 2 * p; y + p <= h - 2 * p; row += 1, y += 2 * p) {
+      for (let x = 2 * p + (row % 2 ? Math.round(1.5 * p) : 0); x + p <= w - 2 * p; x += 3 * p) ctx.fillRect(x, y, p, p);
+    }
+    ctx.restore();
+  }
+
+  /* ---------- 기기 자리 맞추기(배치 E · F 같은 계산) ----------
+     몸통 폭 dw = min(창 폭 − 28, 460). 위에서부터: 띠(작은 버튼 줄 + 위아래 10) → 검은 화면 → 7% → 키캡 둘(사이 7%) → 7% → 오돌토돌한 띠(7%) → 7%.
+     합이 창 높이 − 28을 넘으면 화면 칸 크기부터, 그다음 키캡 크기를 줄인다(키캡은 72 아래로 안 줄임).
+     몸통은 창 가운데(받침대 main이 창 전체이고 가운데 정렬) */
   function fitDevice() {
-    const r = dpr(), ms = el.main.style;
+    const r = dpr(), ms = el.main.style, rows = LAYOUTS[layout].rows;
     ms.gridTemplateColumns = 'minmax(0, 1fr)';
     ms.gridTemplateRows = 'minmax(0, 1fr)';
     el.screen.classList.remove('tappable');
-    const bandH = drawLayoutBtn();
+    const btnH = drawLayoutBtn();
+    drawSkinBtn();
+    const band = btnH + 2 * BAND_PAD;
 
-    const cs = getComputedStyle(el.main), mb = el.main.getBoundingClientRect();
-    const innerW = mb.width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
-    const innerH = mb.height - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
-    const dw = Math.max(120, Math.floor(Math.min(mb.width * DEVICE_SHARE, innerW, innerH / DEVICE_ASPECT)));
+    const mb = el.main.getBoundingClientRect();
+    const dw = Math.max(120, Math.floor(Math.min(mb.width - EDGE, DEVICE_MAX)));
+    const limitH = mb.height - EDGE;
+    const gap = Math.round(dw * GAP_SHARE);
+    const gh = gap; // 띠 높이 = 몸통 폭의 7%
 
-    const topPad = Math.max(Math.ceil(bandH) + 14, Math.round(dw * 0.14)); // 몸통 위 끝 ~ 검은 화면
-    const gapSK = Math.round(dw * 0.08);    // 검은 화면 ~ 키캡
-    const bottomMin = Math.round(dw * 0.18); // 키캡 아래 최소 몸통(깎인 모서리 자리)
-
-    // 키캡 크기: 칸이 정수 화면 점이 되는 크기 중, 72~84 안에서 몸통 폭의 26%에 가장 가까운 것
-    const kMax = Math.min(KEY_MAX, dw * 0.34), kMin = Math.min(KEY_MIN, kMax);
-    const want = Math.max(kMin, Math.min(kMax, dw * 0.26));
-    let kc = 0, gapBest = Infinity;
-    for (let cc = 1; KEY_CELLS * cc / r <= kMax + 0.01; cc += 1) {
+    // 키캡 크기: 20칸 × 정수 점이 되는 크기 중 목표(몸통 폭의 34%)에 가장 가까운 것, 72 ~ 190 사이
+    const want = dw * KEY_SHARE_TWO;
+    let kc = 0, nearest = Infinity;
+    for (let cc = 1; KEY_CELLS * cc / r <= KEY_MAX + 0.01; cc += 1) {
       const size = KEY_CELLS * cc / r;
-      if (size >= kMin - 0.01 && Math.abs(size - want) < gapBest) { kc = cc; gapBest = Math.abs(size - want); }
+      if (size >= KEY_MIN - 0.01 && Math.abs(size - want) < nearest) { kc = cc; nearest = Math.abs(size - want); }
     }
-    if (!kc) kc = Math.max(1, Math.floor(kMax * r / KEY_CELLS));
+    if (!kc) kc = Math.max(1, Math.ceil(KEY_MIN * r / KEY_CELLS));
+    const kcMin = Math.ceil((KEY_MIN - 0.01) * r / KEY_CELLS);
+
+    // 검은 화면: 128 × rows칸, 한 칸 = 정수 기기 화면 점
+    let cellPx = Math.max(1, Math.floor(dw * SCREEN_SHARE * r / W));
+    const total = (cp, k) => band + (rows * cp) / r + gap + (KEY_CELLS * k) / r + gap + gh + gap;
+    while (cellPx > 1 && total(cellPx, kc) > limitH) cellPx -= 1;
+    while (kc > kcMin && total(cellPx, kc) > limitH) kc -= 1;
+    // 몸통을 세로로 길게(형님 「위아래 여백이 너무 많아」): 폭의 1.5배까지(창 높이 안에서), 남는 높이를 세 틈(화면~키캡 · 키캡~띠 · 띠~몸통 끝)에 똑같이 나눠 넣는다
+    const lift = Math.max(0, Math.floor((Math.min(limitH, Math.round(dw * BODY_TALL)) - total(cellPx, kc)) / 3));
     keyCell = kc;
     const ks = KEY_CELLS * kc / r;
+    const sw = (W * cellPx) / r, sh = (rows * cellPx) / r;
 
-    // 검은 화면: 128×64칸 그대로, 한 칸 = 정수 화면 점. 높이가 모자라면 칸을 줄인다
-    let cellPx = Math.max(1, Math.floor(dw * SCREEN_SHARE * r / W));
-    const need = (cp) => topPad + (BASE_H * cp) / r + gapSK + ks + bottomMin;
-    while (cellPx > 1 && need(cellPx) > innerH) cellPx -= 1;
-    const sw = (W * cellPx) / r, sh = (BASE_H * cellPx) / r;
-    const dh = Math.max(Math.round(dw * DEVICE_ASPECT), Math.ceil(need(cellPx)));
+    const keyTop = Math.round(band + sh + gap + lift);
+    const gripTop = Math.round(keyTop + ks + gap + lift);
+    const dh = Math.round(gripTop + gh + gap + lift);
 
-    // 몸통: 위 두 모서리는 둥글게, 아래 두 모서리는 비스듬히 깎기
-    const ds = el.deviceE.style, rad = Math.round(dw * 0.1), bevel = Math.round(dw * 0.11);
+    // 몸통(예전 오려 내기 방식은 지우고 안쪽 그림으로)
+    const ds = el.deviceE.style, rad = Math.round(dw * CORNER_SHARE), bevel = Math.round(dw * CORNER_SHARE);
     ds.width = `${dw}px`; ds.height = `${dh}px`;
-    ds.borderRadius = `${rad}px ${rad}px 0 0`;
-    ds.clipPath = `polygon(0 0, 100% 0, 100% calc(100% - ${bevel}px), calc(100% - ${bevel}px) 100%, ${bevel}px 100%, 0 calc(100% - ${bevel}px))`;
+    ds.borderRadius = ''; ds.clipPath = '';
+    drawBody(dw, dh, rad, bevel);
 
-    // 배치 버튼: 몸통 위쪽 가장자리 왼편
-    el.layoutBtn.style.left = `${Math.round(dw * 0.08)}px`;
-    el.layoutBtn.style.top = `${Math.max(6, Math.round((topPad - bandH) / 2))}px`;
+    // 위 띠: 왼쪽 배치 버튼(게임 버튼은 placeGameBtn이 그 오른쪽에) · 오른쪽 끝 몸통 색 버튼
+    const side = Math.round(dw * 0.08);
+    el.layoutBtn.style.left = `${side}px`; el.layoutBtn.style.top = `${BAND_PAD}px`;
+    el.skinBtn.style.left = ''; el.skinBtn.style.right = `${side}px`; el.skinBtn.style.top = `${BAND_PAD}px`;
 
     // 검은 화면: 가운데 정렬
-    setRows(BASE_H);
+    setRows(rows);
     if (el.screen.width !== W * cellPx || el.screen.height !== H * cellPx) { el.screen.width = W * cellPx; el.screen.height = H * cellPx; }
     el.screen.style.width = `${sw}px`; el.screen.style.height = `${sh}px`;
     el.screen.style.left = `${Math.round((dw - sw) / 2)}px`;
-    el.screen.style.top = `${topPad}px`;
+    el.screen.style.top = `${Math.round(band)}px`;
 
-    // 키캡 두 개: 화면 아래 가운데에 나란히(둘 다 쏘기)
-    const keyGap = Math.round(ks * 0.22), rowLeft = Math.round((dw - (2 * ks + keyGap)) / 2);
-    const keyTop = Math.round(topPad + sh + gapSK);
-    [[el.keySlide, el.keySlideCanvas, rowLeft], [el.keyPush, el.keyPushCanvas, rowLeft + Math.round(ks) + keyGap]].forEach(([b, cv, x]) => {
+    // 키캡 두 개: 둘을 묶어 가운데(왼쪽 = 다시, 오른쪽 = 쏘기), 사이 = 몸통 폭의 7%
+    const keyGap = gap, rowLeft = Math.round((dw - (2 * ks + keyGap)) / 2);
+    [[el.keySlide, el.keySlideCanvas, rowLeft], [el.keyPush, el.keyPushCanvas, Math.round(rowLeft + ks + keyGap)]].forEach(([b, cv, x]) => {
       const n = KEY_CELLS * kc;
       if (cv.width !== n || cv.height !== n) { cv.width = n; cv.height = n; }
       cv.style.width = `${ks}px`; cv.style.height = `${ks}px`;
@@ -1006,12 +1274,17 @@
       b.style.width = `${ks}px`; b.style.height = `${ks}px`;
     });
 
+    // 오돌토돌한 띠: 가운데
+    const gw = Math.round(dw * GRIP_SHARE);
+    drawGrip(gw, gh);
+    el.grip.style.left = `${Math.round((dw - gw) / 2)}px`; el.grip.style.top = `${gripTop}px`;
+
     drawKeys();
     syncText();
     render();
   }
-  /* ---------- 게임 버튼: 배치 버튼 바로 오른쪽, 누를 때마다 다음 게임으로 넘어간다 ----------
-     비유: TV 채널 버튼. 1 시시포스 → 2 10.00000 → 3 결투 → 4 100m → 다시 1.
+  /* ---------- 게임 버튼: 배치 버튼 바로 오른쪽, 누른 숫자 칸의 게임으로 바로 간다 ----------
+     비유: TV 리모컨 숫자 버튼. 1 시지프스 · 2 10.00000 · 3 결투 · 4 100m 중 누른 번호로 곧장.
      네 게임은 같은 전시장의 옆 폴더라서 「한 칸 위 폴더 → 옆 폴더」 주소로 옮겨 간다.
      이 컴퓨터의 폴더 이름(local)과 인터넷 전시장의 폴더 이름(web)이 달라서 둘 다 적어 두고,
      지금 열린 폴더 이름이 어느 쪽인지 보고 같은 쪽 이름으로 간다.
@@ -1020,42 +1293,59 @@
   function gameHere() { return '3'; }
   function gameList() {
     return [
-      { id: '1', name: '시시포스', local: 'streak-sisyphus', web: 'hold-on-sisyphus' },
+      { id: '1', name: '시지프스', local: 'streak-sisyphus', web: 'hold-on-sisyphus' },
       { id: '2', name: '10.00000', local: 'key-ten', web: 'hold-on-key-ten' },
       { id: '3', name: '결투', local: 'key-duel', web: 'hold-on-key-duel' },
       { id: '4', name: '100m', local: 'key-100m', web: 'hold-on-key-100m' },
     ];
   }
-  function nextGameUrl() {
-    const list = gameList(), i = list.findIndex((g) => g.id === gameHere());
-    const next = list[(i + 1) % list.length];
+  function gameUrl(id) {
+    const list = gameList(), target = list.find((g) => g.id === String(id));
+    if (!target) return null;
     // 지금 폴더 이름: …/hold-on-key-ten/ → hold-on-key-ten, …/key-ten/index.html → key-ten
     const parts = location.pathname.split('/').filter(Boolean);
     if (parts.length && /\.html?$/i.test(parts[parts.length - 1])) parts.pop();
     const here = decodeURIComponent(parts[parts.length - 1] || '');
     const onWeb = list.some((g) => g.web === here);
-    return onWeb ? `../${next.web}/` : `../${next.local}/index.html`;
+    return onWeb ? `../${target.web}/` : `../${target.local}/index.html`;
   }
-  // 넘어간 게임마다 뒤로 가기 기록이 쌓이지 않게 지금 칸을 바꿔 끼운다
-  function nextGame() { location.replace(nextGameUrl()); }
+  // 넘어간 게임마다 뒤로 가기 기록이 쌓이지 않게 지금 칸을 바꿔 끼운다. 지금 게임 번호면 아무 일 없음
+  function goGame(id) {
+    if (String(id) === gameHere()) return false;
+    const url = gameUrl(id);
+    if (!url) return false;
+    location.replace(url);
+    return true;
+  }
   // 그림: 배치 버튼과 같은 모양. 테두리 안에 1 2 3 4, 지금 게임 숫자만 검게 칠한 칸에 흰 글씨
+  const GAME_BOX_W = 7, GAME_BOX_H = 9;                // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
   function drawGameBtn(gb) {
     const cv = gb.querySelector('canvas'), ctx = cv.getContext('2d'), cc = cornerCell(), list = gameList();
-    const BOX_W = 7, BOX_H = 9;                       // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
-    const cols = 3 + list.length * (BOX_W + 1) - 1 + 3, rowsN = 17;
+    const cols = 3 + list.length * (GAME_BOX_W + 1) - 1 + 3, rowsN = 17;
     const cw = cols * cc, ch = rowsN * cc;
     sizeCorner(cv, cw, ch);
     ctx.clearRect(0, 0, cw, ch);
+    pixelBlock(ctx, cw, ch, cc, INK); // 몸통 색과 상관없이 흰 바탕
     pixelFrame(ctx, cw, ch, cc, BG);
     list.forEach((g, i) => {
-      const bx = (3 + i * (BOX_W + 1)) * cc, by = Math.floor((rowsN - BOX_H) / 2) * cc;
+      const bx = (3 + i * (GAME_BOX_W + 1)) * cc, by = Math.floor((rowsN - GAME_BOX_H) / 2) * cc;
       if (g.id === gameHere()) {
-        ctx.fillStyle = BG; ctx.fillRect(bx, by, BOX_W * cc, BOX_H * cc);
+        ctx.fillStyle = BG; ctx.fillRect(bx, by, GAME_BOX_W * cc, GAME_BOX_H * cc);
         drawText(ctx, [g.id], bx + cc, by + cc, cc, INK);
       } else {
         drawText(ctx, [g.id], bx + cc, by + cc, cc, BG);
       }
     });
+    const label = `게임 ${gameHere()} ${list.find((g) => g.id === gameHere()).name}`;
+    const gl = document.getElementById('gameLabel');
+    if (gl && gl.textContent !== label) gl.textContent = label;
+  }
+  // 버튼 안 가로 위치(화면 점, 버튼 왼쪽 끝 = 0) → 몇 번째 숫자 칸인지.
+  // 칸 경계 = 글자 상자 경계, 상자 사이 한 칸 틈은 그 가운데를 기준으로 가까운 칸, 양 끝 여백은 맨 끝 칸
+  function gameIndexAt(xCss) {
+    const n = gameList().length, cellsX = (xCss * dpr()) / cornerCell();
+    const i = Math.floor((cellsX - 3 + 0.5) / (GAME_BOX_W + 1));
+    return Math.max(0, Math.min(n - 1, i));
   }
   // 자리: 배치 버튼이 든 몸통(배치 E면 기기 몸통)으로 따라가서, 배치 버튼 오른쪽 6점 떨어진 곳에 같은 높이로 선다
   function placeGameBtn() {
@@ -1066,20 +1356,21 @@
     gb.style.left = `${lb.offsetLeft + lb.offsetWidth + 6}px`;
     gb.style.top = `${lb.offsetTop}px`;
   }
-  // 누르는 순간 넘어간다. 게임 누름으로 세지 않는다(아래로 퍼지지 않게 막음)
+  // 누르는 순간 그 번호 게임으로. 게임 누름으로 세지 않는다(아래로 퍼지지 않게 막음)
   document.getElementById('gameBtn').addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
-    nextGame();
+    const box = e.currentTarget.getBoundingClientRect();
+    goGame(gameList()[gameIndexAt(e.clientX - box.left)].id);
   });
   if (window.ResizeObserver) new ResizeObserver(fit).observe(el.main);
   window.addEventListener('resize', fit);
 
   /* ---------- 입력: 손가락이 닿는 순간 쏜다 ---------- */
-  // 「한 번 눌렀다 뗀 것」: 넓은 버튼은 살짝 들어갔다 나오고, 배치 E에서는 오른쪽 키캡이 잠깐 눌린 그림이 된다
+  // 「한 번 눌렀다 뗀 것」: 넓은 버튼은 살짝 들어갔다 나오고, 기기 모양(E · F)에서는 오른쪽 키캡이 잠깐 눌린 그림이 된다
   function pressAt(t) {
     fire(t);
-    if (layout === 'E') flashPushKey();
+    if (LAYOUTS[layout].keys) flashPushKey();
     else if (el.btn.animate) el.btn.animate([{ transform: 'translateY(5px)' }, { transform: 'translateY(0)' }], { duration: 110, easing: 'ease-out' });
   }
   const mainPointer = (e) => e.pointerType !== 'mouse' || e.button === 0;
@@ -1100,12 +1391,18 @@
     e.preventDefault(); e.stopPropagation();
     nextLayout();
   });
-  // 배치 E 키캡: 누르는 순간 쏜다. 그 손가락이 떼어지거나, 키 밖으로 미끄러지거나, 화면 밖으로 나가면 뗀 것
+  // 몸통 색 버튼: 쏘기로 세지 않는다
+  el.skinBtn.addEventListener('pointerdown', (e) => {
+    if (!mainPointer(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    nextSkin();
+  });
+  // 키캡: 누르는 순간 작동(오른쪽 = 쏘기, 왼쪽 = 다시). 그 손가락이 떼어지거나, 키 밖으로 미끄러지거나, 화면 밖으로 나가면 뗀 것
   ['push', 'slide'].forEach((name) => {
     keyEl()[name].addEventListener('pointerdown', (e) => {
       if (!mainPointer(e)) return;
       e.preventDefault(); e.stopPropagation();
-      if (layout !== 'E') return;
+      if (!LAYOUTS[layout].keys) return;
       // 손가락을 키에 묶어 두지 않아야 키 밖으로 미끄러진 것을 알아챈다
       const t = e.currentTarget;
       try { if (t.hasPointerCapture && t.hasPointerCapture(e.pointerId)) t.releasePointerCapture(e.pointerId); } catch (err) { /* 그대로 */ }
@@ -1135,6 +1432,7 @@
   window.addEventListener('blur', releaseAllKeys);
   window.addEventListener('keyup', (e) => {
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') releaseKey('push', `kb:${e.code}`);
+    if (e.code === 'KeyR') releaseKey('slide', 'kb:KeyR');
   });
 
   window.addEventListener('keydown', (e) => {
@@ -1144,12 +1442,25 @@
       if (!e.repeat) nextLayout();
       return;
     }
+    if (e.code === 'KeyC' && plain) {
+      e.preventDefault();
+      if (!e.repeat) nextSkin();
+      return;
+    }
+    // R = 다시(왼쪽 키를 누른 것과 같음, 떼면 keyup에서 올라옴)
+    if (e.code === 'KeyR' && plain) {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (keyHold.slide === 'kb:KeyR') releaseKey('slide');
+      holdKey('slide', 'kb:KeyR', eventTime(e));
+      return;
+    }
     if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
     if (!plain) return; // Cmd · Ctrl · Alt와 같이 누른 것은 게임 누름이 아니다(떼는 신호가 안 와서 키가 눌린 채 남는 것도 막음)
     e.preventDefault();
     if (e.repeat) return; // 꾹 누르고 있어 저절로 반복되는 입력은 무시
     const t = eventTime(e);
-    if (layout === 'E') {
+    if (LAYOUTS[layout].keys) {
       // 같은 키가 눌린 채 남아 있는데 새로 눌렸다면 떼는 신호를 놓친 것이다 → 풀고 받는다(키보드가 먹통이 되지 않게)
       if (keyHold.push === `kb:${e.code}`) releaseKey('push');
       holdKey('push', `kb:${e.code}`, t); // 오른쪽 키를 누른 것과 같음(떼면 keyup에서 올라옴)
@@ -1162,6 +1473,8 @@
   ['gesturestart', 'dblclick', 'contextmenu', 'selectstart', 'dragstart'].forEach((name) => document.addEventListener(name, block));
 
   fit();
+  // 들어오자마자 첫 결투 시작(신호는 3초 안에). 뒤쪽 탭으로 열렸으면 화면이 보이는 순간 시작(visibilitychange)
+  if (!document.hidden) startDuel(now());
 
   /* ---------- 검사용 손잡이: 게임에는 영향이 없다 ---------- */
   const toInt = (n) => {
@@ -1181,13 +1494,27 @@
         myMs, outcome, pose: poses(), mark: markNow(), timeText: timeTextNow(),
         label: LABEL,
         layout, layouts: LAYOUT_IDS.slice(), rows: H,
+        skin, skinName: SKINS[skin].name, skins: SKINS.map((s) => s.name),
         keyDown: anyKeyDown(),
-        keyRects: layout === 'E' ? { push: rectOf(el.keyPush), slide: rectOf(el.keySlide) } : null,
+        keyRects: LAYOUTS[layout].keys ? { push: rectOf(el.keyPush), slide: rectOf(el.keySlide) } : null,
+        rects: {
+          device: rectOf(el.deviceE), screen: rectOf(el.screen), push: rectOf(el.keyPush), slide: rectOf(el.keySlide), grip: rectOf(el.grip),
+          layoutBtn: rectOf(el.layoutBtn), gameBtn: rectOf(document.getElementById('gameBtn')), skinBtn: rectOf(el.skinBtn),
+        },
+        game: gameHere(),
+        meMark: meMarkNow(),                 // 「나」 표시가 떠 있는지
+        tumble: (() => { const w = windNow(); return w ? { x: w.x, lift: w.lift, dir: w.dir } : null; })(), // 굴러가는 풀(없으면 null)
       };
     },
     press() { pressAt(now()); return this.state(); },
     keyPress() { return holdKey('push', 'test', now()); }, // 이미 눌려 있으면 false(쏘지 않음)
     keyRelease() { return releaseKey('push'); },
+    // 왼쪽 키(다시): 누르고 떼기까지. 다른 키가 눌려 있으면 false
+    restartKey() { const ok = holdKey('slide', 'test', now()); releaseKey('slide'); return ok; },
+    setSkin(n) { return setSkin(n); },
+    nextSkin() { nextSkin(); return skin; },
+    gameUrl(id) { return gameUrl(id); },               // 그 번호 게임으로 갈 주소(가지는 않음)
+    gameIndexAt(x) { return gameIndexAt(Number(x)); }, // 게임 버튼 안 가로 위치(화면 점) → 칸 번호(0부터)
     // 앞으로의 대결에서 신호까지 시간을 고정(null이면 다시 무작위)
     setWait(ms) {
       fixedWait = ms === null || ms === undefined ? null : toInt(ms);

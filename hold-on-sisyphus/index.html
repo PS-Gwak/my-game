@@ -3,159 +3,106 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>시시포스 누르기</title>
+<title>시지프스 누르기</title>
 <style>
-  /* 배치 A~D의 화면은 두 덩어리다: 그림판(흰 기기 몸통 안의 검은 화면) · 큰 「밀기」 버튼.
-     둘의 크기 비율은 배치마다 다르고, 칸 나누기는 스크립트가 배치에 맞춰 정한다.
-     배치 E는 기기 하나(몸통 안에 화면 + 키캡 두 개)만 보인다.
-     색은 검정과 흰색 두 가지만 쓴다. 글씨와 테두리는 전부 캔버스(그림 종이)에 칸으로 찍는다 */
+  /* 화면에는 손바닥만 한 기기 하나만 있다: 몸통 안에 검은 화면, 그 아래 큰 키캡 하나, 맨 아래 오돌토돌한 띠.
+     크기와 자리는 스크립트가 창 크기에 맞춰 정한다. 글씨와 테두리는 전부 캔버스(그림 종이)에 칸으로 찍는다 */
   :root { --black: #000000; --white: #f2f2f2; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
   body {
     background: var(--black); color: var(--white);
     font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
-    display: flex; align-items: center; justify-content: center;
     touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
   }
+  /* 창 전체를 차지하는 받침대: 기기 몸통을 가로 · 세로 가운데에 올려 둔다 */
   main {
-    width: min(100vw, 430px);
-    height: min(100vh, 820px); height: min(100dvh, 820px);
-    padding: 10px 12px max(12px, env(safe-area-inset-bottom));
-    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 160px; gap: 12px;
+    width: 100vw; height: 100vh; height: 100dvh;
+    display: flex; align-items: center; justify-content: center;
   }
-  /* 그림판 자리: 흰 기기 몸통이 검은 화면을 얇게 감싼다(위쪽 띠에만 작은 버튼 둘) */
-  .stage { min-height: 0; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-  .device { position: relative; background: var(--white); border-radius: 8px; padding: 28px 4px 4px; line-height: 0; }
-  .screen { display: block; image-rendering: pixelated; background: var(--black); border-radius: 2px; }
-  .screen.tappable { cursor: pointer; }
-  /* 몸통 위쪽 띠의 작은 점 글씨 버튼: 왼쪽 = 배치 바꾸기, 오른쪽 = 「밀림」 켬·끔 */
+  /* 기기 몸통: 겉모양(둥근 위 · 깎인 아래 · 몸통 색)은 안쪽 그림(#bodyArt)이 그린다 */
+  .device-e { position: relative; flex: none; line-height: 0; }
+  .body-art { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+  .screen { position: absolute; display: block; image-rendering: pixelated; background: var(--black); }
+  .grip { position: absolute; display: block; image-rendering: pixelated; pointer-events: none; }
+  /* 몸통 위 띠의 작은 점 글씨 버튼 셋: 배치(EF) · 게임(1234) · 몸통 색 */
   .corner-btn {
-    position: absolute; top: 3px; padding: 0; margin: 0; border: 0; background: transparent;
+    position: absolute; top: 10px; padding: 0; margin: 0; border: 0; background: transparent;
     line-height: 0; cursor: pointer; touch-action: none; outline: none;
   }
   .corner-btn canvas { display: block; image-rendering: pixelated; }
-  .layout-btn { left: 4px; }
-  .slide-btn { right: 4px; }
-
-  /* 큰 버튼: 캔버스가 칸 모양 버튼과 점 글씨를 그린다. 크기는 배치가 정한 칸을 꽉 채운다 */
-  .btn {
-    position: relative; display: block; width: 100%; height: 100%; min-height: 0; min-width: 0; padding: 0; margin: 0; border: 0;
-    background: transparent; cursor: pointer; touch-action: none; outline: none;
-  }
-  .btn canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
-  .btn:focus-visible { outline: 3px solid var(--white); outline-offset: 3px; }
-  /* 화면에는 안 보이는 글자: 읽어 주는 기능 · 검사기가 버튼 글을 읽을 수 있게 남겨 둔다 */
-  .ghost { position: absolute; left: 0; top: 0; width: 100%; height: 100%; color: transparent; overflow: hidden; white-space: nowrap; pointer-events: none; line-height: 1; }
-
-  /* 가로로 눕힌 폰처럼 낮은 화면: 왼쪽에 그림판, 오른쪽에 버튼(칸 나누기는 스크립트가) */
-  @media (orientation: landscape) and (max-height: 520px) {
-    main { width: min(100vw, 860px); column-gap: 14px; }
-  }
-
-  /* 배치 E: 손바닥만 한 기기 하나. 흰 몸통 안에 검은 화면, 그 아래 키캡 두 개.
-     크기와 자리는 스크립트가 정하고, 몸통 아래 두 모서리는 비스듬히 깎는다(clip-path = 오려 내기) */
-  .device-e { position: relative; display: none; flex: none; background: var(--white); line-height: 0; }
-  .device-e .screen { position: absolute; }
+  /* 키캡: 진짜 키보드 키처럼 누르면 들어가고 떼면 올라온다 */
   .key {
     position: absolute; padding: 0; margin: 0; border: 0; background: transparent;
     line-height: 0; cursor: pointer; touch-action: none; outline: none;
   }
   .key canvas { display: block; image-rendering: pixelated; }
-  .layout-e .device { display: none; }
-  .layout-e .device-e { display: block; }
-  .layout-e .btn { display: none; }
-
-  /* 배치 0(기존): 가로로 긴 화면 · 가운데 점 글씨 숫자판 · 아래 큰 버튼. 숫자판은 배치 0에서만 보인다 */
-  .panel { position: relative; display: none; min-height: 0; min-width: 0; }
-  .panel canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
-  .layout-0 .panel { display: block; }
-  /* 가로로 눕힌 화면의 배치 0: 왼쪽 전체에 그림판, 오른쪽 가운데에 숫자판과 버튼을 위아래로 */
-  @media (orientation: landscape) and (max-height: 520px) {
-    .layout-0 .stage { grid-column: 1; grid-row: 1 / -1; }
-    .layout-0 .panel { grid-column: 2; grid-row: 2; }
-    .layout-0 .btn { grid-column: 2; grid-row: 3; }
-  }
+  /* 화면에는 안 보이는 글자: 읽어 주는 기능 · 검사기가 버튼 글을 읽을 수 있게 남겨 둔다 */
+  .ghost { position: absolute; left: 0; top: 0; width: 100%; height: 100%; color: transparent; overflow: hidden; white-space: nowrap; pointer-events: none; line-height: 1; }
 </style>
 </head>
 <body>
 <main id="main">
-  <div class="stage" id="stage">
-    <div class="device" id="device">
-      <button class="corner-btn layout-btn" id="layoutBtn" type="button" tabindex="-1"><canvas id="layoutCanvas"></canvas><span class="ghost" id="layoutLabel">배치 B</span></button>
-      <button class="corner-btn game-btn" id="gameBtn" type="button" tabindex="-1"><canvas id="gameCanvas"></canvas><span class="ghost" id="gameLabel">게임 1 시시포스</span></button>
-      <button class="corner-btn slide-btn" id="slideBtn" type="button" tabindex="-1" aria-pressed="false"><canvas id="slideCanvas"></canvas><span class="ghost" id="slideLabel">밀림 끔</span></button>
-      <canvas class="screen" id="screen" aria-label="바위를 비탈 위로 미는 사람"></canvas>
-    </div>
-    <!-- 배치 E 기기 몸통: 검은 화면과 배치 버튼은 배치 E일 때 스크립트가 이 안으로 옮겨 온다 -->
-    <div class="device-e" id="deviceE">
-      <button class="key" id="keySlide" type="button" tabindex="-1" aria-pressed="false"><canvas id="keySlideCanvas"></canvas><span class="ghost" id="keySlideLabel">밀림 끔</span></button>
-      <button class="key" id="keyPush" type="button" tabindex="-1"><canvas id="keyPushCanvas"></canvas><span class="ghost">밀기</span></button>
-    </div>
+  <div class="device-e" id="deviceE">
+    <svg class="body-art" id="bodyArt" aria-hidden="true"><path id="bodyFill"></path><path id="bodyLine" fill="none"></path></svg>
+    <button class="corner-btn layout-btn" id="layoutBtn" type="button" tabindex="-1"><canvas id="layoutCanvas"></canvas><span class="ghost" id="layoutLabel">배치 E</span></button>
+    <button class="corner-btn game-btn" id="gameBtn" type="button" tabindex="-1"><canvas id="gameCanvas"></canvas><span class="ghost" id="gameLabel">게임 1 시지프스</span></button>
+    <button class="corner-btn skin-btn" id="skinBtn" type="button" tabindex="-1"><canvas id="skinCanvas"></canvas><span class="ghost" id="skinLabel">몸통 white</span></button>
+    <canvas class="screen" id="screen" aria-label="바위를 비탈 위로 미는 사람"></canvas>
+    <button class="key" id="keyPush" type="button" tabindex="-1"><canvas id="keyPushCanvas"></canvas><span class="ghost">밀기</span></button>
+    <canvas class="grip" id="grip"></canvas>
   </div>
-  <!-- 배치 0 숫자판: 다른 배치에서는 숨는다 -->
-  <div class="panel" id="panel">
-    <canvas id="panelCanvas"></canvas>
-    <div class="ghost" id="num">0</div>
-  </div>
-  <button class="btn" id="btn" type="button"><canvas id="btnCanvas"></canvas><span class="ghost" id="btnLabel">밀기</span></button>
 </main>
 <script>
-/* 시시포스 누르기 — 한 번 누름 = 바위를 한 걸음 밀기.
+/* 시지프스 누르기 — 한 번 누름 = 바위를 한 걸음 밀기.
    비유: 만보기. 누를 때마다 숫자가 1 오르고 사람이 한 걸음 내딛을 뿐, 끝도 상도 없다.
-   「밀림」을 켜면 비탈길 러닝머신이 된다: 손을 놓고 2초가 지나면 0.5초에 한 걸음씩 뒤로 밀려 내려간다.
-   100걸음마다 있는 쉼터(평평한 턱)에서는 밀리지 않는다.
-   v3: 숫자판을 없애고, 화면과 버튼의 비율을 네 가지 배치로 바꿔 볼 수 있다.
-   v4: 배치 E = 본보기 기기 모양(흰 몸통 + 검은 화면 + 키캡 두 개). 키는 진짜 키처럼 뗐다가 다시 눌러야 한 번.
-   v5: 배치 0 = 예전 모양(가로로 긴 화면 + 점 글씨 숫자판 + 밀기 버튼)을 목록 맨 앞에 되살림. */
+   v4: 본보기 기기 모양(몸통 + 검은 화면 + 키캡).
+   11/11 16:29 피드백판: 기기 모양만 남김(배치 E = 2:1 화면, F = 4:3 화면) · 기기를 크게 · 키캡 하나 가운데 ·
+   몸통 색 넷 · 게임 버튼은 누른 번호로 바로 · 「밀림」(뒤로 밀리기)은 뺌 · 산 능선을 화면 오른쪽 끝까지. */
 (function () {
   'use strict';
 
   const W = 128;          // 그림판 가로 칸 수(모든 배치 같음)
-  const BASE_H = 64;      // 그림을 처음 짠 기준 세로 칸 수(배치 A)
-  const MAX_ROWS = 400;   // 아주 긴 화면에서도 칸 수가 끝없이 늘지 않게 막는 상한
+  const BASE_H = 64;      // 그림을 처음 짠 기준 세로 칸 수(배치 E)
   const BG = '#000000', INK = '#f2f2f2';
   const KEYS = {
     count: 'hold-on-sisyphus-count',   // 누른 횟수(절대 안 줄어듦)
-    slide: 'hold-on-sisyphus-slide',   // 밀림 켬(1) · 끔(0)
-    height: 'hold-on-sisyphus-height', // 밀림 켬일 때 지금 높이
-    best: 'hold-on-sisyphus-best',     // 밀림 켬일 때 최고 높이
   };
-  const LAYOUT_KEY = 'hold-on-sisyphus-layout'; // 고른 배치(0 · A~E). 「처음부터」 지우기에는 안 들어감
+  const LAYOUT_KEY = 'hold-on-keys-layout'; // 고른 배치(E · F). 네 게임이 함께 쓴다. 「처음부터」 지우기에는 안 들어감
+  const SKIN_KEY = 'hold-on-keys-skin';     // 고른 몸통 색(0~3). 네 게임이 함께 쓴다
   const LABEL = '밀기';
-  const SLIDE_WAIT = 2000;  // 마지막으로 누른 뒤 이만큼(1/1000초) 쉬면 밀리기 시작
-  const SLIDE_EVERY = 500;  // 밀릴 때 한 걸음 내려가는 간격
-  const SHELTER = 100;      // 이 걸음마다 쉼터
   const mod = (a, n) => ((a % n) + n) % n; // 음수도 0 ~ n-1로 돌려준다
 
-  /* ---------- 배치 여섯 가지(0 · A~E) ----------
-     rows = 검은 화면 세로 칸 수('fill' = 남는 높이를 전부 채우게 계산)
-     panel = 화면과 버튼 사이에 숫자판을 둔다(배치 0)
-     btn = 세로 화면에서 버튼 높이(화면 점), 'fill' = 화면을 놓고 남는 높이 전부
-     btnLand = 가로로 눕힌 화면에서 오른쪽 버튼 폭, 'fill' = 화면과 반반
-     tapScreen = 검은 화면을 눌러도 밀리는지 */
+  /* ---------- 배치 둘(E · F): 같은 기기 모양, 검은 화면 세로 칸 수만 다르다 ---------- */
   const LAYOUTS = {
-    0: { rows: 64, panel: true, tapScreen: false },                   // 기존: 2:1 화면 + 숫자판 + 큰 버튼
-    A: { rows: 64, btn: 'fill', btnLand: 'fill', tapScreen: false },  // 작은 2:1 화면 + 아주 큰 버튼
-    B: { rows: 96, btn: 160, btnLand: 220, tapScreen: false },        // 4:3 화면 + 중간 버튼
-    C: { rows: 128, btn: 96, btnLand: 150, tapScreen: false },        // 1:1 화면 + 얇은 버튼
-    D: { rows: 'fill', btn: 64, btnLand: 88, tapScreen: true },       // 화면이 거의 전부 + 맨 아래 띠 버튼
-    E: { rows: 64, keys: true, tapScreen: false },                    // 기기 모양: 몸통 안에 2:1 화면 + 키캡 두 개
+    E: { rows: 64 }, // 2:1 화면(128×64칸)
+    F: { rows: 96 }, // 4:3 화면(128×96칸)
   };
-  const LAYOUT_IDS = ['0', 'A', 'B', 'C', 'D', 'E']; // 배치 버튼 · L 키로 도는 순서
-  const FIRST_LAYOUT = 'E'; // 처음 여는 사람의 배치
+  const LAYOUT_IDS = ['E', 'F']; // 배치 버튼 · L 키로 도는 순서
+  const FIRST_LAYOUT = 'E';      // 처음 여는 사람의 배치
 
-  // 배치 E 치수(단위는 화면 점, 비율은 몸통 폭에 대한 몫)
-  const DEVICE_SHARE = 0.85;  // 몸통 폭 = 화면 폭의 85%
-  const DEVICE_ASPECT = 1.3;  // 몸통 세로 = 폭 × 1.3(본보기 기기 비율쯤)
-  const SCREEN_SHARE = 0.78;  // 검은 화면 폭은 몸통 폭의 78%까지(칸이 고르게 정수로 맞춰 조금 작아질 수 있음)
-  const KEY_MIN = 72, KEY_MAX = 84; // 키캡 한 변(실제 키보드 키 크기쯤)
+  /* ---------- 몸통 색 넷: 누를 때마다 다음 색. 띠 = 몸통보다 한 단계 어두운 색 ---------- */
+  const SKINS = [
+    { name: 'white', body: '#f2f2f2', grip: '#cfcfcf' },
+    { name: 'gray', body: '#c9cbcc', grip: '#a9abac' },
+    { name: 'cream', body: '#e7dfcb', grip: '#c9c0aa' },
+    { name: 'black', body: '#1c1c1c', grip: '#3a3a3a', line: true }, // 검은 몸통은 둘레 안쪽에 2점 흰 선
+  ];
+
+  // 기기 치수(단위는 화면 점, 비율은 몸통 폭 dw에 대한 몫)
+  const DEVICE_MAX = 460;     // 몸통 폭 상한
+  const EDGE = 28;            // 창 가장자리와 몸통 사이에 남기는 여유(양쪽 합)
+  const SCREEN_SHARE = 0.86;  // 검은 화면 폭 목표 = 몸통 폭의 86%
+  const GAP_SHARE = 0.07;     // 화면~키캡 · 띠 높이 · 띠~몸통 끝 = 몸통 폭의 7%
+  const KEY_SHARE_ONE = 0.40; // 키 하나 게임: 키캡 한 변 목표 = 몸통 폭의 40%
+  const GRIP_SHARE = 0.46;    // 오돌토돌한 띠 폭 = 몸통 폭의 46%
+  const BODY_TALL = 1.5;      // 몸통 세로 = 폭의 1.5배까지 늘림(남는 높이는 틈에 나눠 넣음)
+  const CORNER_SHARE = 0.1;   // 위 모서리 둥글기 · 아래 모서리 깎기 = 몸통 폭의 10%
+  const BAND_PAD = 10;        // 몸통 위 띠: 작은 버튼 줄 위아래 여유
+  const KEY_MIN = 72, KEY_MAX = 190; // 키캡 한 변 범위
   const KEY_CELLS = 20;       // 키캡 그림은 20×20칸
   const KEY_PRESS_DROP = 3;   // 누르면 윗면이 내려가는 칸 수
-  const A_MIN_BTN = 200;   // 배치 A에서 버튼이 적어도 이만큼은 남게(화면 점)
-  const SIDE = 4;          // 흰 몸통이 검은 화면 옆 · 아래를 감싸는 두께(화면 점)
-  const SKY_SHARE = 0.6;   // 화면이 세로로 늘어날 때, 늘어난 칸 중 하늘 쪽(위)에 주는 몫. 나머지는 땅 쪽(아래)
-  const LAND_MQ = window.matchMedia('(orientation: landscape) and (max-height: 520px)');
+  const SKY_SHARE = 0.6;      // 화면이 세로로 늘어날 때, 늘어난 칸 중 하늘 쪽(위)에 주는 몫. 나머지는 땅 쪽(아래)
 
   /* ---------- 저장: 저장소가 막혀 있어도 게임은 돈다(그때는 메모리에만) ---------- */
   const memory = {};
@@ -180,11 +127,15 @@
   function loadLayout() {
     let raw = memory[LAYOUT_KEY];
     try { const v = localStorage.getItem(LAYOUT_KEY); if (v !== null) raw = v; } catch (e) { /* 메모리 값으로 */ }
-    return LAYOUTS[raw] ? raw : FIRST_LAYOUT;
+    return LAYOUT_IDS.includes(raw) ? raw : FIRST_LAYOUT;
   }
   function saveLayout(id) {
     memory[LAYOUT_KEY] = id;
     try { localStorage.setItem(LAYOUT_KEY, id); } catch (e) { /* 메모리에만 */ }
+  }
+  function loadSkin() {
+    const n = loadNum(SKIN_KEY);
+    return n >= 0 && n < SKINS.length ? n : 0;
   }
 
   /* ---------- 그림 재료: 글자 그림. # 흰 점, - 바위 속(무늬로 채움), . 건너뜀 ---------- */
@@ -356,11 +307,7 @@
   const DECOR_LOOP = 160; // 이 칸 수마다 같은 풍경이 다시 나온다
   const DECOR = [[6, ROCK], [24, GRASS], [44, PINE], [58, SHRUB], [80, GRASS], [100, PINE], [112, SHRUB], [140, ROCK]];
 
-  // 쉼터: 평평한 돌 턱 + 작은 깃발(밀림 켬일 때만 보인다)
-  const LEDGE = ['.######.', '########'];
-  const FLAG = ['##....', '####..', '######', '####..', '##....', '#.....', '#.....', '#.....', '#.....'];
-
-  /* ---------- 점 글씨: 숫자 · 쉼표 · 영문 A~D · 한글 몇 자 · 작은 그림 ---------- */
+  /* ---------- 점 글씨: 숫자 · 쉼표 · 배치 이름 E F ---------- */
   const GLYPHS = {
     0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
     1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
@@ -374,21 +321,8 @@
     9: ['.###.', '#...#', '#...#', '.####', '....#', '...#.', '.##..'],
     ',': ['..', '..', '..', '..', '.#', '.#', '#.'],
     ' ': ['...'],
-    // 배치 이름(배치 0은 위 숫자 0 글자를 그대로 쓴다)
-    A: ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
-    B: ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'],
-    C: ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'],
-    D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'],
     E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'],
-    // 손가락(누른 횟수 표시)
-    '☝': ['..#....', '..#.#..', '..#.#.#', '#.#####', '#######', '.######', '..####.'],
-    // 깃발(최고 높이 표시)
-    '⚑': ['##.....', '####...', '######.', '####...', '##.....', '#......', '#......'],
-    '밀': ['#####...#.', '#...#...#.', '#...#...#.', '#####...#.', '........#.', '..........', '.########.', '........#.', '.########.', '.#........', '.########.'],
-    '기': ['######..#.', '.....#..#.', '.....#..#.', '.....#..#.', '....#...#.', '....#...#.', '...#....#.', '..#.....#.', '.#......#.', '........#.', '........#.'],
-    '림': ['#####...#.', '....#...#.', '#####...#.', '#.......#.', '#####...#.', '........#.', '..........', '.########.', '.#......#.', '.#......#.', '.########.'],
-    '켬': ['#####...#.', '....#.###.', '.####...#.', '....#.###.', '...#....#.', '........#.', '..........', '.########.', '.#......#.', '.#......#.', '.########.'],
-    '끔': ['####.####.', '...#....#.', '...#....#.', '...#....#.', '..........', '#########.', '..........', '.########.', '.#......#.', '.#......#.', '.########.'],
+    F: ['#####', '#....', '#....', '####.', '#....', '#....', '#....'],
   };
   function measure(keys) {
     let w = 0, h = 0;
@@ -406,8 +340,6 @@
       cx += (gl[0].length + 1) * cell;
     });
   }
-  // 칸 크기 정하기: 정해진 자리 안에 들어가는 가장 큰 정수 칸(상한 있음)
-  const fitCell = (m, maxW, maxH, cap) => Math.max(1, Math.min(cap, Math.floor(maxW / m.w), Math.floor(maxH / m.h)));
   // 칸으로 끊어진 네모: 모서리를 한 칸씩 깎아 계단 모양으로
   function pixelFrame(ctx, w, h, b, color) {
     ctx.fillStyle = color;
@@ -426,82 +358,31 @@
   const MAN_X = BOULDER_X - 17, MAN_Y = BOULDER_Y + 17; // 손끝과 머리가 바위 속으로 살짝 묻히게
   const CLOUDS = [[84, 6, CLOUD_A], [101, 8, CLOUD_B], [117, 7, CLOUD_C]];
   const CLOUD_SLOW = 4;             // 구름은 4걸음에 한 칸
-  const RIDGE_Y = 26, RIDGE_SLOW = 2, RIDGE_END = 56; // 능선은 2걸음에 한 칸, 바위 왼쪽에만
-  const SHELTER_X = MAN_X - 3;      // 쉼터 높이에 서 있으면 턱이 사람 발밑에 온다
+  const RIDGE_Y = 26, RIDGE_SLOW = 2; // 능선은 2걸음에 한 칸. 화면 왼쪽 끝부터 오른쪽 끝까지(바위 뒤는 바위가 가림)
 
   /* ---------- 상태 ---------- */
   let count = loadNum(KEYS.count);
-  let slideOn = loadNum(KEYS.slide) === 1;
-  let height = loadNum(KEYS.height);
-  let best = Math.max(loadNum(KEYS.best), height);
   let layout = loadLayout();
-  let idleMs = 0;    // 마지막으로 누른 뒤 흐른 시간(화면이 보일 때만 흐름)
-  let slideDone = 0; // 이번 쉼 동안 밀려 내려간 걸음 수
+  let skin = loadSkin();
   const stepOf = (n) => n % MAN.length;
-  const sceneS = () => (slideOn ? height : count); // 그림을 움직이는 기준: 끔=누른 횟수, 켬=지금 높이
-  const isSliding = () => slideOn && idleMs >= SLIDE_WAIT && height % SHELTER !== 0;
 
   /* ---------- 누르기: 여기서 모든 일이 한 번에 일어난다 ---------- */
   // 한 걸음 세기(모든 누르는 길이 결국 여기로 온다)
   function pushOnce() {
     count += 1;
     saveNum(KEYS.count, count);
-    if (slideOn) {
-      height += 1;
-      if (height > best) { best = height; saveNum(KEYS.best, best); }
-      saveNum(KEYS.height, height);
-      idleMs = 0; slideDone = 0; // 미끄러지던 중이어도 그 자리에서 멈춘다
-    }
     syncText();
     render();
   }
-  // 「한 번 눌렀다 뗀 것」: 넓은 버튼은 살짝 들어갔다 나오고, 배치 E에서는 오른쪽 키캡이 잠깐 눌린 그림이 된다
+  // 「한 번 눌렀다 뗀 것」(검사용): 키캡이 잠깐 눌린 그림이 된다
   function press() {
     pushOnce();
-    if (layout === 'E') flashPushKey();
-    else if (el.btn.animate) el.btn.animate([{ transform: 'translateY(5px)' }, { transform: 'translateY(0)' }], { duration: 110, easing: 'ease-out' });
+    flashPushKey();
   }
 
-  /* ---------- 밀림: 시간이 흐르면 뒤로 밀린다 ---------- */
-  function advance(ms) {
-    if (!slideOn || !(ms > 0)) return;
-    idleMs += ms;
-    if (idleMs < SLIDE_WAIT) return;
-    const due = Math.floor((idleMs - SLIDE_WAIT) / SLIDE_EVERY) + 1; // 지금까지 밀렸어야 할 걸음 수
-    let moved = false;
-    while (slideDone < due) {
-      if (height % SHELTER === 0) { slideDone = due; break; } // 쉼터에 닿으면 더 안 밀림
-      height -= 1; slideDone += 1; moved = true;
-    }
-    if (moved) { saveNum(KEYS.height, height); syncText(); render(); }
-  }
-  function setSlideOn(on) {
-    on = !!on;
-    if (on === slideOn) return;
-    slideOn = on;
-    saveNum(KEYS.slide, on ? 1 : 0);
-    idleMs = 0; slideDone = 0;
-    drawToggle(); drawKeys(); syncText(); render(); startLoop();
-  }
-  // 실제 시간: 화면이 보이는 동안만 흐른다. 가려졌다 돌아와도 그 사이 시간은 세지 않는다
-  let lastTs = null, rafId = 0;
-  function loop(ts) {
-    rafId = 0;
-    if (!slideOn || document.hidden) { lastTs = null; return; }
-    if (lastTs !== null) advance(Math.min(1000, ts - lastTs)); // 화면이 한참 멈췄다 풀려도 한꺼번에 몰아 밀지 않게
-    lastTs = ts;
-    rafId = requestAnimationFrame(loop);
-  }
-  function startLoop() {
-    if (rafId || !slideOn || document.hidden) return;
-    lastTs = null;
-    rafId = requestAnimationFrame(loop);
-  }
-  document.addEventListener('visibilitychange', () => { lastTs = null; if (!document.hidden) startLoop(); });
-
-  /* ---------- 배치 바꾸기 ---------- */
+  /* ---------- 배치 바꾸기(E ↔ F) ---------- */
   function setLayout(id) {
-    if (!LAYOUTS[id]) return false;
+    if (!LAYOUTS[id] || !LAYOUT_IDS.includes(id)) return false;
     releaseAllKeys(); // 키를 누른 채 배치를 바꾸면 뗀 것으로 친다
     layout = id;
     saveLayout(id);
@@ -510,68 +391,29 @@
   }
   const nextLayout = () => setLayout(LAYOUT_IDS[(LAYOUT_IDS.indexOf(layout) + 1) % LAYOUT_IDS.length]);
 
-  /* ---------- 버튼 · 작은 버튼 둘(점 글씨) ---------- */
+  /* ---------- 몸통 색 바꾸기 ---------- */
+  function setSkin(n) {
+    n = Math.floor(Number(n));
+    if (!(n >= 0 && n < SKINS.length)) return false;
+    skin = n;
+    saveNum(SKIN_KEY, n);
+    fit();
+    return true;
+  }
+  const nextSkin = () => setSkin((skin + 1) % SKINS.length);
+
+  /* ---------- 몸통 위 작은 버튼(점 글씨) ---------- */
   const el = {
     main: document.getElementById('main'),
-    stage: document.getElementById('stage'), device: document.getElementById('device'),
+    deviceE: document.getElementById('deviceE'),
+    bodyArt: document.getElementById('bodyArt'), bodyFill: document.getElementById('bodyFill'), bodyLine: document.getElementById('bodyLine'),
     screen: document.getElementById('screen'),
     layoutBtn: document.getElementById('layoutBtn'), layoutCanvas: document.getElementById('layoutCanvas'), layoutLabel: document.getElementById('layoutLabel'),
-    slideBtn: document.getElementById('slideBtn'), slideCanvas: document.getElementById('slideCanvas'), slideLabel: document.getElementById('slideLabel'),
-    btn: document.getElementById('btn'), btnCanvas: document.getElementById('btnCanvas'), btnLabel: document.getElementById('btnLabel'),
-    panel: document.getElementById('panel'), panelCanvas: document.getElementById('panelCanvas'), num: document.getElementById('num'),
-    deviceE: document.getElementById('deviceE'),
-    keySlide: document.getElementById('keySlide'), keySlideCanvas: document.getElementById('keySlideCanvas'), keySlideLabel: document.getElementById('keySlideLabel'),
+    skinBtn: document.getElementById('skinBtn'), skinCanvas: document.getElementById('skinCanvas'), skinLabel: document.getElementById('skinLabel'),
     keyPush: document.getElementById('keyPush'), keyPushCanvas: document.getElementById('keyPushCanvas'),
+    grip: document.getElementById('grip'),
   };
   const dpr = () => window.devicePixelRatio || 1;
-  function sizeToBox(cv, host) {
-    const r = dpr(), box = host.getBoundingClientRect();
-    const w = Math.max(1, Math.round(box.width * r)), h = Math.max(1, Math.round(box.height * r));
-    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-  }
-
-  // 배치 0 숫자판(예전 모양 그대로): 칸으로 끊은 테두리 안에 큰 점 글씨 숫자.
-  // 밀림 켬이면 왼쪽 위에 손 모양 + 누른 횟수, 오른쪽 아래에 깃발 + 최고 높이를 작게 더한다
-  const fmt = (n) => [...n.toLocaleString('en-US')]; // 천 단위 쉼표
-  function drawPanel() {
-    const cv = el.panelCanvas, ctx = cv.getContext('2d'), w = cv.width, h = cv.height, r = dpr();
-    ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h);
-    const b = Math.max(1, Math.round(3 * r)), pad = Math.round(10 * r);
-    pixelFrame(ctx, w, h, b, INK);
-    const left = b + pad, top = b + pad, right = w - b - pad, bottom = h - b - pad;
-    const innerW = right - left, innerH = bottom - top;
-    let areaTop = top, areaBottom = bottom;
-    if (slideOn) {
-      const countKeys = ['☝', ' '].concat(fmt(count)), bestKeys = ['⚑', ' '].concat(fmt(best));
-      const cm = measure(countKeys), km = measure(bestKeys);
-      const sc = fitCell({ w: Math.max(cm.w, km.w), h: 7 }, innerW, innerH / 5, Math.max(1, Math.round(3 * r)));
-      drawText(ctx, countKeys, left, top, sc, INK);
-      drawText(ctx, bestKeys, right - km.w * sc, bottom - km.h * sc, sc, INK);
-      const gap = Math.round(6 * r);
-      areaTop = top + 7 * sc + gap; areaBottom = bottom - 7 * sc - gap;
-    }
-    // 가운데 큰 숫자: 끔=누른 횟수, 켬=지금 높이. 길어지면 칸을 줄여 판 안에 넣는다
-    const bigKeys = fmt(slideOn ? height : count), bm = measure(bigKeys);
-    const areaH = areaBottom - areaTop;
-    const cell = fitCell(bm, innerW * 0.92, areaH * (slideOn ? 0.9 : 0.62), Math.round(14 * r));
-    const tx = Math.round(left + (innerW - bm.w * cell) / 2), ty = Math.round(areaTop + (areaH - bm.h * cell) / 2);
-    drawText(ctx, bigKeys, tx, ty, cell, INK);
-    // 안 보이는 글자를 큰 숫자 자리에 겹쳐 둔다(읽어 주는 기능 · 검사기용)
-    const s = el.num.style;
-    s.left = `${tx / r}px`; s.top = `${ty / r}px`; s.width = `${(bm.w * cell) / r}px`; s.height = `${(bm.h * cell) / r}px`;
-    s.fontSize = `${(bm.h * cell) / r}px`;
-  }
-
-  function drawButton() {
-    const cv = el.btnCanvas, ctx = cv.getContext('2d'), w = cv.width, h = cv.height, r = dpr();
-    ctx.clearRect(0, 0, w, h);
-    pixelBlock(ctx, w, h, Math.max(1, Math.round(4 * r)), INK);
-    const keys = [...LABEL], m = measure(keys);
-    // 버튼이 클수록 글씨 칸도 키운다(한 칸 6 ~ 12 화면 점)
-    const cap = Math.round(Math.max(6, Math.min(12, Math.floor(h / r / 24))) * r);
-    const cell = fitCell(m, w * 0.8, h * 0.55, cap);
-    drawText(ctx, keys, Math.round((w - m.w * cell) / 2), Math.round((h - m.h * cell) / 2), cell, BG);
-  }
 
   // 작은 버튼의 한 칸 크기(화면 점 1.5개)
   const cornerCell = () => Math.max(1, Math.round(1.5 * dpr()));
@@ -581,22 +423,7 @@
     cv.style.width = `${cw / r}px`; cv.style.height = `${ch / r}px`;
   }
 
-  // 켬끔 버튼: 끔 = 흰 몸통 위 검은 테두리 글씨, 켬 = 검게 칠한 칸에 흰 글씨. 버튼 높이(화면 점)를 돌려준다
-  function drawToggle() {
-    const cv = el.slideCanvas, ctx = cv.getContext('2d'), r = dpr(), cc = cornerCell();
-    const keys = ['밀', '림', ' ', slideOn ? '켬' : '끔'], m = measure(keys);
-    const cw = (m.w + 6) * cc, ch = (m.h + 6) * cc;
-    sizeCorner(cv, cw, ch);
-    ctx.clearRect(0, 0, cw, ch);
-    if (slideOn) { pixelBlock(ctx, cw, ch, cc, BG); drawText(ctx, keys, 3 * cc, 3 * cc, cc, INK); }
-    else { pixelFrame(ctx, cw, ch, cc, BG); drawText(ctx, keys, 3 * cc, 3 * cc, cc, BG); }
-    const label = slideOn ? '밀림 켬' : '밀림 끔';
-    if (el.slideLabel.textContent !== label) el.slideLabel.textContent = label;
-    el.slideBtn.setAttribute('aria-pressed', slideOn ? 'true' : 'false');
-    return ch / r;
-  }
-
-  // 배치 버튼: 테두리 안에 0 A B C D E 여섯 글자. 지금 배치 글자만 검게 칠한 칸에 흰 글씨. 높이는 켬끔 버튼과 같다
+  // 배치 버튼: 테두리 안에 E F 두 글자. 지금 배치 글자만 검게 칠한 칸에 흰 글씨. 버튼 높이(화면 점)를 돌려준다
   function drawLayoutBtn() {
     const cv = el.layoutCanvas, ctx = cv.getContext('2d'), r = dpr(), cc = cornerCell();
     const BOX_W = 7, BOX_H = 9;                       // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
@@ -604,6 +431,7 @@
     const cw = cols * cc, ch = rowsN * cc;
     sizeCorner(cv, cw, ch);
     ctx.clearRect(0, 0, cw, ch);
+    pixelBlock(ctx, cw, ch, cc, INK); // 몸통 색과 상관없이 흰 바탕
     pixelFrame(ctx, cw, ch, cc, BG);
     LAYOUT_IDS.forEach((id, i) => {
       const bx = (3 + i * (BOX_W + 1)) * cc, by = Math.floor((rowsN - BOX_H) / 2) * cc;
@@ -619,11 +447,34 @@
     return ch / r;
   }
 
-  /* ---------- 배치 E의 키캡 두 개 ----------
+  // 몸통 색 버튼: 테두리 안에 7×9칸 네모 넷(네모마다 그 색 견본 + 검은 테두리 한 칸).
+  // 지금 고른 네모만 바깥에 한 칸 더 둘러 굵은 테두리. 네모 사이는 두 칸(굵은 테두리가 옆 네모에 붙지 않게)
+  function drawSkinBtn() {
+    const cv = el.skinCanvas, ctx = cv.getContext('2d'), cc = cornerCell();
+    const BOX_W = 7, BOX_H = 9, GAP = 2;
+    const cols = 3 + SKINS.length * BOX_W + (SKINS.length - 1) * GAP + 3, rowsN = 17;
+    const cw = cols * cc, ch = rowsN * cc;
+    sizeCorner(cv, cw, ch);
+    ctx.clearRect(0, 0, cw, ch);
+    pixelBlock(ctx, cw, ch, cc, INK);
+    pixelFrame(ctx, cw, ch, cc, BG);
+    const by = Math.floor((rowsN - BOX_H) / 2);
+    SKINS.forEach((s, i) => {
+      const bx = 3 + i * (BOX_W + GAP);
+      ctx.fillStyle = BG;
+      if (i === skin) ctx.fillRect((bx - 1) * cc, (by - 1) * cc, (BOX_W + 2) * cc, (BOX_H + 2) * cc);
+      ctx.fillRect(bx * cc, by * cc, BOX_W * cc, BOX_H * cc);
+      ctx.fillStyle = s.body;
+      ctx.fillRect((bx + 1) * cc, (by + 1) * cc, (BOX_W - 2) * cc, (BOX_H - 2) * cc);
+    });
+    const label = `몸통 ${SKINS[skin].name}`;
+    if (el.skinLabel.textContent !== label) el.skinLabel.textContent = label;
+  }
+
+  /* ---------- 키캡 하나 ----------
      비유: 진짜 키보드 키. 누르는 순간 한 번 세고, 손을 떼기 전까지는 아무리 다른 손가락으로 두드려도 다시 세지 않는다.
      keyHold = 지금 그 키를 누르고 있는 것(손가락 번호 · 'kb:Space' 같은 키보드 · 'test'), 안 누르면 null */
-  const keyHold = { push: null, slide: null };
-  const keyEl = () => ({ push: el.keyPush, slide: el.keySlide });
+  const keyHold = { push: null };
   let keyCell = 1;        // 키캡 그림 한 칸이 기기 화면 점 몇 개인지
   let pushFlash = false;  // 검사용 press()로 잠깐 눌린 그림을 보여 주는 중
   let pushFlashTimer = 0;
@@ -631,7 +482,7 @@
   function holdKey(name, who) {
     if (keyHold[name] !== null) return false; // 이미 눌려 있음: 떼기 전엔 다시 세지 않는다
     keyHold[name] = who;
-    if (name === 'push') { pushFlash = false; pushOnce(); } else setSlideOn(!slideOn);
+    pushFlash = false; pushOnce();
     drawKeys();
     return true;
   }
@@ -643,7 +494,7 @@
     drawKeys();
     return true;
   }
-  function releaseAllKeys() { releaseKey('push'); releaseKey('slide'); }
+  function releaseAllKeys() { releaseKey('push'); }
   function flashPushKey() {
     if (keyHold.push !== null) return;
     pushFlash = true; drawKeys();
@@ -653,7 +504,7 @@
 
   // 키캡 하나 그리기(20×20칸, 두 색). 바깥 네모 = 스위치 집, 안쪽 작은 네모 = 키 윗면, 그 아래 무늬 띠 = 키 옆면.
   // 누르면 윗면이 3칸 내려가고 옆면이 그만큼 짧아진다(바닥 쪽 끝은 그대로)
-  function drawKey(cv, down, mark) {
+  function drawKey(cv, down) {
     const ctx = cv.getContext('2d'), c = keyCell, n = KEY_CELLS * c;
     const R = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x * c, y * c, w * c, h * c); };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -673,51 +524,16 @@
     pixelBlock(ctx, capW * c, topH * c, c, INK);
     pixelFrame(ctx, capW * c, topH * c, c, BG);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    // 왼쪽 키 윗면 가운데의 작은 점: 켬 = 꽉 찬 점, 끔 = 속이 빈 고리
-    if (mark !== null) {
-      const mx = 8, my = topY + 3;
-      R(mx + 1, my, 2, 1, BG); R(mx + 1, my + 3, 2, 1, BG);
-      if (mark) R(mx, my + 1, 4, 2, BG);
-      else { R(mx, my + 1, 1, 2, BG); R(mx + 3, my + 1, 1, 2, BG); }
-    }
   }
   function drawKeys() {
-    if (layout !== 'E') return;
-    drawKey(el.keyPushCanvas, keyHold.push !== null || pushFlash, null);
-    drawKey(el.keySlideCanvas, keyHold.slide !== null, slideOn);
-    const label = slideOn ? '밀림 켬' : '밀림 끔';
-    if (el.keySlideLabel.textContent !== label) el.keySlideLabel.textContent = label;
-    el.keySlide.setAttribute('aria-pressed', slideOn ? 'true' : 'false');
+    drawKey(el.keyPushCanvas, keyHold.push !== null || pushFlash);
   }
 
-  // 검은 화면과 배치 버튼을 지금 배치의 몸통으로 옮긴다(E = 기기 몸통, A~D = 원래 몸통)
-  function mountFor(isE) {
-    el.main.classList.toggle('layout-e', isE);
-    el.main.classList.toggle('layout-0', layout === '0'); // 배치 0일 때만 숫자판이 보인다
-    const host = isE ? el.deviceE : el.device;
-    if (el.screen.parentNode !== host) {
-      if (isE) {
-        el.deviceE.insertBefore(el.layoutBtn, el.keySlide);
-        el.deviceE.insertBefore(el.screen, el.keySlide);
-      } else {
-        el.device.insertBefore(el.layoutBtn, el.slideBtn);
-        el.device.appendChild(el.screen);
-      }
-    }
-    if (!isE) {
-      el.screen.style.left = ''; el.screen.style.top = '';
-      el.layoutBtn.style.left = ''; el.layoutBtn.style.top = '';
-    }
-  }
-
-  // 배치 A~E에는 숫자판이 없으므로 읽어 주는 기능용 글은 화면 이름표에 함께 둔다. 배치 0은 숫자판도 다시 그린다
+  // 읽어 주는 기능용 글: 화면 이름표에 누른 횟수를 함께 둔다
   function syncText() {
-    const text = (slideOn ? height : count).toLocaleString('en-US');
+    const text = count.toLocaleString('en-US');
     const aria = `바위를 비탈 위로 미는 사람, ${text}`;
     if (el.screen.getAttribute('aria-label') !== aria) el.screen.setAttribute('aria-label', aria);
-    if (el.btnLabel.textContent !== LABEL) el.btnLabel.textContent = LABEL;
-    if (el.num.textContent !== text) el.num.textContent = text;
-    if (layout === '0') drawPanel();
   }
 
   /* ---------- 그리기: 128×(배치별 세로)칸 작은 판에 찍은 뒤 그대로 키운다 ---------- */
@@ -802,7 +618,7 @@
   }
 
   function render() {
-    const s = sceneS(); // 한 걸음 = 한 칸
+    const s = count; // 한 걸음 = 한 칸
     const oy = skyShift;
     box(0, 0, W, H, BG);
 
@@ -817,13 +633,17 @@
       sprite(mod(home + w - cloudShift, W + 24) - w, y, rows);
     });
 
-    // 먼 산 능선(바위 왼쪽에만, 2걸음에 한 칸)
+    // 먼 산 능선(2걸음에 한 칸): 화면 왼쪽 끝부터 오른쪽 끝까지 이어진다.
+    // 바위 오른쪽에서도 끊기지 않게(예전엔 바위 왼쪽에서 멈춰 오른쪽 하늘이 비어 보였음). 바위 뒤는 바위가 덮는다
     const ridgeShift = Math.floor(s / RIDGE_SLOW);
-    for (let x = 0; x < RIDGE_END; x += 1) dot(x, RIDGE_Y + oy + RIDGE_H[mod(x + ridgeShift, RIDGE_H.length)], INK);
+    for (let x = 0; x < W; x += 1) {
+      const y = RIDGE_Y + oy + RIDGE_H[mod(x + ridgeShift, RIDGE_H.length)];
+      if (y < surfaceAt(x) - 1) dot(x, y, INK); // 오르막 땅보다 위에서만(땅선과 붙어 뭉개지지 않게)
+    }
 
-    // 비탈 바닥 선
+    // 비탈 바닥 선: 왼쪽 끝부터 오른쪽 끝까지
     for (let k = 0; k * STEP_W < W; k += 1) sprite(k * STEP_W, GROUND_LEFT_Y + oy - k, GROUND_STEP);
-    // 바닥 속 자갈 점: 한 걸음에 한 칸, 8걸음마다 비탈을 따라 한 칸 아래로
+    // 바닥 속 자갈 점: 한 걸음에 한 칸, 8걸음마다 비탈을 따라 한 칸 아래로. 화면 오른쪽 끝 칸까지 채운다
     const texW = GROUND_TEX[0].length, texH = GROUND_TEX.length;
     const sink = Math.floor(s / STEP_W);
     for (let x = 0; x < W; x += 1) {
@@ -837,16 +657,6 @@
       if (x >= W) return;
       sprite(x, surfaceAt(x + Math.floor(rows[0].length / 2)) - rows.length, rows);
     });
-    // 쉼터(밀림 켬일 때만): 100걸음마다 돌 턱과 깃발이 지나간다
-    if (slideOn) {
-      for (let k = Math.max(1, Math.ceil((s - 140) / SHELTER)); k * SHELTER <= s + 140; k += 1) {
-        const x = SHELTER_X + (k * SHELTER - s);
-        if (x < -10 || x >= W) continue;
-        const ledgeY = surfaceAt(x + 4) - LEDGE.length;
-        sprite(x, ledgeY, LEDGE);
-        sprite(x + 1, ledgeY - FLAG.length, FLAG);
-      }
-    }
 
     // 바위: 테두리는 그대로, 속 무늬만 바위 가운데를 축으로 돈다(오르막으로 밀면 시계 방향)
     const angle = s / ROLL_RADIUS, cos = Math.cos(angle), sin = Math.sin(angle);
@@ -862,194 +672,143 @@
       dot(x, y, on ? INK : BG); // 뒤 풍경은 지우고 무늬만 남긴다
     });
 
-    // 미는 사람: 한 걸음마다 다음 그림(밀려 내려갈 때는 거꾸로 돌아 뒷걸음질)
+    // 미는 사람: 한 걸음마다 다음 그림
     spriteWithHalo(MAN_X, MAN_Y + oy, MAN[stepOf(s)]);
 
-    if (layout === '0') {
-      // 배치 0: 예전처럼 왼쪽 위에 작은 숫자 한 줄만(손 · 깃발은 아래 숫자판이 맡는다)
-      boardText([...String(slideOn ? height : count)], 3, 3, 1);
-    } else {
-      // 왼쪽 위 숫자(끔=누른 횟수, 켬=지금 높이): 칸 두 배 크기. 너무 길어 화면을 넘거나, 바위 윗부분을 덮게 되면 한 배로
-      // (세로로 긴 배치는 바위가 숫자보다 아래에 있어 덮이지 않는다)
-      const big = [...String(slideOn ? height : count)];
-      const bigW = measure(big).w * 2;
-      const hitsBoulder = 3 + bigW > BOULDER_X + 2 && BOULDER_Y + oy < 3 + 7 * 2 + 2;
-      const bigK = (bigW <= W - 6 && !hitsBoulder) ? 2 : 1;
-      let y = 3 + boardText(big, 3, 3, bigK) + 3;
-      // 밀림 켬: 그 아래 작게 손 모양 + 누른 횟수, 깃발 + 최고 높이
-      if (slideOn) {
-        y += boardText(['☝', ' '].concat([...String(count)]), 3, y, 1) + 2;
-        boardText(['⚑', ' '].concat([...String(best)]), 3, y, 1);
-      }
-    }
+    // 왼쪽 위 큰 숫자(누른 횟수): 칸 두 배 크기. 너무 길어 화면을 넘거나, 바위 윗부분을 덮게 되면 한 배로
+    // (세로로 긴 배치 F는 바위가 숫자보다 아래에 있어 덮이지 않는다)
+    const big = [...String(count)];
+    const bigW = measure(big).w * 2;
+    const hitsBoulder = 3 + bigW > BOULDER_X + 2 && BOULDER_Y + oy < 3 + 7 * 2 + 2;
+    const bigK = (bigW <= W - 6 && !hitsBoulder) ? 2 : 1;
+    boardText(big, 3, 3, bigK);
 
     // 작은 판을 큰 그림판에 옮긴다
     g.imageSmoothingEnabled = false;
     g.drawImage(board, 0, 0, el.screen.width, el.screen.height);
   }
 
-  // 자리 맞추기: 배치에 맞춰 화면 · 버튼 칸을 나누고, 검은 화면은 한 칸이 화면 점 몇 개인지를 정수로 맞춰
-  // 점이 고르게 보이게 한다. 흰 몸통은 그 화면을 얇게 감싼다
-  // 배치에 맞춰 자리를 잡은 뒤, 게임 버튼을 배치 버튼 옆에 세운다
-  function fit() { fitLayout(); placeGameBtn(); }
-  function fitLayout() {
-    const r = dpr(), L = LAYOUTS[layout], land = LAND_MQ.matches, ms = el.main.style;
-    mountFor(!!L.keys);
-    if (L.keys) { fitDevice(); return; }
-    if (L.panel) { fitPanelLayout(); return; }
-    if (land) {
-      ms.gridTemplateRows = 'minmax(0, 1fr)';
-      ms.gridTemplateColumns = L.btnLand === 'fill' ? 'minmax(0, 1fr) minmax(0, 1fr)' : `minmax(0, 1fr) ${L.btnLand}px`;
+  /* ---------- 몸통 겉모양: 위 두 모서리는 둥글게, 아래 두 모서리는 비스듬히 깎기 ----------
+     inset = 바깥선에서 안으로 들어온 거리(검은 몸통의 안쪽 흰 선을 그릴 때 씀) */
+  function bodyPath(w, h, rad, bevel, inset) {
+    const i = inset, R = Math.max(0, rad - i), B = Math.max(0, bevel - i * 0.41);
+    const x0 = i, y0 = i, x1 = w - i, y1 = h - i;
+    return `M ${x0} ${y0 + R} A ${R} ${R} 0 0 1 ${x0 + R} ${y0} L ${x1 - R} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y0 + R} `
+      + `L ${x1} ${y1 - B} L ${x1 - B} ${y1} L ${x0 + B} ${y1} L ${x0} ${y1 - B} Z`;
+  }
+  function drawBody(dw, dh, rad, bevel) {
+    const sk = SKINS[skin];
+    el.bodyArt.setAttribute('viewBox', `0 0 ${dw} ${dh}`);
+    el.bodyArt.setAttribute('width', dw); el.bodyArt.setAttribute('height', dh);
+    el.bodyFill.setAttribute('d', bodyPath(dw, dh, rad, bevel, 0));
+    el.bodyFill.setAttribute('fill', sk.body);
+    if (sk.line) {
+      el.bodyLine.setAttribute('d', bodyPath(dw, dh, rad, bevel, 1)); // 굵기 2 선의 가운데를 1 안쪽에 → 바깥선 안쪽 0~2점
+      el.bodyLine.setAttribute('stroke', INK); el.bodyLine.setAttribute('stroke-width', '2');
     } else {
-      ms.gridTemplateColumns = 'minmax(0, 1fr)';
-      ms.gridTemplateRows = L.btn === 'fill' ? 'auto minmax(0, 1fr)' : `minmax(0, 1fr) ${L.btn}px`;
+      el.bodyLine.removeAttribute('d');
     }
-    el.screen.classList.toggle('tappable', L.tapScreen);
-
-    const bandH = Math.max(drawToggle(), drawLayoutBtn());
-    const padTop = Math.ceil(bandH) + 6;
-    el.device.style.padding = `${padTop}px ${SIDE}px ${SIDE}px`;
-
-    // 화면이 쓸 수 있는 자리(화면 점): 전체 판에서 버튼 몫과 흰 몸통 두께를 뺀다
-    const cs = getComputedStyle(el.main), mb = el.main.getBoundingClientRect();
-    const innerW = mb.width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
-    const innerH = mb.height - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
-    const gapR = parseFloat(cs.rowGap) || 0, gapC = parseFloat(cs.columnGap) || 0;
-    let availW, availH;
-    if (land) {
-      availH = innerH;
-      availW = L.btnLand === 'fill' ? (innerW - gapC) / 2 : innerW - gapC - L.btnLand;
-    } else {
-      availW = innerW;
-      availH = innerH - gapR - (L.btn === 'fill' ? A_MIN_BTN : L.btn);
-    }
-    const aw = Math.max(1, (availW - 2 * SIDE) * r), ah = Math.max(1, (availH - padTop - SIDE) * r);
-
-    let rows, cellPx;
-    if (L.rows === 'fill') {
-      // 폭에 맞춘 칸 크기로, 남는 높이를 세로 칸으로 전부 채운다(적어도 기준 64칸)
-      cellPx = Math.max(1, Math.min(Math.floor(aw / W), Math.floor(ah / BASE_H)));
-      rows = Math.max(BASE_H, Math.min(MAX_ROWS, Math.floor(ah / cellPx)));
-    } else {
-      rows = L.rows;
-      cellPx = Math.max(1, Math.floor(Math.min(aw / W, ah / rows)));
-    }
-    setRows(rows);
-    if (el.screen.width !== W * cellPx || el.screen.height !== H * cellPx) { el.screen.width = W * cellPx; el.screen.height = H * cellPx; }
-    el.screen.style.width = `${(W * cellPx) / r}px`;
-    el.screen.style.height = `${(H * cellPx) / r}px`;
-
-    sizeToBox(el.btnCanvas, el.btn);
-    drawButton();
-    syncText();
-    render();
   }
 
-  // 배치 0 자리 맞추기: 세로 화면 = 그림판 / 숫자판 184 / 버튼 112(위에서 아래로),
-  // 가로로 눕힌 화면 = 왼쪽 그림판, 오른쪽 가운데에 숫자판 150 + 버튼 96. 검은 화면은 128×64칸 그대로
-  function fitPanelLayout() {
-    const r = dpr(), land = LAND_MQ.matches, ms = el.main.style;
-    if (land) {
-      ms.gridTemplateColumns = 'minmax(0, 1fr) minmax(280px, 1fr)';
-      ms.gridTemplateRows = 'minmax(0, 1fr) 150px 96px minmax(0, 1fr)';
-    } else {
-      ms.gridTemplateColumns = 'minmax(0, 1fr)';
-      ms.gridTemplateRows = 'minmax(0, 1fr) 184px 112px';
+  // 오돌토돌한 띠: 본보기 기기 아래쪽 회색 띠. 모서리 둥근 직사각형을 띠 색으로 칠하고, 몸통 색 점을 흩뿌린다
+  function drawGrip(gw, gh) {
+    const cv = el.grip, r = dpr(), ctx = cv.getContext('2d'), sk = SKINS[skin];
+    const w = Math.max(1, Math.round(gw * r)), h = Math.max(1, Math.round(gh * r));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    cv.style.width = `${w / r}px`; cv.style.height = `${h / r}px`;
+    ctx.clearRect(0, 0, w, h);
+    const rr = Math.min(h / 2, Math.round(h * 0.3));
+    ctx.beginPath();
+    ctx.moveTo(rr, 0); ctx.lineTo(w - rr, 0); ctx.arcTo(w, 0, w, rr, rr); ctx.lineTo(w, h - rr); ctx.arcTo(w, h, w - rr, h, rr);
+    ctx.lineTo(rr, h); ctx.arcTo(0, h, 0, h - rr, rr); ctx.lineTo(0, rr); ctx.arcTo(0, 0, rr, 0, rr); ctx.closePath();
+    ctx.fillStyle = sk.grip; ctx.fill();
+    // 점 무늬(네 게임 같은 규칙): 점 하나 = 화면 점 2개, 가로 6 · 세로 4 간격, 한 줄 걸러 반 칸 어긋나게
+    ctx.save(); ctx.clip();
+    const p = Math.max(1, Math.round(2 * r));
+    ctx.fillStyle = sk.body;
+    for (let row = 0, y = 2 * p; y + p <= h - 2 * p; row += 1, y += 2 * p) {
+      for (let x = 2 * p + (row % 2 ? Math.round(1.5 * p) : 0); x + p <= w - 2 * p; x += 3 * p) ctx.fillRect(x, y, p, p);
     }
-    el.screen.classList.remove('tappable');
-
-    const bandH = Math.max(drawToggle(), drawLayoutBtn());
-    const padTop = Math.ceil(bandH) + 6;
-    el.device.style.padding = `${padTop}px ${SIDE}px ${SIDE}px`;
-
-    // 그림판 자리(칸 나누기가 바로 위에서 정해졌으므로 실제 상자 크기를 잰다)
-    const box = el.stage.getBoundingClientRect();
-    const aw = Math.max(1, (box.width - 2 * SIDE) * r), ah = Math.max(1, (box.height - padTop - SIDE) * r);
-    const cellPx = Math.max(1, Math.floor(Math.min(aw / W, ah / BASE_H)));
-    setRows(BASE_H);
-    if (el.screen.width !== W * cellPx || el.screen.height !== H * cellPx) { el.screen.width = W * cellPx; el.screen.height = H * cellPx; }
-    el.screen.style.width = `${(W * cellPx) / r}px`;
-    el.screen.style.height = `${(H * cellPx) / r}px`;
-
-    sizeToBox(el.panelCanvas, el.panel);
-    sizeToBox(el.btnCanvas, el.btn);
-    drawButton();
-    syncText();
-    render();
+    ctx.restore();
   }
 
-  // 배치 E 자리 맞추기: 몸통 폭을 먼저 정하고(화면 폭의 85%, 높이가 모자라면 높이에 맞춰 줄임),
-  // 그 안에 위쪽 띠(배치 버튼) → 검은 화면 → 키캡 두 개를 차례로 놓는다. 남는 아래쪽은 깎인 모서리 자리
+  /* ---------- 자리 맞추기 ----------
+     몸통 폭 dw = min(창 폭 − 28, 460). 위에서부터: 띠(작은 버튼 줄 + 위아래 10) → 검은 화면 → 7% → 키캡 → 7% → 오돌토돌한 띠(7%) → 7%.
+     합이 창 높이 − 28을 넘으면 화면 칸 크기부터, 그다음 키캡 크기를 줄인다(키캡은 72 아래로 안 줄임) */
+  function fit() { fitDevice(); placeGameBtn(); }
   function fitDevice() {
-    const r = dpr(), ms = el.main.style;
-    ms.gridTemplateColumns = 'minmax(0, 1fr)';
-    ms.gridTemplateRows = 'minmax(0, 1fr)';
-    el.screen.classList.remove('tappable');
-    drawToggle(); // 숨어 있어도 상태 글은 맞춰 둔다
-    const bandH = drawLayoutBtn();
+    const r = dpr(), rows = LAYOUTS[layout].rows;
+    const btnH = drawLayoutBtn();
+    drawSkinBtn();
+    const band = btnH + 2 * BAND_PAD;
 
-    const cs = getComputedStyle(el.main), mb = el.main.getBoundingClientRect();
-    const innerW = mb.width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
-    const innerH = mb.height - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
-    const dw = Math.max(120, Math.floor(Math.min(mb.width * DEVICE_SHARE, innerW, innerH / DEVICE_ASPECT)));
+    const mb = el.main.getBoundingClientRect();
+    const dw = Math.max(120, Math.floor(Math.min(mb.width - EDGE, DEVICE_MAX)));
+    const limitH = mb.height - EDGE;
+    const gap = Math.round(dw * GAP_SHARE);
+    const gh = gap; // 띠 높이 = 몸통 폭의 7%
 
-    const topPad = Math.max(Math.ceil(bandH) + 14, Math.round(dw * 0.14)); // 몸통 위 끝 ~ 검은 화면
-    const gapSK = Math.round(dw * 0.08);    // 검은 화면 ~ 키캡
-    const bottomMin = Math.round(dw * 0.18); // 키캡 아래 최소 몸통(깎인 모서리 자리)
-
-    // 키캡 크기: 칸이 정수 화면 점이 되는 크기 중, 72~84 안에서 몸통 폭의 26%에 가장 가까운 것
-    const kMax = Math.min(KEY_MAX, dw * 0.34), kMin = Math.min(KEY_MIN, kMax);
-    const want = Math.max(kMin, Math.min(kMax, dw * 0.26));
-    let kc = 0, gapBest = Infinity;
-    for (let cc = 1; KEY_CELLS * cc / r <= kMax + 0.01; cc += 1) {
+    // 키캡 크기: 20칸 × 정수 점이 되는 크기 중 목표(몸통 폭의 40%)에 가장 가까운 것, 72 ~ 190 사이
+    const want = dw * KEY_SHARE_ONE;
+    let kc = 0, best = Infinity;
+    for (let cc = 1; KEY_CELLS * cc / r <= KEY_MAX + 0.01; cc += 1) {
       const size = KEY_CELLS * cc / r;
-      if (size >= kMin - 0.01 && Math.abs(size - want) < gapBest) { kc = cc; gapBest = Math.abs(size - want); }
+      if (size >= KEY_MIN - 0.01 && Math.abs(size - want) < best) { kc = cc; best = Math.abs(size - want); }
     }
-    if (!kc) kc = Math.max(1, Math.floor(kMax * r / KEY_CELLS));
+    if (!kc) kc = Math.max(1, Math.ceil(KEY_MIN * r / KEY_CELLS));
+    const kcMin = Math.ceil((KEY_MIN - 0.01) * r / KEY_CELLS);
+
+    // 검은 화면: 128 × rows칸, 한 칸 = 정수 기기 화면 점
+    let cellPx = Math.max(1, Math.floor(dw * SCREEN_SHARE * r / W));
+    const total = (cp, k) => band + (rows * cp) / r + gap + (KEY_CELLS * k) / r + gap + gh + gap;
+    while (cellPx > 1 && total(cellPx, kc) > limitH) cellPx -= 1;
+    while (kc > kcMin && total(cellPx, kc) > limitH) kc -= 1;
+    // 몸통을 세로로 길게(형님 「위아래 여백이 너무 많아」): 폭의 1.5배까지(창 높이 안에서), 남는 높이를 세 틈(화면~키캡 · 키캡~띠 · 띠~몸통 끝)에 똑같이 나눠 넣는다
+    const lift = Math.max(0, Math.floor((Math.min(limitH, Math.round(dw * BODY_TALL)) - total(cellPx, kc)) / 3));
     keyCell = kc;
     const ks = KEY_CELLS * kc / r;
+    const sw = (W * cellPx) / r, sh = (rows * cellPx) / r;
 
-    // 검은 화면: 128×64칸 그대로, 한 칸 = 정수 화면 점. 높이가 모자라면 칸을 줄인다
-    let cellPx = Math.max(1, Math.floor(dw * SCREEN_SHARE * r / W));
-    const need = (cp) => topPad + (BASE_H * cp) / r + gapSK + ks + bottomMin;
-    while (cellPx > 1 && need(cellPx) > innerH) cellPx -= 1;
-    const sw = (W * cellPx) / r, sh = (BASE_H * cellPx) / r;
-    const dh = Math.max(Math.round(dw * DEVICE_ASPECT), Math.ceil(need(cellPx)));
+    const keyTop = Math.round(band + sh + gap + lift);
+    const gripTop = Math.round(keyTop + ks + gap + lift);
+    const dh = Math.round(gripTop + gh + gap + lift);
 
-    // 몸통: 위 두 모서리는 둥글게, 아래 두 모서리는 비스듬히 깎기
-    const ds = el.deviceE.style, rad = Math.round(dw * 0.1), bevel = Math.round(dw * 0.11);
+    // 몸통
+    const ds = el.deviceE.style, rad = Math.round(dw * CORNER_SHARE), bevel = Math.round(dw * CORNER_SHARE);
     ds.width = `${dw}px`; ds.height = `${dh}px`;
-    ds.borderRadius = `${rad}px ${rad}px 0 0`;
-    ds.clipPath = `polygon(0 0, 100% 0, 100% calc(100% - ${bevel}px), calc(100% - ${bevel}px) 100%, ${bevel}px 100%, 0 calc(100% - ${bevel}px))`;
+    drawBody(dw, dh, rad, bevel);
 
-    // 배치 버튼: 몸통 위쪽 가장자리 왼편
-    el.layoutBtn.style.left = `${Math.round(dw * 0.08)}px`;
-    el.layoutBtn.style.top = `${Math.max(6, Math.round((topPad - bandH) / 2))}px`;
+    // 위 띠: 왼쪽 배치 버튼(게임 버튼은 placeGameBtn이 그 오른쪽에) · 오른쪽 끝 몸통 색 버튼
+    const side = Math.round(dw * 0.08);
+    el.layoutBtn.style.left = `${side}px`; el.layoutBtn.style.top = `${BAND_PAD}px`;
+    el.skinBtn.style.left = ''; el.skinBtn.style.right = `${side}px`; el.skinBtn.style.top = `${BAND_PAD}px`;
 
     // 검은 화면: 가운데 정렬
-    setRows(BASE_H);
+    setRows(rows);
     if (el.screen.width !== W * cellPx || el.screen.height !== H * cellPx) { el.screen.width = W * cellPx; el.screen.height = H * cellPx; }
     el.screen.style.width = `${sw}px`; el.screen.style.height = `${sh}px`;
     el.screen.style.left = `${Math.round((dw - sw) / 2)}px`;
-    el.screen.style.top = `${topPad}px`;
+    el.screen.style.top = `${Math.round(band)}px`;
 
-    // 키캡 두 개: 화면 아래 가운데에 나란히(왼쪽 = 밀림, 오른쪽 = 밀기)
-    const keyGap = Math.round(ks * 0.22), rowLeft = Math.round((dw - (2 * ks + keyGap)) / 2);
-    const keyTop = Math.round(topPad + sh + gapSK);
-    [[el.keySlide, el.keySlideCanvas, rowLeft], [el.keyPush, el.keyPushCanvas, rowLeft + Math.round(ks) + keyGap]].forEach(([b, cv, x]) => {
-      const n = KEY_CELLS * kc;
-      if (cv.width !== n || cv.height !== n) { cv.width = n; cv.height = n; }
-      cv.style.width = `${ks}px`; cv.style.height = `${ks}px`;
-      b.style.left = `${x}px`; b.style.top = `${keyTop}px`;
-      b.style.width = `${ks}px`; b.style.height = `${ks}px`;
-    });
+    // 키캡 하나: 가운데
+    const n = KEY_CELLS * kc, cv = el.keyPushCanvas, b = el.keyPush;
+    if (cv.width !== n || cv.height !== n) { cv.width = n; cv.height = n; }
+    cv.style.width = `${ks}px`; cv.style.height = `${ks}px`;
+    b.style.left = `${Math.round((dw - ks) / 2)}px`; b.style.top = `${keyTop}px`;
+    b.style.width = `${ks}px`; b.style.height = `${ks}px`;
+
+    // 오돌토돌한 띠: 가운데
+    const gw = Math.round(dw * GRIP_SHARE);
+    drawGrip(gw, gh);
+    el.grip.style.left = `${Math.round((dw - gw) / 2)}px`; el.grip.style.top = `${gripTop}px`;
 
     drawKeys();
     syncText();
     render();
   }
-  /* ---------- 게임 버튼: 배치 버튼 바로 오른쪽, 누를 때마다 다음 게임으로 넘어간다 ----------
-     비유: TV 채널 버튼. 1 시시포스 → 2 10.00000 → 3 결투 → 4 100m → 다시 1.
+
+  /* ---------- 게임 버튼: 배치 버튼 바로 오른쪽, 누른 숫자 칸의 게임으로 바로 간다 ----------
+     비유: TV 리모컨 숫자 버튼. 1 시지프스 · 2 10.00000 · 3 결투 · 4 100m 중 누른 번호로 곧장.
      네 게임은 같은 전시장의 옆 폴더라서 「한 칸 위 폴더 → 옆 폴더」 주소로 옮겨 간다.
      이 컴퓨터의 폴더 이름(local)과 인터넷 전시장의 폴더 이름(web)이 달라서 둘 다 적어 두고,
      지금 열린 폴더 이름이 어느 쪽인지 보고 같은 쪽 이름으로 간다.
@@ -1058,44 +817,61 @@
   function gameHere() { return '1'; }
   function gameList() {
     return [
-      { id: '1', name: '시시포스', local: 'streak-sisyphus', web: 'hold-on-sisyphus' },
+      { id: '1', name: '시지프스', local: 'streak-sisyphus', web: 'hold-on-sisyphus' },
       { id: '2', name: '10.00000', local: 'key-ten', web: 'hold-on-key-ten' },
       { id: '3', name: '결투', local: 'key-duel', web: 'hold-on-key-duel' },
       { id: '4', name: '100m', local: 'key-100m', web: 'hold-on-key-100m' },
     ];
   }
-  function nextGameUrl() {
-    const list = gameList(), i = list.findIndex((g) => g.id === gameHere());
-    const next = list[(i + 1) % list.length];
+  function gameUrl(id) {
+    const list = gameList(), target = list.find((g) => g.id === String(id));
+    if (!target) return null;
     // 지금 폴더 이름: …/hold-on-key-ten/ → hold-on-key-ten, …/key-ten/index.html → key-ten
     const parts = location.pathname.split('/').filter(Boolean);
     if (parts.length && /\.html?$/i.test(parts[parts.length - 1])) parts.pop();
     const here = decodeURIComponent(parts[parts.length - 1] || '');
     const onWeb = list.some((g) => g.web === here);
-    return onWeb ? `../${next.web}/` : `../${next.local}/index.html`;
+    return onWeb ? `../${target.web}/` : `../${target.local}/index.html`;
   }
-  // 넘어간 게임마다 뒤로 가기 기록이 쌓이지 않게 지금 칸을 바꿔 끼운다
-  function nextGame() { location.replace(nextGameUrl()); }
+  // 넘어간 게임마다 뒤로 가기 기록이 쌓이지 않게 지금 칸을 바꿔 끼운다. 지금 게임 번호면 아무 일 없음
+  function goGame(id) {
+    if (String(id) === gameHere()) return false;
+    const url = gameUrl(id);
+    if (!url) return false;
+    location.replace(url);
+    return true;
+  }
   // 그림: 배치 버튼과 같은 모양. 테두리 안에 1 2 3 4, 지금 게임 숫자만 검게 칠한 칸에 흰 글씨
+  const GAME_BOX_W = 7, GAME_BOX_H = 9;                // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
   function drawGameBtn(gb) {
     const cv = gb.querySelector('canvas'), ctx = cv.getContext('2d'), cc = cornerCell(), list = gameList();
-    const BOX_W = 7, BOX_H = 9;                       // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
-    const cols = 3 + list.length * (BOX_W + 1) - 1 + 3, rowsN = 17;
+    const cols = 3 + list.length * (GAME_BOX_W + 1) - 1 + 3, rowsN = 17;
     const cw = cols * cc, ch = rowsN * cc;
     sizeCorner(cv, cw, ch);
     ctx.clearRect(0, 0, cw, ch);
+    pixelBlock(ctx, cw, ch, cc, INK);
     pixelFrame(ctx, cw, ch, cc, BG);
     list.forEach((g, i) => {
-      const bx = (3 + i * (BOX_W + 1)) * cc, by = Math.floor((rowsN - BOX_H) / 2) * cc;
+      const bx = (3 + i * (GAME_BOX_W + 1)) * cc, by = Math.floor((rowsN - GAME_BOX_H) / 2) * cc;
       if (g.id === gameHere()) {
-        ctx.fillStyle = BG; ctx.fillRect(bx, by, BOX_W * cc, BOX_H * cc);
+        ctx.fillStyle = BG; ctx.fillRect(bx, by, GAME_BOX_W * cc, GAME_BOX_H * cc);
         drawText(ctx, [g.id], bx + cc, by + cc, cc, INK);
       } else {
         drawText(ctx, [g.id], bx + cc, by + cc, cc, BG);
       }
     });
+    const label = `게임 ${gameHere()} ${list.find((g) => g.id === gameHere()).name}`;
+    const gl = document.getElementById('gameLabel');
+    if (gl && gl.textContent !== label) gl.textContent = label;
   }
-  // 자리: 배치 버튼이 든 몸통(배치 E면 기기 몸통)으로 따라가서, 배치 버튼 오른쪽 6점 떨어진 곳에 같은 높이로 선다
+  // 버튼 안 가로 위치(화면 점, 버튼 왼쪽 끝 = 0) → 몇 번째 숫자 칸인지.
+  // 칸 경계 = 글자 상자 경계, 상자 사이 한 칸 틈은 그 가운데를 기준으로 가까운 칸, 양 끝 여백은 맨 끝 칸
+  function gameIndexAt(xCss) {
+    const n = gameList().length, cellsX = (xCss * dpr()) / cornerCell();
+    const i = Math.floor((cellsX - 3 + 0.5) / (GAME_BOX_W + 1));
+    return Math.max(0, Math.min(n - 1, i));
+  }
+  // 자리: 배치 버튼 오른쪽 6점 떨어진 곳에 같은 높이로 선다
   function placeGameBtn() {
     const gb = document.getElementById('gameBtn'), lb = el.layoutBtn;
     if (!gb) return;
@@ -1104,70 +880,54 @@
     gb.style.left = `${lb.offsetLeft + lb.offsetWidth + 6}px`;
     gb.style.top = `${lb.offsetTop}px`;
   }
-  // 누르는 순간 넘어간다. 게임 누름으로 세지 않는다(아래로 퍼지지 않게 막음)
+  // 누르는 순간 그 번호 게임으로. 게임 누름으로 세지 않는다(아래로 퍼지지 않게 막음)
   document.getElementById('gameBtn').addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
-    nextGame();
+    const box = e.currentTarget.getBoundingClientRect();
+    goGame(gameList()[gameIndexAt(e.clientX - box.left)].id);
   });
   if (window.ResizeObserver) new ResizeObserver(fit).observe(el.main);
   window.addEventListener('resize', fit);
 
   /* ---------- 입력: 손가락이 닿는 순간 한 걸음 ---------- */
   const mainPointer = (e) => e.pointerType !== 'mouse' || e.button === 0;
-  el.btn.addEventListener('pointerdown', (e) => {
-    if (!mainPointer(e)) return;
-    e.preventDefault();
-    press();
-  });
-  // 배치 D에서는 검은 화면을 눌러도 밀린다
-  el.screen.addEventListener('pointerdown', (e) => {
-    if (!LAYOUTS[layout].tapScreen || !mainPointer(e)) return;
-    e.preventDefault();
-    press();
-  });
-  // 작은 버튼 둘: 밀기로 세지 않는다
-  el.slideBtn.addEventListener('pointerdown', (e) => {
-    if (!mainPointer(e)) return;
-    e.preventDefault(); e.stopPropagation();
-    setSlideOn(!slideOn);
-  });
+  // 작은 버튼: 밀기로 세지 않는다
   el.layoutBtn.addEventListener('pointerdown', (e) => {
     if (!mainPointer(e)) return;
     e.preventDefault(); e.stopPropagation();
     nextLayout();
   });
-  // 배치 E 키캡: 누르는 순간 센다. 그 손가락이 떼어지거나, 키 밖으로 미끄러지거나, 화면 밖으로 나가면 뗀 것
-  ['push', 'slide'].forEach((name) => {
-    keyEl()[name].addEventListener('pointerdown', (e) => {
-      if (!mainPointer(e)) return;
-      e.preventDefault(); e.stopPropagation();
-      if (layout !== 'E') return;
-      // 손가락을 키에 묶어 두지 않아야 키 밖으로 미끄러진 것을 알아챈다
-      const t = e.currentTarget;
-      try { if (t.hasPointerCapture && t.hasPointerCapture(e.pointerId)) t.releasePointerCapture(e.pointerId); } catch (err) { /* 그대로 */ }
-      // 새로 닿은 첫 손가락인데 키가 눌린 채 남아 있으면, 떼는 신호를 놓친 낡은 누름이다 → 풀고 받는다(키가 먹통이 되지 않게)
-      if (e.isPrimary) ['push', 'slide'].forEach((k) => { if (keyHold[k] !== null && keyHold[k] !== e.pointerId) releaseKey(k); });
-      holdKey(name, e.pointerId);
-    });
+  el.skinBtn.addEventListener('pointerdown', (e) => {
+    if (!mainPointer(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    nextSkin();
+  });
+  // 키캡: 누르는 순간 센다. 그 손가락이 떼어지거나, 키 밖으로 미끄러지거나, 화면 밖으로 나가면 뗀 것
+  el.keyPush.addEventListener('pointerdown', (e) => {
+    if (!mainPointer(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    // 손가락을 키에 묶어 두지 않아야 키 밖으로 미끄러진 것을 알아챈다
+    const t = e.currentTarget;
+    try { if (t.hasPointerCapture && t.hasPointerCapture(e.pointerId)) t.releasePointerCapture(e.pointerId); } catch (err) { /* 그대로 */ }
+    // 새로 닿은 첫 손가락인데 키가 눌린 채 남아 있으면, 떼는 신호를 놓친 낡은 누름이다 → 풀고 받는다(키가 먹통이 되지 않게)
+    if (e.isPrimary && keyHold.push !== null && keyHold.push !== e.pointerId) releaseKey('push');
+    holdKey('push', e.pointerId);
   });
   const insideRect = (node, x, y) => {
     const b = node.getBoundingClientRect();
     return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom;
   };
   window.addEventListener('pointermove', (e) => {
-    const nodes = keyEl();
-    ['push', 'slide'].forEach((name) => {
-      if (keyHold[name] === e.pointerId && !insideRect(nodes[name], e.clientX, e.clientY)) releaseKey(name, e.pointerId);
-    });
+    if (keyHold.push === e.pointerId && !insideRect(el.keyPush, e.clientX, e.clientY)) releaseKey('push', e.pointerId);
   });
   ['pointerup', 'pointercancel'].forEach((type) => window.addEventListener(type, (e) => {
-    releaseKey('push', e.pointerId); releaseKey('slide', e.pointerId);
+    releaseKey('push', e.pointerId);
   }));
   // 마우스가 창 밖으로 나감(옮겨 간 곳이 없음)
   window.addEventListener('pointerout', (e) => {
     if (e.relatedTarget) return;
-    releaseKey('push', e.pointerId); releaseKey('slide', e.pointerId);
+    releaseKey('push', e.pointerId);
   });
   window.addEventListener('blur', releaseAllKeys);
   document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAllKeys(); });
@@ -1177,25 +937,23 @@
 
   window.addEventListener('keydown', (e) => {
     const plain = !e.metaKey && !e.ctrlKey && !e.altKey;
-    if (e.code === 'KeyB' && plain) {
-      e.preventDefault();
-      if (!e.repeat) setSlideOn(!slideOn);
-      return;
-    }
     if (e.code === 'KeyL' && plain) {
       e.preventDefault();
       if (!e.repeat) nextLayout();
+      return;
+    }
+    if (e.code === 'KeyC' && plain) {
+      e.preventDefault();
+      if (!e.repeat) nextSkin();
       return;
     }
     if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
     if (!plain) return; // Cmd · Ctrl · Alt와 같이 누른 것은 밀기가 아니다(떼는 신호가 안 와서 키가 눌린 채 남는 것도 막음)
     e.preventDefault();
     if (e.repeat) return; // 꾹 누르고 있어 저절로 반복되는 입력은 무시
-    if (layout === 'E') {
-      // 같은 키가 눌린 채 남아 있는데 새로 눌렸다면 떼는 신호를 놓친 것이다 → 풀고 받는다(키보드가 먹통이 되지 않게)
-      if (keyHold.push === `kb:${e.code}`) releaseKey('push');
-      holdKey('push', `kb:${e.code}`); // 오른쪽 키를 누른 것과 같음(떼면 keyup에서 올라옴)
-    } else press();
+    // 같은 키가 눌린 채 남아 있는데 새로 눌렸다면 떼는 신호를 놓친 것이다 → 풀고 받는다(키보드가 먹통이 되지 않게)
+    if (keyHold.push === `kb:${e.code}`) releaseKey('push');
+    holdKey('push', `kb:${e.code}`); // 키캡을 누른 것과 같음(떼면 keyup에서 올라옴)
   });
   // 연타할 때 화면이 확대되거나 끌리거나, 길게 눌러 메뉴가 뜨지 않게 막는다
   const block = (e) => e.preventDefault();
@@ -1203,7 +961,6 @@
   ['gesturestart', 'dblclick', 'contextmenu', 'selectstart', 'dragstart'].forEach((name) => document.addEventListener(name, block));
 
   fit();
-  startLoop();
 
   /* ---------- 검사용 손잡이: 게임에는 영향이 없다 ---------- */
   const toInt = (n) => {
@@ -1217,39 +974,37 @@
   window.__STREAK_TEST__ = {
     state() {
       return {
-        count, step: stepOf(sceneS()), label: LABEL, slide: slideOn, height, best, sliding: isSliding(),
+        count, step: stepOf(count), label: LABEL,
         layout, layouts: LAYOUT_IDS.slice(), rows: H,
+        skin, skinName: SKINS[skin].name, skins: SKINS.map((s) => s.name),
         keyDown: keyHold.push !== null,
-        keyRects: layout === 'E' ? { push: rectOf(el.keyPush), slide: rectOf(el.keySlide) } : null,
+        keyRects: { push: rectOf(el.keyPush) },
+        rects: {
+          device: rectOf(el.deviceE), screen: rectOf(el.screen), key: rectOf(el.keyPush), grip: rectOf(el.grip),
+          layoutBtn: rectOf(el.layoutBtn), gameBtn: rectOf(document.getElementById('gameBtn')), skinBtn: rectOf(el.skinBtn),
+        },
+        game: gameHere(),
       };
     },
     press,
     keyPress() { return holdKey('push', 'test'); }, // 이미 눌려 있으면 false(세지 않음)
     keyRelease() { return releaseKey('push'); },
     reset() {
-      count = 0; height = 0; best = 0; slideOn = false; idleMs = 0; slideDone = 0;
+      count = 0;
       Object.values(KEYS).forEach(clearKey);
-      drawToggle(); drawKeys(); syncText(); render();
+      drawKeys(); syncText(); render();
     },
     setCount(n) {
       count = toInt(n);
       saveNum(KEYS.count, count);
       syncText(); render();
     },
-    setSlide(on) { setSlideOn(on === true || on === 1 || on === 'true'); },
-    setHeight(n) {
-      height = toInt(n);
-      if (height > best) { best = height; saveNum(KEYS.best, best); }
-      saveNum(KEYS.height, height);
-      idleMs = 0; slideDone = 0; // 방금 누른 것처럼 2초 쉬는 시간부터 다시 센다
-      syncText(); render();
-    },
-    tick(ms) {
-      advance(Math.max(0, Number(ms) || 0));
-      return this.state();
-    },
     setLayout(id) { return setLayout(String(id).toUpperCase()); },
     nextLayout() { nextLayout(); return layout; },
+    setSkin(n) { return setSkin(n); },
+    nextSkin() { nextSkin(); return skin; },
+    gameUrl(id) { return gameUrl(id); },               // 그 번호 게임으로 갈 주소(가지는 않음)
+    gameIndexAt(x) { return gameIndexAt(Number(x)); }, // 게임 버튼 안 가로 위치(화면 점) → 칸 번호(0부터)
   };
 })();
 </script>
