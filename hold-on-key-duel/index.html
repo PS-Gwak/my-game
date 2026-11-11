@@ -140,10 +140,11 @@
      pixel(c, n, down, kind): 키 캔버스(한 변 n 기기 점)에 키캡을 그린다. kind = 윗면 아이콘 — 'gun' 권총 · 'RE' · 'footL' 왼발 · 'footR' 오른발 · 없으면 빈 키 */
   const KeyArt = {
     // 점 아이콘(도트 키캡 윗면에 찍는 그림). 발은 길쭉하게, 엄지발가락과 발바닥 패인 곳이 안쪽 — 왼발의 안쪽 = 오른쪽
+    // 11/12 형님 피드백: 한 칸만 삐져나온 점을 없애고(권총 위 가늠쇠 · 발 안쪽 계단), 윗면 테두리 선에 닿지 않게 사방 한 칸 이상 띄운다
     dots: {
-      RE: ['####..#####', '#...#.#....', '#...#.#....', '####..####.', '#.#...#....', '#..#..#....', '#...#.#####'],
-      gun: ['.#.......#', '##########', '##########', '#####.....', '##..#.#...', '##...##...', '##........'],
-      footL: ['.....##', '...#.##', '.#.#...', '#......', '.######', '#######', '######.', '####...', '####...', '#####..', '.###...'],
+      RE: ['###..###', '#..#.#..', '#..#.#..', '###..##.', '#.#..#..', '#..#.#..', '#..#.###'],
+      gun: ['##########', '##########', '####.#....', '###..#....', '######....', '###.......', '###.......'],
+      footL: ['.....##', '...#.##', '.#.#...', '#......', '.######', '#######', '######.', '#####..', '####...', '.###...'],
     },
     // 도트 키캡(형님 확정 — 「도트가 제일 낫다 · 실제 키캡을 최대한 따라 · 아래 타일 무늬는 빼기」):
     // 진짜 키캡을 위에서 살짝 앞쪽으로 내려다본 모양. 바깥 네모 = 키캡 아랫단, 안쪽 네모 = 손가락이 닿는 윗면,
@@ -176,7 +177,7 @@
   const KEYS = {
     streak: 'hold-on-key-duel-streak',   // 지금 연승
     best: 'hold-on-key-duel-best',       // 최고 연승
-    bestMs: 'hold-on-key-duel-best-ms',  // 이긴 판 중 가장 빠른 반응(1/1000초). 화면에는 안 보이고 저장만 한다
+    bestMs: 'hold-on-key-duel-best-ms',  // 이긴 판 중 가장 빠른 반응(1/1000초). 왼쪽 위 번개 줄에 보인다
   };
   const SKIN_KEY = 'hold-on-keys-skin';     // 고른 몸통 색(0~3). 여섯 게임이 함께 쓴다
   const LABEL = '쏴';
@@ -385,22 +386,41 @@
     '..........#.....',
     '.#....#.........',
   ];
-  // 신호: 큰 느낌표(20칸 높이) · 반칙 X(18칸)
+  // 신호: 큰 느낌표(20칸 높이)
   const BANG = [
     '.###.', '#####', '#####', '#####', '#####', '#####', '.###.', '.###.', '.###.', '.###.',
     '.###.', '..#..', '..#..', '..#..', '.....', '.....', '.###.', '#####', '#####', '.###.',
   ];
-  const CROSS = Array.from({ length: 18 }, (_, j) => {
-    let row = '';
-    for (let i = 0; i < 18; i += 1) row += (Math.abs(i - j) <= 1 || Math.abs(i - (17 - j)) <= 1) ? '#' : '.';
-    return row;
-  });
+  // 해골: 진 화면(맞아서 짐 · 반칙 둘 다) 한가운데 위쪽에 뜨는 「졌다」 표시. 비유: 묘비에 새기는 그림.
+  // 둥근 머리 · 검게 뚫린 두 눈(3×3칸) · 세모 코 구멍 · 아래 이빨 줄. 그림만 갈아 끼워도 되게,
+  // 그리는 쪽은 이 배열의 폭 · 높이를 읽어서 자리를 잡는다(줄 길이는 모두 같게 둘 것)
+  const SKULL = [
+    '....#######....',
+    '..###########..',
+    '.#############.',
+    '###############',
+    '###############',
+    '##...#####...##',
+    '##...#####...##',
+    '##...#####...##',
+    '###############',
+    '#######.#######',
+    '######...######',
+    '.#############.',
+    '..###########..',
+    '...#.#.#.#.#...',
+    '...#.#.#.#.#...',
+    '...#########...',
+  ];
+  const FOUL_WORD = ['반', '칙']; // 반칙(신호보다 먼저 누름)으로 졌을 때 해골 오른쪽에 붙는 점 글씨
+  const FOUL_GAP = 4;             // 해골과 「반칙」 사이 틈(칸)
 
   // 자리 잡기(기준 화면 64칸일 때의 칸 좌표). 화면이 96칸이라 장면 전체를 skyShift 칸만큼 아래로 내린다
   const GROUND_Y = 60;          // 땅 줄
   const ME_X = 9, OPP_X = 118;  // 나 · 상대가 서 있는 열(몸 한가운데)
   const MARK_Y = 6;             // 신호 위 끝
-  const BEST_LINE_GAP = 20;     // 신호 위 끝 ~ 「최고 N연승」 줄 위 끝(× 18칸 + 두 칸 띄움)
+  const BEST_LINE_GAP = SKULL.length + 2; // 신호 위 끝 ~ 「최고 N연승」 줄 위 끝(해골 높이 + 두 칸 띄움)
+  const MARK_LEFT_MIN = 39;     // 가운데 표시가 쓸 수 있는 맨 왼쪽 칸(그 왼쪽 38칸은 왼쪽 위 기록 줄 자리)
   const SUN_X = 108, SUN_Y = 3;
   const CACTI = [[28, CACTUS_BIG], [98, CACTUS_SMALL]];
   // 먼 바위산 능선: 봉우리 [가운데 열, 높이, 반폭]. 바탕 줄(RIDGE_BASE)에서 솟는다
@@ -431,13 +451,16 @@
     '승': ['..#..', '.#.#.', '#...#', '#####', '.###.', '#...#', '.###.'],
     '최': ['.#..#', '###.#', '.#..#', '#.#.#', '....#', '.#..#', '###.#'],
     '고': ['#####', '....#', '....#', '.....', '..#..', '..#..', '#####'],
+    // 「반칙」(진 화면 해골 옆): 반 = ㅂ + ㅏ + 받침 ㄴ, 칙 = ㅊ + ㅣ + 받침 ㄱ
+    '반': ['#.#.#.', '###.#.', '#.#.##', '###.#.', '......', '#.....', '######'], // 6칸 폭: ㅂ과 ㅏ 사이를 한 칸 띄워야 「빈 · 민」으로 안 읽힌다
+    '칙': ['.#..#', '###.#', '.#..#', '#.#.#', '.....', '#####', '....#'],
     // 왕관(최고 연승 줄 앞) · 꺼진 왕관(깜빡일 때 같은 폭의 빈자리)
     '♛': ['#..#..#', '#..#..#', '##.#.##', '#######', '#######', '#.#.#.#', '#######'],
     '♛off': ['.......', '.......', '.......', '.......', '.......', '.......', '.......'],
     // 소리 끔 표시(5×5 가위표를 5×7칸 가운데에)
     '×': ['.....', '#...#', '.#.#.', '..#..', '.#.#.', '#...#', '.....'],
   };
-  // 작은 점 글씨(높이 5칸): 왼쪽 위 「왕관 + 최고 연승」 줄에만 쓴다. 비유: 점수판 구석의 작은 「최고 기록」 딱지
+  // 작은 점 글씨(높이 5칸): 왼쪽 위 「왕관 + 최고 연승」 줄과 그 아래 「번개 + 최고 반응 속도」 줄에만 쓴다. 비유: 점수판 구석의 작은 「최고 기록」 딱지
   const SMALL = {
     0: ['###', '#.#', '#.#', '#.#', '###'],
     1: ['.#.', '##.', '.#.', '.#.', '###'],
@@ -450,10 +473,16 @@
     8: ['###', '#.#', '###', '#.#', '###'],
     9: ['###', '#.#', '###', '..#', '###'],
     '♛': ['#..#..#', '##.#.##', '#######', '#.#.#.#', '#######'],
+    '.': ['.', '.', '.', '.', '#'],                 // 소수점
+    '-': ['...', '...', '###', '...', '...'],       // 기록이 아직 없을 때의 빈자리(-.---)
+    // 번개(최고 반응 속도 줄 앞): 그림은 5칸 폭, 왕관(7칸)과 같은 자리를 쓰도록 양옆에 빈 칸 하나씩
+    '⚡': ['....##.', '...##..', '.#####.', '..##...', '.##....'],
   };
   const HUD_X = 3, HUD_Y = 2;   // 왼쪽 위 「왕관 + 최고 연승」 줄의 왼쪽 위 칸
-  const HUD_CROWN_GAP = 2;      // 왕관과 숫자 사이(칸)
-  const STREAK_Y = 9;           // 「N연승」 위 끝(왕관 줄 5칸 + 한 줄 띄움 + 글자 뒤 검은 둘레 한 줄 아래)
+  const HUD_CROWN_GAP = 2;      // 왕관(번개)과 숫자 사이(칸)
+  const HUD_ROW_H = 5;          // 작은 줄 하나의 높이(칸)
+  const HUD_MS_Y = HUD_Y + HUD_ROW_H + 1; // 「번개 + 최고 반응 속도」 줄 위 끝(왕관 줄 바로 아래, 한 줄 띄움)
+  const STREAK_Y = HUD_MS_Y + HUD_ROW_H + 2; // 「N연승」 위 끝(번개 줄 5칸 + 한 줄 띄움 + 글자 뒤 검은 둘레 한 줄 아래)
   function measure(keys, font = GLYPHS) {
     let w = 0, h = 0;
     keys.forEach((k, i) => { const gl = font[k]; w += gl[0].length + (i ? 1 : 0); h = Math.max(h, gl.length); });
@@ -536,8 +565,14 @@
     const hit = dt < FALL_START ? 'stand' : dt < FALL_MS ? 'fall' : 'down';
     return outcome === 'win' ? { me: 'shoot', opp: hit } : { me: hit, opp: 'shoot' };
   }
-  const markNow = () => (phase === 'signal' ? '!' : phase === 'result' && outcome === 'foul' ? 'X' : null);
-  const timeTextNow = () => (phase === 'result' && shotMs !== null ? secText(shotMs) : '');
+  // 한가운데 위쪽 표시: 신호 '!' · 맞아서 짐 'skull'(해골) · 반칙 'skull-foul'(해골 + 「반칙」)
+  const markNow = () => (phase === 'signal' ? '!'
+    : phase === 'result' && outcome === 'foul' ? 'skull-foul'
+    : phase === 'result' && outcome === 'lose' ? 'skull' : null);
+  // 한가운데 위쪽 숫자: 이겼을 때 내 반응 시간만(졌을 때 상대 시간은 그리지 않는다 — 그 자리는 해골)
+  const timeTextNow = () => (phase === 'result' && outcome === 'win' && shotMs !== null ? secText(shotMs) : '');
+  // 왼쪽 위 번개 줄에 찍을 글자: 최고 반응 속도(초, 소수 셋째 자리). 기록이 없으면 -.---
+  const msTextNow = () => (bestMs === null ? '-.---' : secText(bestMs));
   // 「최고 N연승」 줄: 지거나 반칙한 결과 화면에서만(이긴 적이 한 번도 없으면 없음).
   // record = 방금 끝난 연승이 곧 최고 기록, on = 왕관이 지금 켜져 있는지(record일 때만 깜빡인다)
   function bestLineNow() {
@@ -558,7 +593,7 @@
     windDir = Math.random() < 0.5 ? 1 : -1;
     duelOpp = oppFor(streak);
     myMs = null; outcome = null; shotMs = null; autoLoseFrom = null; signalT = 0; endedStreak = 0;
-    render(); startLoop();
+    syncText(); render(); startLoop();
   }
   function endDuel(t) {
     phase = 'result';
@@ -782,7 +817,9 @@
 
   // 읽어 주는 기능용 글(화면 이름표)
   function syncText() {
-    const aria = `서부 결투, 연승 ${streak}`;
+    // 진 화면이면 왜 졌는지도 읽어 준다(화면의 해골 · 「반칙」과 같은 뜻)
+    const lost = phase !== 'result' ? '' : outcome === 'lose' ? ', 졌다' : outcome === 'foul' ? ', 반칙 — 신호보다 먼저 눌렀다' : '';
+    const aria = `서부 결투, 연승 ${streak}${lost}`;
     if (el.screen.getAttribute('aria-label') !== aria) el.screen.setAttribute('aria-label', aria);
   }
 
@@ -833,20 +870,67 @@
   }
 
   // 왼쪽 위 「왕관 + 최고 연승」 줄이 차지하는 자리(칸): 왕관 7칸 + 두 칸 띄움 + 숫자(한 글자 3칸, 사이 한 칸)
-  function hudBestNow() {
-    const digits = String(best).length;
-    return { best, x: HUD_X, y: HUD_Y, w: SMALL['♛'][0].length + HUD_CROWN_GAP + digits * 4 - 1, h: 5 };
+  // 그 바로 아래 「번개 + 최고 반응 속도」 줄도 같은 짜임(번개 7칸 자리 + 두 칸 띄움 + 글자)
+  const hudBestKeys = () => ['♛', ...String(best)];
+  const hudMsKeys = () => ['⚡', ...msTextNow()];
+  // 작은 줄 하나의 폭(칸): 아이콘 + 두 칸 띄움 + 글자들(사이 한 칸)
+  function hudRowW(keys) {
+    return keys.reduce((w, k, n) => w + SMALL[k][0].length + (n === 0 ? HUD_CROWN_GAP : n < keys.length - 1 ? 1 : 0), 0);
   }
+  function hudBestNow() {
+    return {
+      best, x: HUD_X, y: HUD_Y, w: hudRowW(hudBestKeys()), h: HUD_ROW_H,
+      bestMs, msText: msTextNow(),
+      msRow: { x: HUD_X, y: HUD_MS_Y, w: hudRowW(hudMsKeys()), h: HUD_ROW_H },
+    };
+  }
+  // 두 줄을 찍는다. 검은 바탕 상자는 깔지 않고, 글자 둘레 한 칸만 검게 비운다
   function drawHudBest() {
     const cells = [];
-    let cx = HUD_X;
-    ['♛', ...String(best)].forEach((k, n) => {
-      const gl = SMALL[k];
-      gl.forEach((row, j) => { for (let i = 0; i < row.length; i += 1) if (row[i] === '#') cells.push([cx + i, HUD_Y + j]); });
-      cx += gl[0].length + (n === 0 ? HUD_CROWN_GAP : 1);
+    [[hudBestKeys(), HUD_Y], [hudMsKeys(), HUD_MS_Y]].forEach(([keys, y]) => {
+      let cx = HUD_X;
+      keys.forEach((k, n) => {
+        const gl = SMALL[k];
+        gl.forEach((row, j) => { for (let i = 0; i < row.length; i += 1) if (row[i] === '#') cells.push([cx + i, y + j]); });
+        cx += gl[0].length + (n === 0 ? HUD_CROWN_GAP : 1);
+      });
     });
     cells.forEach(([x, y]) => { for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) dot(x + dx, y + dy, BG); });
     cells.forEach(([x, y]) => dot(x, y, INK));
+  }
+
+  // 왼쪽 위 큰 「N연승」이 차지하는 자리(칸): 숫자는 두 배 크기, 「연승」은 한 배 크기로 숫자 바닥에 붙는다.
+  // 숫자가 길어 위 가운데 자리(MARK_LEFT_MIN번째 칸부터)를 넘보게 되면 숫자도 한 배로
+  function streakBoxNow() {
+    const bw = measure([...String(streak)]).w, uw = measure(['연', '승']).w;
+    const k = (HUD_X + bw * 2 + 2 + uw < MARK_LEFT_MIN) ? 2 : 1;
+    return { x: HUD_X, y: STREAK_Y, w: bw * k + 2 + uw, h: 7 * k, k, bw };
+  }
+  // 진 화면 한가운데 위쪽 표시가 차지하는 자리(칸). 해골 크기는 SKULL 배열에서 읽는다.
+  // 맞아서 짐 = 해골 하나를 가운데, 반칙 = 해골 · 틈 · 「반칙」을 한 줄로 묶어 가운데
+  // (「반칙」은 두 배 크기, 그러면 왼쪽 위 기록 줄 자리를 넘볼 때만 한 배로)
+  function markBoxNow() {
+    const mark = markNow();
+    if (mark !== 'skull' && mark !== 'skull-foul') return null;
+    const top = MARK_Y + skyShift, sw = SKULL[0].length, sh = SKULL.length;
+    if (mark === 'skull') return { skull: { x: Math.floor((W - sw) / 2), y: top, w: sw, h: sh }, word: null, k: 0 };
+    const m = measure(FOUL_WORD);
+    const k = Math.floor((W - (sw + FOUL_GAP + m.w * 2)) / 2) >= MARK_LEFT_MIN ? 2 : 1;
+    const x0 = Math.floor((W - (sw + FOUL_GAP + m.w * k)) / 2);
+    return {
+      skull: { x: x0, y: top, w: sw, h: sh },
+      word: { x: x0 + sw + FOUL_GAP, y: top + Math.floor((sh - m.h * k) / 2), w: m.w * k, h: m.h * k },
+      k,
+    };
+  }
+  // 진 화면의 왕관 + 「최고 N연승」 줄이 차지하는 자리(칸): 해골 아래 가운데.
+  // 두 배 크기가 화면 폭을 넘으면(네 자리부터) 한 배로. 방금 끝난 연승이 최고 기록이면 왕관이 깜빡인다
+  function bestLineBoxNow() {
+    const bl = bestLineNow();
+    if (!bl) return null;
+    const keys = [bl.on ? '♛' : '♛off', ' ', '최', '고', ' '].concat([...String(bl.best)], ['연', '승']);
+    const m = measure(keys), k = m.w * 2 <= W - 8 ? 2 : 1;
+    return { keys, k, x: Math.floor((W - m.w * k) / 2), y: MARK_Y + skyShift + BEST_LINE_GAP, w: m.w * k, h: m.h * k };
   }
 
   // 총잡이 한 명: anchor = 몸 한가운데 열, right = 오른쪽을 보는지(나), gy = 땅 줄.
@@ -935,35 +1019,34 @@
     box(0, gy, W, 1, INK);
 
     // 신호: 화면 한가운데 위쪽
-    const mark = markNow();
-    if (mark) {
-      const rows = mark === '!' ? BANG : CROSS;
-      sprite(Math.floor((W - rows[0].length) / 2), MARK_Y + oy, rows);
+    if (markNow() === '!') sprite(Math.floor((W - BANG[0].length) / 2), MARK_Y + oy, BANG);
+    // 진 화면: 같은 자리에 큰 해골(맞아서 짐 · 반칙 둘 다). 반칙이면 해골 오른쪽에 「반칙」
+    const mb = markBoxNow();
+    if (mb) {
+      sprite(mb.skull.x, mb.skull.y, SKULL);
+      if (mb.word) boardText(FOUL_WORD, mb.word.x, mb.word.y, mb.k);
     }
-    // 쏜 쪽의 반응 시간: 신호가 있던 한가운데 위쪽에 크게. 누가 쐈는지는 자세로 보인다
+    // 이긴 화면: 내 반응 시간을 신호가 있던 한가운데 위쪽에 크게
     const tt = timeTextNow();
     if (tt) {
       const keys = [...tt], m = measure(keys);
-      boardText(keys, Math.floor((W - m.w * 2) / 2), MARK_Y + oy + 3, 2);
+      // 왼쪽 위 「N연승」이 두 자리 이상으로 길어지면 가운데 숫자와 맞닿는다 → 연승 글자 오른쪽 끝에서 네 칸 띄운 자리까지 오른쪽으로 민다.
+      // 그래도 오른쪽 위 해와 닿게 되면(세 자리 연승) 숫자를 한 배 크기로 줄인다
+      const sbx = streakBoxNow(), leftMin = sbx.x + sbx.w + 4;
+      let tk = 2, tx = Math.max(Math.floor((W - m.w * 2) / 2), leftMin);
+      if (tx + m.w * 2 > SUN_X - 2) { tk = 1; tx = Math.max(Math.floor((W - m.w) / 2), leftMin); }
+      boardText(keys, tx, MARK_Y + oy + 3, tk);
     }
-    // 지거나 반칙한 결과: × (또는 상대 시간) 아래 가운데에 왕관 + 「최고 N연승」.
-    // 두 배 크기가 화면 폭을 넘으면(네 자리부터) 한 배로. 방금 끝난 연승이 최고 기록이면 왕관이 깜빡인다
-    const bl = bestLineNow();
-    if (bl) {
-      const keys = [bl.on ? '♛' : '♛off', ' ', '최', '고', ' '].concat([...String(bl.best)], ['연', '승']);
-      const m = measure(keys), k = m.w * 2 <= W - 8 ? 2 : 1;
-      boardText(keys, Math.floor((W - m.w * k) / 2), MARK_Y + oy + BEST_LINE_GAP, k);
-    }
+    // 지거나 반칙한 결과: 해골 아래 가운데에 왕관 + 「최고 N연승」
+    const bb = bestLineBoxNow();
+    if (bb) boardText(bb.keys, bb.x, bb.y, bb.k);
 
-    // 왼쪽 위 = 지금 연승 「N연승」: 숫자는 칸 두 배 크기, 「연승」은 한 배 크기로 숫자 바닥에 맞춰 붙인다.
-    // 숫자가 길어 위 가운데 반응 시간 자리(38번째 칸부터)를 넘보게 되면 숫자도 한 배로
-    const big = [...String(streak)], unit = ['연', '승'];
-    const bw = measure(big).w, uw = measure(unit).w;
-    const bigK = (3 + bw * 2 + 2 + uw <= 38) ? 2 : 1;
-    const bigH = boardText(big, 3, STREAK_Y, bigK);
-    boardText(unit, 3 + bw * bigK + 2, STREAK_Y + bigH - 7, 1);
-    // 그 바로 위 줄 = 왕관 + 최고 연승 숫자(언제나 — 기다릴 때 · 신호 때 · 결과 화면 모두, 0이어도 「왕관 0」).
-    // 검은 바탕 상자는 깔지 않고, 글자 둘레 한 칸만 검게 비운다(뒤 그림이 지나가도 읽히게)
+    // 왼쪽 위 = 지금 연승 「N연승」: 숫자는 칸 두 배 크기, 「연승」은 한 배 크기로 숫자 바닥에 맞춰 붙인다
+    const sb = streakBoxNow();
+    boardText([...String(streak)], sb.x, sb.y, sb.k);
+    boardText(['연', '승'], sb.x + sb.bw * sb.k + 2, sb.y + sb.h - 7, 1);
+    // 그 위 두 줄 = 왕관 + 최고 연승 숫자, 번개 + 최고 반응 속도(언제나 — 기다릴 때 · 신호 때 · 결과 화면 모두,
+    // 0이어도 「왕관 0」, 기록이 없어도 「번개 -.---」). 글자 둘레 한 칸만 검게 비운다(뒤 그림이 지나가도 읽히게)
     drawHudBest();
 
     // 「나」 표시: 결투가 시작되면 1.5초 동안 왼쪽 사람(나) 모자 위 한 칸 띄워서. 뒤만 검게 비운다(모자 쪽은 안 지움)
@@ -1305,10 +1388,18 @@
         meMark: meMarkNow(),                 // 「나」 표시가 떠 있는지
         tumble: (() => { const w = windNow(); return w ? { x: w.x, lift: w.lift, dir: w.dir } : null; })(), // 굴러가는 풀(없으면 null)
         bestLine: bestLineNow(),             // 진 · 반칙 결과의 「최고 N연승」 줄 { best, record, on }(없으면 null)
-        hud: hudBestNow(),                   // 왼쪽 위 「왕관 + 최고 연승」 줄(언제나) { best, x, y, w, h } — 자리는 화면 칸
+        hud: hudBestNow(),                   // 왼쪽 위 「왕관 + 최고 연승」 줄(언제나) { best, x, y, w, h } + 번개 줄 { bestMs, msText, msRow: { x, y, w, h } } — 자리는 화면 칸
         streakY: STREAK_Y,                   // 「N연승」 위 끝(칸)
+        // 아래는 모두 화면 칸 자리 { x, y, w, h }
+        streakBox: (() => { const b = streakBoxNow(); return { x: b.x, y: b.y, w: b.w, h: b.h }; })(), // 왼쪽 위 큰 「N연승」
+        markBox: (() => { const b = markBoxNow(); return b ? { skull: b.skull, word: b.word, k: b.k } : null; })(), // 진 화면 해골 · 「반칙」(반칙이 아니면 word = null, 진 화면이 아니면 null)
+        bestLineBox: (() => { const b = bestLineBoxNow(); return b ? { x: b.x, y: b.y, w: b.w, h: b.h } : null; })(), // 진 화면 「최고 N연승」 줄(없으면 null)
+        sunBox: { x: SUN_X, y: SUN_Y + skyShift, w: SUN[0].length, h: SUN.length },                    // 오른쪽 위 해
+        peopleTop: GROUND_Y + skyShift - STAND.length, // 두 사람 그림의 위 끝 줄
+        aria: el.screen.getAttribute('aria-label'),    // 읽어 주는 글
       };
     },
+    skull() { return SKULL.slice(); },                 // 해골 그림 줄들(그림을 갈아 끼워도 검사가 따라가게)
     press() { pressAt(now()); return this.state(); },
     keyPress() { return holdKey('push', 'test', now()); }, // 이미 눌려 있으면 false(쏘지 않음)
     keyRelease() { return releaseKey('push'); },

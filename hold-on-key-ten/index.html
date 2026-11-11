@@ -130,10 +130,11 @@
      pixel(c, n, down, kind): 키 캔버스(한 변 n 기기 점)에 키캡을 그린다. kind = 윗면 아이콘 — 'gun' 권총 · 'RE' · 'footL' 왼발 · 'footR' 오른발 · 없으면 빈 키 */
   const KeyArt = {
     // 점 아이콘(도트 키캡 윗면에 찍는 그림). 발은 길쭉하게, 엄지발가락과 발바닥 패인 곳이 안쪽 — 왼발의 안쪽 = 오른쪽
+    // 11/12 형님 피드백: 한 칸만 삐져나온 점을 없애고(권총 위 가늠쇠 · 발 안쪽 계단), 윗면 테두리 선에 닿지 않게 사방 한 칸 이상 띄운다
     dots: {
-      RE: ['####..#####', '#...#.#....', '#...#.#....', '####..####.', '#.#...#....', '#..#..#....', '#...#.#####'],
-      gun: ['.#.......#', '##########', '##########', '#####.....', '##..#.#...', '##...##...', '##........'],
-      footL: ['.....##', '...#.##', '.#.#...', '#......', '.######', '#######', '######.', '####...', '####...', '#####..', '.###...'],
+      RE: ['###..###', '#..#.#..', '#..#.#..', '###..##.', '#.#..#..', '#..#.#..', '#..#.###'],
+      gun: ['##########', '##########', '####.#....', '###..#....', '######....', '###.......', '###.......'],
+      footL: ['.....##', '...#.##', '.#.#...', '#......', '.######', '#######', '######.', '#####..', '####...', '.###...'],
     },
     // 도트 키캡(형님 확정 — 「도트가 제일 낫다 · 실제 키캡을 최대한 따라 · 아래 타일 무늬는 빼기」):
     // 진짜 키캡을 위에서 살짝 앞쪽으로 내려다본 모양. 바깥 네모 = 키캡 아랫단, 안쪽 네모 = 손가락이 닿는 윗면,
@@ -164,7 +165,7 @@
   const BG = '#000000', INK = '#f2f2f2';
   const KEYS = {
     bestOn: 'hold-on-key-ten-best-hide-on', // 최고 기록(10초와의 차이, 부호 포함, 1/1000초). 예전 「가림 켬」 기록을 그대로 이어 쓴다
-    bestTime: 'hold-on-key-ten-best-time',  // 그 기록을 세운 「멈춘 시각」(1/1000초). 화면 맨 위 깃발 옆에 적는 숫자
+    bestTime: 'hold-on-key-ten-best-time',  // 그 기록을 세운 「멈춘 시각」(1/1000초). 화면 맨 위 왕관 옆에 적는 숫자
   };
   const SKIN_KEY = 'hold-on-keys-skin';     // 몸통 색(0~3). 여섯 게임이 함께 쓴다
   const TARGET = 10000;     // 맞힐 시각: 10초(1/1000초 단위)
@@ -231,7 +232,7 @@
     return Number.isInteger(v) && v >= 0 && v < count ? v : first;
   }
   const loadSkin = () => loadIndex(SKIN_KEY, SKINS.length, FIRST_SKIN);
-  /* ---------- 점 글씨: 숫자 · 소수점 · 부호 · 가림 칸 · 영문 · 한글 몇 자 · 깃발 ---------- */
+  /* ---------- 점 글씨: 숫자 · 소수점 · 부호 · 가림 칸 · 영문 · 한글 몇 자 · 왕관 ---------- */
   const GLYPHS = {
     0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
     1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
@@ -260,8 +261,8 @@
     '큰9': ['.##.', '#..#', '#..#', '.###', '...#', '...#', '.##.'],
     '큰■': ['####', '####', '####', '####', '####', '####', '####'],
     ' ': ['...'],
-    // 깃발(최고 기록 표시)
-    '⚑': ['##.....', '####...', '######.', '####...', '##.....', '#......', '#......'],
+    // 왕관(최고 기록 표시): 결투(3번)의 큰 왕관(7×7칸)과 점 하나까지 같은 모양
+    '♛': ['#..#..#', '#..#..#', '##.#.##', '#######', '#######', '#.#.#.#', '#######'],
     // 「10초에 멈춰!」 안내(한글과 같은 키 11칸 · 한 칸 굵기). 숫자도 한글 키에 맞춘 긴 숫자로
     '긴1': ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..', '.###.'],
     '긴0': ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
@@ -311,7 +312,7 @@
   let skin = loadSkin();
   const bests = { on: loadDiff(KEYS.bestOn), time: null }; // on = 부호 있는 차이(ms), 없으면 null · time = 그 기록의 멈춘 시각(ms)
   bests.time = loadBestTime(bests.on);
-  // 깃발 옆에 적을 「기록을 세운 멈춘 시각」. 옛 기록(차이만 저장됨)은 10초에 그 차이를 더해 되살린다(빨랐던 기록이면 10 − 차이)
+  // 왕관 옆에 적을 「기록을 세운 멈춘 시각」. 옛 기록(차이만 저장됨)은 10초에 그 차이를 더해 되살린다(빨랐던 기록이면 10 − 차이)
   const bestTimeNow = () => (bests.on === null ? null : bests.time !== null ? bests.time : Math.max(0, TARGET + bests.on));
   let phase = 'ready';      // 'ready' 처음 · 'running' 시계가 돎 · 'stopped' 멈춤
   let startT = 0;           // 이번 판 시작 시각
@@ -325,13 +326,6 @@
   function clockText(ms) {
     const u = units(Math.max(0, ms));
     return `${pad(Math.floor(u / 100000), 2)}.${pad(u % 100000, 5)}`;
-  }
-  // 차이 글자: 멈춘 시각 글자에서 10.00000을 뺀 값이라 화면 숫자와 어긋나지 않는다
-  function diffText(diffMs, signed) {
-    const d = units(TARGET + diffMs) - TARGET * 100, a = Math.abs(d);
-    const body = `${Math.floor(a / 100000)}.${pad(a % 100000, 5)}`;
-    if (!signed || d === 0) return body;
-    return (d > 0 ? '+' : '-') + body;
   }
   const elapsedAt = (t) => (phase === 'running' ? Math.max(0, t - startT) : phase === 'stopped' ? stopElapsed : 0);
   const isHiddenAt = (t) => phase === 'running' && elapsedAt(t) >= SHOW_UNTIL;
@@ -569,7 +563,6 @@
   const CLOCK_MARGIN = 8;
   const CLOCK_K = (() => { let k = 1; while (boardWidth(clockKeys('00.00000'), k + 1) <= W - CLOCK_MARGIN * 2) k += 1; return k; })();
   const GLYPH_H = 7;
-  const DIFF_GAP = 4;   // 큰 시계와 그 아래 차이 글자 사이(칸)
   const BANNER_H = 11;  // 「10초에 멈춰!」 글씨 키(칸)
   const BANNER_GAP = 4; // 큰 시계와 그 아래 안내 글씨 사이(칸)
 
@@ -580,11 +573,11 @@
     c.fillStyle = BG; ink = BG; c.fillRect(0, 0, W, H);
     const elapsed = elapsedAt(t), hidden = isHiddenAt(t);
 
-    // 왼쪽 위: 깃발 + 최고 기록을 세운 멈춘 시각(예: 09.30859 — 차이가 아니다). 기록이 없으면 그리지 않는다
+    // 왼쪽 위: 왕관 + 최고 기록을 세운 멈춘 시각(예: 09.30859 — 차이가 아니다). 기록이 없으면 그리지 않는다
     const bestTime = bestTimeNow(), bestText = bestTime === null ? '' : clockText(bestTime);
     let bestBox = null;
     if (bestText) {
-      const bk = ['⚑', ' '].concat([...bestText]);
+      const bk = ['♛', ' '].concat([...bestText]);
       boardText(bk, 3, 3, 1);
       bestBox = { x: 3, y: 3, w: boardWidth(bk, 1), h: GLYPH_H };
     }
@@ -597,12 +590,7 @@
     boardText(keys, clockBox.x, clockY, CLOCK_K);
     const below = clockY + GLYPH_H * CLOCK_K;
 
-    // 멈췄으면 바로 아래에 10초와의 차이(부호 포함)
-    const dt = phase === 'stopped' ? diffText(stopElapsed - TARGET, true) : '';
-    if (dt) {
-      const dk = [...dt];
-      boardText(dk, Math.floor((W - boardWidth(dk, 1)) / 2), below + DIFF_GAP, 1);
-    }
+    // 멈춘 뒤에도 큰 시계 아래는 비워 둔다(10초와의 차이 글자는 그리지 않는다 — 11/12 형님 피드백). 시계 자리는 그대로
 
     // 시작 전(멈춰 있는 처음 화면)에만: 큰 시계 아래에 「10초에 멈춰!」. 누르면 사라진다
     const banner = phase === 'ready';
@@ -612,7 +600,7 @@
       bannerBox = { x: Math.floor((W - bw) / 2), y: below + BANNER_GAP, w: bw, h: BANNER_H };
       boardText(BANNER, bannerBox.x, bannerBox.y, 1);
     }
-    drawn = { elapsed, text, hidden, diffText: dt, bestText, banner, clockBox, bannerBox, bestBox };
+    drawn = { elapsed, text, hidden, diffText: '', bestText, banner, clockBox, bannerBox, bestBox };
 
     // 작은 판을 큰 그림판에 옮긴다
     g.imageSmoothingEnabled = false;
@@ -624,7 +612,7 @@
     settle(t);
     render(t);
     if (phase !== 'running') {
-      const aria = `10초 맞추기 시계, ${drawn.text}${drawn.diffText ? `, ${drawn.diffText}` : ''}`;
+      const aria = `10초 맞추기 시계, ${drawn.text}`;
       if (el.screen.getAttribute('aria-label') !== aria) el.screen.setAttribute('aria-label', aria);
     }
   }
@@ -900,7 +888,7 @@
       const best = bestNow(), dev = el.deviceE.getBoundingClientRect();
       return {
         phase, elapsed: drawn.elapsed, text: drawn.text, hidden: drawn.hidden, hide: true,
-        diff: phase === 'stopped' ? stopElapsed - TARGET : null, diffText: drawn.diffText,
+        diff: phase === 'stopped' ? stopElapsed - TARGET : null, diffText: drawn.diffText, // diffText는 이름만 남김(차이 글자를 안 그리므로 언제나 '')
         best: best === null ? null : Math.abs(best), bestTime: bestTimeNow(), bestText: drawn.bestText,
         banner: drawn.banner, clockBox: drawn.clockBox, bannerBox: drawn.bannerBox, bestBox: drawn.bestBox,
         label: btnText(),
