@@ -25,7 +25,7 @@
   .body-art { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
   .screen { position: absolute; display: block; image-rendering: pixelated; background: var(--black); }
   .grip { position: absolute; display: block; image-rendering: pixelated; pointer-events: none; }
-  /* 몸통 위 띠의 작은 점 글씨 버튼 셋: 배치(EF) · 게임(123456) · 몸통 색 */
+  /* 몸통 위 띠의 작은 점 글씨 버튼 넷: 왼쪽 게임(123456) · 오른쪽 소리 → 키캡 → 몸통 색 */
   .corner-btn {
     position: absolute; top: 10px; padding: 0; margin: 0; border: 0; background: transparent;
     line-height: 0; cursor: pointer; touch-action: none; outline: none;
@@ -45,9 +45,10 @@
 <main id="main">
   <div class="device-e" id="deviceE">
     <svg class="body-art" id="bodyArt" aria-hidden="true"><path id="bodyFill"></path><path id="bodyLine" fill="none"></path></svg>
-    <button class="corner-btn layout-btn" id="layoutBtn" type="button" tabindex="-1"><canvas id="layoutCanvas"></canvas><span class="ghost" id="layoutLabel">배치 E</span></button>
     <button class="corner-btn game-btn" id="gameBtn" type="button" tabindex="-1"><canvas id="gameCanvas"></canvas><span class="ghost" id="gameLabel">게임 6 멀리뛰기</span></button>
-    <button class="corner-btn skin-btn" id="skinBtn" type="button" tabindex="-1"><canvas id="skinCanvas"></canvas><span class="ghost" id="skinLabel">몸통 white</span></button>
+    <button class="corner-btn sound-btn" id="soundBtn" type="button" tabindex="-1"><canvas id="soundCanvas"></canvas><span class="ghost" id="soundLabel">소리 1</span></button>
+    <button class="corner-btn cap-btn" id="capBtn" type="button" tabindex="-1"><canvas id="capCanvas"></canvas><span class="ghost" id="capLabel">키캡 smooth</span></button>
+    <button class="corner-btn skin-btn" id="skinBtn" type="button" tabindex="-1"><canvas id="skinCanvas"></canvas><span class="ghost" id="skinLabel">몸통 gray</span></button>
     <canvas class="screen" id="screen" aria-label="멀리뛰기"></canvas>
     <button class="key" id="keyPush" type="button" tabindex="-1"><canvas id="keyPushCanvas"></canvas><span class="ghost">누르고 있기</span></button>
     <canvas class="grip" id="grip"></canvas>
@@ -56,19 +57,136 @@
 <script>
 /* 멀리뛰기 — 키캡을 누르는 순간 도움닫기 세 걸음, 구름판에서 뛰어오르고, 누르고 있는 동안 계속 난다. 떼는 순간 떨어진다.
    비유: 숨 참기 대회. 오래 버틴 사람이 멀리 간다. 날수록 빨라져서 5분을 버티면 지구를 한 바퀴 돈다.
-   틀(기기 모양 · 배치 E F · 몸통 색 · 게임 버튼 · 키캡)은 시지프스와 같고, 화면 속 그림과 규칙만 이 게임 것이다. */
+   틀(기기 모양 · 4:3 화면 · 몸통 색 · 게임 버튼 · 소리 · 키캡 그림)은 여섯 게임이 같고, 화면 속 그림과 규칙만 이 게임 것이다. */
 (function () {
   'use strict';
 
-  const W = 128;          // 그림판 가로 칸 수(모든 배치 같음)
-  const BASE_H = 64;      // 그림을 처음 짠 기준 세로 칸 수(배치 E)
+  const W = 128;          // 그림판 가로 칸 수
+  const ROWS = 96;        // 그림판 세로 칸 수(4:3 화면 하나뿐)
+  const BASE_H = 64;      // 풍경 · 사람 자리를 처음 짠 기준 세로 칸 수. 그보다 늘어난 칸은 하늘과 땅에 나눠 준다
   const BG = '#000000', INK = '#f2f2f2';
   const KEYS = {
     best: 'hold-on-key-leap-best',     // 최고 기록(미터)
   };
-  const LAYOUT_KEY = 'hold-on-keys-layout'; // 고른 배치(E · F). 여섯 게임이 함께 쓴다. 「처음부터」 지우기에는 안 들어감
   const SKIN_KEY = 'hold-on-keys-skin';     // 고른 몸통 색(0~3). 여섯 게임이 함께 쓴다
+  const CAP_KEY = 'hold-on-keys-cap';       // 고른 키캡 그림(0 도트 · 1 매끈 · 2 스위치 · 3 납작). 여섯 게임이 함께 쓴다
   const mod = (a, n) => ((a % n) + n) % n; // 음수도 0 ~ n-1로 돌려준다
+
+// === KEY-SHARED 여기부터 ===
+  /* ---------- 키캡 효과음(여섯 벌, 코드로 만든 소리) ----------
+     비유: 작은 드럼. 「딸깍」 = 짧은 잡음(스위치 부딪는 소리) + 짧은 음(키캡 통 울림)을 섞어 0.1초 안에 사라지게 한다.
+     형님이 고른 키보드 소리 여섯 개의 길이 · 음색을 재서 닮게 맞춘 것이고, 녹음 파일은 쓰지 않는다.
+     set = [잡음 걸러 듣기 종류, 잡음 중심 Hz, 잡음 폭 Q, 잡음 길이 초, 잡음 세기, 통 울림 Hz, 통 울림 길이 초, 통 울림 세기, 전체 세기] */
+  const KeySound = (() => {
+    const KEY = 'hold-on-keys-sound';
+    const SETS = [
+      ['bandpass', 2000, 1.0, 0.22, 0.9, 1330, 0.10, 0.40, 0.8],  // 1 또렷한 딸깍
+      ['bandpass', 6800, 0.8, 0.26, 1.0, 5200, 0.04, 0.15, 0.7],  // 2 높고 날카로운 틱
+      ['bandpass', 3600, 0.8, 0.22, 0.6, 90, 0.12, 0.45, 0.7],    // 3 가볍게 톡 + 낮은 울림
+      ['bandpass', 2600, 0.9, 0.16, 0.9, 145, 0.10, 0.50, 0.8],   // 4 도톰한 톡(thock)
+      ['bandpass', 1500, 0.9, 0.19, 0.9, 110, 0.13, 0.70, 0.8],   // 5 가장 낮고 묵직한 툭
+      ['bandpass', 1000, 1.2, 0.19, 0.7, 900, 0.09, 0.50, 0.55],  // 6 먹먹한 톡
+    ];
+    let ac = null, noise = null, index = 1; // 0 = 끔, 1~6
+    try { const v = Number(localStorage.getItem(KEY)); if (Number.isInteger(v) && v >= 0 && v <= SETS.length && localStorage.getItem(KEY) !== null) index = v; } catch (e) { /* 저장소가 막혀도 그대로 */ }
+    function ctx() {
+      if (!ac) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; ac = new AC(); }
+      if (ac.state === 'suspended') ac.resume();
+      if (!noise) { // 흰 잡음 0.25초를 한 번만 만들어 두고 돌려쓴다
+        noise = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.25), ac.sampleRate);
+        const d = noise.getChannelData(0); let s = 12345;
+        for (let i = 0; i < d.length; i += 1) { s = (s * 1103515245 + 12345) & 0x7fffffff; d[i] = s / 0x3fffffff - 1; }
+      }
+      return ac;
+    }
+    // 한 번 치기. up = 손을 뗄 때(조금 높고 작게)
+    function hit(set, up, c = ctx(), dest = c && c.destination) {
+      if (!c) return;
+      const [type, f, q, nd, ng, bf, bd, bg, vol] = set, t = c.currentTime + 0.001, k = up ? 0.45 : 1, pitch = up ? 1.3 : 1;
+      const src = c.createBufferSource(); src.buffer = noise;
+      const fl = c.createBiquadFilter(); fl.type = type; fl.frequency.value = f * pitch; fl.Q.value = q;
+      const g1 = c.createGain(); g1.gain.setValueAtTime(0.0001, t); g1.gain.exponentialRampToValueAtTime(ng * vol * k, t + 0.002); g1.gain.exponentialRampToValueAtTime(0.0001, t + nd);
+      src.connect(fl); fl.connect(g1); g1.connect(dest); src.start(t); src.stop(t + nd + 0.02);
+      const osc = c.createOscillator(); osc.type = bf < 300 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(bf * pitch, t); osc.frequency.exponentialRampToValueAtTime(bf * pitch * 0.7, t + bd);
+      const g2 = c.createGain(); g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(bg * vol * k, t + 0.003); g2.gain.exponentialRampToValueAtTime(0.0001, t + bd);
+      osc.connect(g2); g2.connect(dest); osc.start(t); osc.stop(t + bd + 0.02);
+    }
+    return {
+      count: SETS.length, sets: SETS, hit,
+      get index() { return index; },
+      set(i) { index = Math.max(0, Math.min(SETS.length, Math.floor(Number(i)) || 0)); try { localStorage.setItem(KEY, String(index)); } catch (e) { /* 메모리에만 */ } return index; },
+      next() { this.set((index + 1) % (SETS.length + 1)); if (index) hit(SETS[index - 1], false); return index; }, // 고르면 그 소리를 한 번 들려준다
+      down() { if (index) hit(SETS[index - 1], false); },
+      up() { if (index) hit(SETS[index - 1], true); },
+      unlock: ctx, // 폰은 손가락이 닿은 뒤에야 소리가 난다 → 첫 누름에서 불러 준다
+    };
+  })();
+
+  /* ---------- 키캡 그림(도트 말고 세 가지) ----------
+     style 1 = 매끈한 플라스틱 키캡 · 2 = 스위치가 비치는 투명 키(본보기 기기) · 3 = 납작한 미니멀. (0 = 도트는 각 게임의 예전 그림 그대로)
+     draw(): 키 캔버스(한 변 n 기기 점)에 키를 그리고, 아이콘을 놓을 자리(윗면 가운데 cx · cy, 크기 s)를 돌려준다.
+     icon(): 그 자리에 매끈한 아이콘을 그린다 — 'gun' 권총 · 'RE' · 'footL' 왼발 · 'footR' 오른발(엄지발가락과 발바닥 패인 곳이 안쪽) */
+  const KeyArt = {
+    names: ['dot', 'smooth', 'switch', 'flat'],
+    rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); },
+    draw(c, n, style, down) {
+      const u = n / 20, rr = this.rr;
+      c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, n, n); c.lineJoin = 'round';
+      if (style === 1) { // 매끈한 플라스틱: 바닥 그림자 → 옆면(치마) → 윗면. 누르면 윗면이 내려가고 치마가 짧아진다
+        const d = down ? 1.7 * u : 0;
+        rr(c, 1 * u, 2.2 * u, 18 * u, 17.3 * u, 3.2 * u); c.fillStyle = 'rgba(0,0,0,0.28)'; c.fill();
+        let g = c.createLinearGradient(0, 2 * u, 0, 19 * u); g.addColorStop(0, '#c4c4c4'); g.addColorStop(1, '#8a8a8a');
+        rr(c, 1.2 * u, 1.4 * u + d, 17.6 * u, 17.2 * u - d, 3 * u); c.fillStyle = g; c.fill(); c.lineWidth = 0.45 * u; c.strokeStyle = '#2a2a2a'; c.stroke();
+        g = c.createLinearGradient(0, 2 * u + d, 0, 15 * u + d); g.addColorStop(0, '#ffffff'); g.addColorStop(1, down ? '#dcdcdc' : '#ececec');
+        rr(c, 3 * u, 2.4 * u + d, 14 * u, 12.2 * u, 2.4 * u); c.fillStyle = g; c.fill(); c.lineWidth = 0.35 * u; c.strokeStyle = '#555'; c.stroke();
+        return { cx: n / 2, cy: 8.5 * u + d, s: 8 * u };
+      }
+      if (style === 2) { // 투명 키: 어두운 스위치 판 → 밝은 스위치 몸 + 십자 축 → 그 위에 비치는 투명 캡. 누르면 캡이 작아지며 내려간다
+        rr(c, 0.8 * u, 0.8 * u, 18.4 * u, 18.4 * u, 2.6 * u); c.fillStyle = '#2c2c2c'; c.fill();
+        rr(c, 3.4 * u, 3.4 * u, 13.2 * u, 13.2 * u, 1.6 * u); c.fillStyle = '#e4e4e4'; c.fill();
+        c.fillStyle = '#b4b4b4'; rr(c, 8.6 * u, 6 * u, 2.8 * u, 8 * u, 0.6 * u); c.fill(); rr(c, 6 * u, 8.6 * u, 8 * u, 2.8 * u, 0.6 * u); c.fill();
+        const m = down ? 2.3 * u : 1.4 * u;
+        rr(c, m, m + (down ? 0.6 * u : 0), n - 2 * m, n - 2 * m, 2.8 * u); c.fillStyle = down ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.40)'; c.fill();
+        c.lineWidth = 0.5 * u; c.strokeStyle = 'rgba(255,255,255,0.92)'; c.stroke();
+        c.beginPath(); c.moveTo(m + 2.2 * u, m + 1.8 * u); c.lineTo(n - m - 5 * u, m + 1.8 * u); c.lineWidth = 0.7 * u; c.lineCap = 'round'; c.strokeStyle = 'rgba(255,255,255,0.75)'; c.stroke();
+        return { cx: n / 2, cy: n / 2 + (down ? 0.6 * u : 0), s: 8 * u };
+      }
+      // 납작: 흰 면 + 검은 테두리 + 아래 딱딱한 그림자. 누르면 그림자 자리로 내려앉는다
+      const d = down ? 1.3 * u : 0;
+      if (!down) { rr(c, 1.3 * u, 2.6 * u, 17.4 * u, 16.4 * u, 3.4 * u); c.fillStyle = '#111'; c.fill(); }
+      rr(c, 1.3 * u, 1.2 * u + d, 17.4 * u, 16.4 * u, 3.4 * u); c.fillStyle = down ? '#d6d6d6' : '#fafafa'; c.fill(); c.lineWidth = 0.9 * u; c.strokeStyle = '#111'; c.stroke();
+      return { cx: n / 2, cy: 9.4 * u + d, s: 8.5 * u };
+    },
+    icon(c, kind, cx, cy, s, color = '#111') {
+      if (!kind) return;
+      c.save(); c.translate(cx, cy); c.fillStyle = color; c.strokeStyle = color; c.lineJoin = 'round'; c.lineCap = 'round';
+      if (kind === 'RE') {
+        c.font = `800 ${Math.round(s * 0.62)}px -apple-system, "Helvetica Neue", Arial, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('RE', 0, s * 0.03);
+      } else if (kind === 'gun') { // 옆에서 본 리볼버: 총열 → 탄창 → 손잡이 → 방아쇠울
+        const k = s / 10; c.beginPath();
+        c.moveTo(-5 * k, -2.6 * k); c.lineTo(4.6 * k, -2.6 * k); c.lineTo(4.6 * k, -0.9 * k); c.lineTo(0.6 * k, -0.9 * k); c.lineTo(0.6 * k, 0.2 * k);
+        c.lineTo(-1.2 * k, 0.2 * k); c.lineTo(-2.4 * k, 3.6 * k); c.lineTo(-4.9 * k, 3.6 * k); c.lineTo(-3.9 * k, -0.2 * k); c.lineTo(-5 * k, -0.6 * k); c.closePath(); c.fill();
+        c.beginPath(); c.arc(-0.2 * k, 1.2 * k, 1.25 * k, 0.1, Math.PI * 0.95); c.lineWidth = 0.55 * k; c.stroke();
+        c.fillRect(3.9 * k, -3.4 * k, 0.7 * k, 0.9 * k);
+      } else if (kind === 'footL' || kind === 'footR') { // 발바닥: 뒤꿈치 → 패인 아치(안쪽) → 볼 + 발가락 다섯(엄지가 안쪽 · 가장 큼)
+        const k = s / 10, inner = kind === 'footL' ? 1 : -1; // 왼발의 안쪽 = 오른쪽
+        c.scale(inner, 1);
+        c.beginPath();
+        c.moveTo(-0.2 * k, 4.6 * k);
+        c.bezierCurveTo(-2.2 * k, 4.6 * k, -2.5 * k, 2.4 * k, -2.2 * k, 0.6 * k);   // 바깥쪽 선(곧게)
+        c.bezierCurveTo(-2.4 * k, -1.2 * k, -1.6 * k, -2.2 * k, 0.2 * k, -2.2 * k);   // 볼 위쪽
+        c.bezierCurveTo(2 * k, -2.2 * k, 2.6 * k, -1.2 * k, 2.2 * k, 0.2 * k);        // 볼 안쪽
+        c.bezierCurveTo(1.9 * k, 1.2 * k, 0.7 * k, 1.5 * k, 0.9 * k, 2.6 * k);        // 패인 아치
+        c.bezierCurveTo(1.2 * k, 3.8 * k, 1 * k, 4.6 * k, -0.2 * k, 4.6 * k);         // 뒤꿈치
+        c.closePath(); c.fill();
+        const toes = [[1.75, -3.55, 0.95], [0.25, -4.05, 0.72], [-0.85, -3.75, 0.62], [-1.75, -3.2, 0.55], [-2.45, -2.4, 0.48]];
+        for (const [x, y, r] of toes) { c.beginPath(); c.arc(x * k, y * k, r * k, 0, Math.PI * 2); c.fill(); }
+      }
+      c.restore();
+    },
+  };
+// === KEY-SHARED 여기까지 ===
 
   /* ==========================================================================
      숫자 표 — 게임 느낌을 바꾸고 싶으면 여기만 고치면 된다
@@ -128,15 +246,9 @@
   const WIND_FROM = 12;     // 날기 시작한 지 이 초부터 바람 줄이 보인다
   /* ========================================================================== */
 
-  /* ---------- 배치 둘(E · F): 같은 기기 모양, 검은 화면 세로 칸 수만 다르다 ---------- */
-  const LAYOUTS = {
-    E: { rows: 64 }, // 2:1 화면(128×64칸)
-    F: { rows: 96 }, // 4:3 화면(128×96칸)
-  };
-  const LAYOUT_IDS = ['E', 'F']; // 배치 버튼 · L 키로 도는 순서
-  const FIRST_LAYOUT = 'E';      // 처음 여는 사람의 배치
-
   /* ---------- 몸통 색 넷: 누를 때마다 다음 색. 띠 = 몸통보다 한 단계 어두운 색 ---------- */
+  const FIRST_SKIN = 1; // 처음 여는 사람의 몸통 색 = 회색
+  const FIRST_CAP = 1;  // 처음 여는 사람의 키캡 그림 = 매끈
   const SKINS = [
     { name: 'white', body: '#f2f2f2', grip: '#cfcfcf' },
     { name: 'gray', body: '#c9cbcc', grip: '#a9abac' },
@@ -161,16 +273,6 @@
 
   /* ---------- 저장: 저장소가 막혀 있어도 게임은 돈다(그때는 메모리에만) ---------- */
   const memory = {};
-  function loadNum(key) {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw !== null) {
-        const value = Math.floor(Number(raw));
-        if (Number.isFinite(value) && value >= 0) return Math.min(value, Number.MAX_SAFE_INTEGER);
-      }
-    } catch (e) { /* 메모리 값으로 */ }
-    return memory[key] || 0;
-  }
   function saveNum(key, value) {
     memory[key] = value;
     try { localStorage.setItem(key, String(value)); } catch (e) { /* 메모리에만 */ }
@@ -179,19 +281,16 @@
     delete memory[key];
     try { localStorage.removeItem(key); } catch (e) { /* 메모리만 지움 */ }
   }
-  function loadLayout() {
-    let raw = memory[LAYOUT_KEY];
-    try { const v = localStorage.getItem(LAYOUT_KEY); if (v !== null) raw = v; } catch (e) { /* 메모리 값으로 */ }
-    return LAYOUT_IDS.includes(raw) ? raw : FIRST_LAYOUT;
+  // 고르는 값(몸통 색 · 키캡 그림) 읽기: 저장된 적이 없거나 이상한 값이면 「처음 값」
+  function loadPick(key, count, first) {
+    let raw = memory[key];
+    try { const v = localStorage.getItem(key); if (v !== null) raw = v; } catch (e) { /* 메모리 값으로 */ }
+    if (raw === undefined || raw === null || raw === '') return first;
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 0 && n < count ? n : first;
   }
-  function saveLayout(id) {
-    memory[LAYOUT_KEY] = id;
-    try { localStorage.setItem(LAYOUT_KEY, id); } catch (e) { /* 메모리에만 */ }
-  }
-  function loadSkin() {
-    const n = loadNum(SKIN_KEY);
-    return n >= 0 && n < SKINS.length ? n : 0;
-  }
+  const loadSkin = () => loadPick(SKIN_KEY, SKINS.length, FIRST_SKIN);
+  const loadCap = () => loadPick(CAP_KEY, KeyArt.names.length, FIRST_CAP);
   // 최고 기록(미터, 소수 둘째 자리까지). 없거나 이상한 값이면 0
   function loadBest() {
     let raw = memory[KEYS.best];
@@ -423,7 +522,7 @@
   // 착지 흙먼지
   const PUFF = ['.#.', '###'];
 
-  /* ---------- 점 글씨: 숫자 · 점 · m · k · 배치 이름 E F · 왕관 · 지구 ---------- */
+  /* ---------- 점 글씨: 숫자 · 점 · m · k · E F(지금은 안 씀) · 왕관 · 지구 ---------- */
   const GLYPHS = {
     0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
     1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
@@ -497,8 +596,8 @@
   const now = () => (manual !== null ? manual : performance.now());
 
   /* ---------- 상태 ---------- */
-  let layout = loadLayout();
   let skin = loadSkin();
+  let cap = loadCap();       // 키캡 그림(0 도트 · 1 매끈 · 2 스위치 · 3 납작)
   let best = loadBest();     // 최고 기록(미터). 없으면 0
   let phase = 'ready';       // 'ready' 준비 · 'runup' 도움닫기 · 'fly' 나는 중 · 'fall' 떨어지는 중 · 'landed' 착지(기록 화면)
   let pressT = 0;            // 키캡을 누른 시각
@@ -588,16 +687,18 @@
     rafId = requestAnimationFrame(loop);
   }
 
-  /* ---------- 배치 바꾸기(E ↔ F) ---------- */
-  function setLayout(id) {
-    if (!LAYOUTS[id] || !LAYOUT_IDS.includes(id)) return false;
-    releaseAllKeys(); // 키를 누른 채 배치를 바꾸면 뗀 것으로 친다
-    layout = id;
-    saveLayout(id);
-    fit();
+  /* ---------- 키캡 그림 바꾸기(도트 → 매끈 → 스위치 → 납작) ---------- */
+  function setCap(n) {
+    n = Math.floor(Number(n));
+    if (!(n >= 0 && n < KeyArt.names.length)) return false;
+    cap = n;
+    saveNum(CAP_KEY, n);
+    drawCapBtn(); drawKeys();
     return true;
   }
-  const nextLayout = () => setLayout(LAYOUT_IDS[(LAYOUT_IDS.indexOf(layout) + 1) % LAYOUT_IDS.length]);
+  const nextCap = () => setCap((cap + 1) % KeyArt.names.length);
+  // 소리 바꾸기(1 → 2 → … → 6 → 끔 → 1). 고르면 그 소리를 한 번 들려준다
+  function nextSound() { KeySound.next(); drawSoundBtn(); }
 
   /* ---------- 몸통 색 바꾸기 ---------- */
   function setSkin(n) {
@@ -616,7 +717,8 @@
     deviceE: document.getElementById('deviceE'),
     bodyArt: document.getElementById('bodyArt'), bodyFill: document.getElementById('bodyFill'), bodyLine: document.getElementById('bodyLine'),
     screen: document.getElementById('screen'),
-    layoutBtn: document.getElementById('layoutBtn'), layoutCanvas: document.getElementById('layoutCanvas'), layoutLabel: document.getElementById('layoutLabel'),
+    soundBtn: document.getElementById('soundBtn'), soundCanvas: document.getElementById('soundCanvas'), soundLabel: document.getElementById('soundLabel'),
+    capBtn: document.getElementById('capBtn'), capCanvas: document.getElementById('capCanvas'), capLabel: document.getElementById('capLabel'),
     skinBtn: document.getElementById('skinBtn'), skinCanvas: document.getElementById('skinCanvas'), skinLabel: document.getElementById('skinLabel'),
     keyPush: document.getElementById('keyPush'), keyPushCanvas: document.getElementById('keyPushCanvas'),
     grip: document.getElementById('grip'),
@@ -631,52 +733,49 @@
     cv.style.width = `${cw / r}px`; cv.style.height = `${ch / r}px`;
   }
 
-  // 배치 버튼: 테두리 안에 E F 두 글자. 지금 배치 글자만 검게 칠한 칸에 흰 글씨. 버튼 높이(화면 점)를 돌려준다
-  function drawLayoutBtn() {
-    const cv = el.layoutCanvas, ctx = cv.getContext('2d'), r = dpr(), cc = cornerCell();
-    const BOX_W = 7, BOX_H = 9;                       // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
-    const cols = 3 + LAYOUT_IDS.length * (BOX_W + 1) - 1 + 3, rowsN = 17;
-    const cw = cols * cc, ch = rowsN * cc;
+  /* 한 칸짜리 버튼(소리 · 키캡 · 몸통 색): 폭 13칸 = 여백 3 + 상자 7 + 여백 3, 높이 17칸, 상자 7×9칸.
+     비유: 같은 틀의 도장 셋. 틀(흰 바탕 + 검은 테두리)은 같고 상자 안 그림만 다르다 */
+  const BTN_ROWS = 17, ONE_COLS = 13, ONE_BOX_W = 7, ONE_BOX_H = 9, BTN_GAP = 6; // BTN_GAP = 버튼 사이 화면 점
+  function drawOneBtn(cv, labelEl, label, paint) {
+    const ctx = cv.getContext('2d'), cc = cornerCell();
+    const cw = ONE_COLS * cc, ch = BTN_ROWS * cc;
     sizeCorner(cv, cw, ch);
     ctx.clearRect(0, 0, cw, ch);
     pixelBlock(ctx, cw, ch, cc, INK); // 몸통 색과 상관없이 흰 바탕
     pixelFrame(ctx, cw, ch, cc, BG);
-    LAYOUT_IDS.forEach((id, i) => {
-      const bx = (3 + i * (BOX_W + 1)) * cc, by = Math.floor((rowsN - BOX_H) / 2) * cc;
-      if (id === layout) {
-        ctx.fillStyle = BG; ctx.fillRect(bx, by, BOX_W * cc, BOX_H * cc);
-        drawText(ctx, [id], bx + cc, by + cc, cc, INK);
-      } else {
-        drawText(ctx, [id], bx + cc, by + cc, cc, BG);
-      }
-    });
-    const label = `배치 ${layout}`;
-    if (el.layoutLabel.textContent !== label) el.layoutLabel.textContent = label;
-    return ch / r;
+    paint(ctx, 3 * cc, Math.floor((BTN_ROWS - ONE_BOX_H) / 2) * cc, cc); // 상자의 왼쪽 위 자리 · 한 칸 크기
+    if (labelEl.textContent !== label) labelEl.textContent = label;
   }
-
-  // 몸통 색 버튼: 테두리 안에 7×9칸 네모 넷(네모마다 그 색 견본 + 검은 테두리 한 칸).
-  // 지금 고른 네모만 바깥에 한 칸 더 둘러 굵은 테두리. 네모 사이는 두 칸(굵은 테두리가 옆 네모에 붙지 않게)
-  function drawSkinBtn() {
-    const cv = el.skinCanvas, ctx = cv.getContext('2d'), cc = cornerCell();
-    const BOX_W = 7, BOX_H = 9, GAP = 2;
-    const cols = 3 + SKINS.length * BOX_W + (SKINS.length - 1) * GAP + 3, rowsN = 17;
-    const cw = cols * cc, ch = rowsN * cc;
-    sizeCorner(cv, cw, ch);
-    ctx.clearRect(0, 0, cw, ch);
-    pixelBlock(ctx, cw, ch, cc, INK);
-    pixelFrame(ctx, cw, ch, cc, BG);
-    const by = Math.floor((rowsN - BOX_H) / 2);
-    SKINS.forEach((s, i) => {
-      const bx = 3 + i * (BOX_W + GAP);
-      ctx.fillStyle = BG;
-      if (i === skin) ctx.fillRect((bx - 1) * cc, (by - 1) * cc, (BOX_W + 2) * cc, (BOX_H + 2) * cc);
-      ctx.fillRect(bx * cc, by * cc, BOX_W * cc, BOX_H * cc);
-      ctx.fillStyle = s.body;
-      ctx.fillRect((bx + 1) * cc, (by + 1) * cc, (BOX_W - 2) * cc, (BOX_H - 2) * cc);
+  // 상자 안 5×7 점 그림(상자 둘레 한 칸 안쪽에 찍는다)
+  function boxArt(ctx, bx, by, cc, rows) {
+    ctx.fillStyle = BG;
+    const top = Math.floor((7 - rows.length) / 2); // 5×5 그림은 세로 가운데로
+    rows.forEach((row, j) => {
+      for (let i = 0; i < row.length; i += 1) if (row[i] === '#') ctx.fillRect(bx + (1 + i) * cc, by + (1 + top + j) * cc, cc, cc);
     });
-    const label = `몸통 ${SKINS[skin].name}`;
-    if (el.skinLabel.textContent !== label) el.skinLabel.textContent = label;
+  }
+  const SOUND_OFF = ['#...#', '.#.#.', '..#..', '.#.#.', '#...#']; // 소리 끔 = 점 ×
+  const CAP_ICONS = [
+    ['#####', '#.#.#', '##.##', '#.#.#', '##.##', '#.#.#', '#####'], // 0 도트
+    ['.###.', '#####', '#####', '#####', '#####', '#####', '.###.'], // 1 매끈
+    ['#####', '#.#.#', '#.#.#', '#####', '#.#.#', '#.#.#', '#####'], // 2 스위치
+    ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'], // 3 납작
+  ];
+  // 소리 버튼: 상자 안에 지금 소리 번호(1~6), 끔이면 ×
+  function drawSoundBtn() {
+    const i = KeySound.index;
+    drawOneBtn(el.soundCanvas, el.soundLabel, i ? `소리 ${i}` : '소리 끔', (ctx, bx, by, cc) => boxArt(ctx, bx, by, cc, i ? GLYPHS[i] : SOUND_OFF));
+  }
+  // 키캡 버튼: 상자 안에 지금 키캡 그림의 작은 표시
+  function drawCapBtn() {
+    drawOneBtn(el.capCanvas, el.capLabel, `키캡 ${KeyArt.names[cap]}`, (ctx, bx, by, cc) => boxArt(ctx, bx, by, cc, CAP_ICONS[cap]));
+  }
+  // 몸통 색 버튼: 상자 하나를 지금 몸통 색으로 칠하고 검은 테두리 한 칸
+  function drawSkinBtn() {
+    drawOneBtn(el.skinCanvas, el.skinLabel, `몸통 ${SKINS[skin].name}`, (ctx, bx, by, cc) => {
+      ctx.fillStyle = BG; ctx.fillRect(bx, by, ONE_BOX_W * cc, ONE_BOX_H * cc);
+      ctx.fillStyle = SKINS[skin].body; ctx.fillRect(bx + cc, by + cc, (ONE_BOX_W - 2) * cc, (ONE_BOX_H - 2) * cc);
+    });
   }
 
   /* ---------- 키캡 하나 ----------
@@ -689,6 +788,7 @@
   function holdKey(name, who) {
     if (keyHold[name] !== null) return false; // 이미 눌려 있음: 떼기 전엔 다시 받지 않는다
     keyHold[name] = who;
+    if (who !== 'test') { KeySound.unlock(); KeySound.down(); } // 누르는 순간 「딸깍」 한 번(검사 손잡이는 조용히)
     grab(now());
     drawKeys();
     return true;
@@ -697,7 +797,9 @@
   function releaseKey(name, who) {
     if (keyHold[name] === null) return false;
     if (who !== undefined && keyHold[name] !== who) return false;
+    const by = keyHold[name];
     keyHold[name] = null;
+    if (by !== 'test') KeySound.up(); // 떼는 순간 한 번(누르고 있는 동안에는 소리 없음)
     letGo(now());
     drawKeys();
     return true;
@@ -705,9 +807,11 @@
   function releaseAllKeys() { releaseKey('push'); }
 
   // 키캡 하나 그리기(20×20칸, 두 색). 바깥 네모 = 스위치 집, 안쪽 작은 네모 = 키 윗면, 그 아래 무늬 띠 = 키 옆면.
-  // 누르면 윗면이 3칸 내려가고 옆면이 그만큼 짧아진다(바닥 쪽 끝은 그대로)
+  // 누르면 윗면이 3칸 내려가고 옆면이 그만큼 짧아진다(바닥 쪽 끝은 그대로).
+  // 키캡 그림이 1~3이면 도트 대신 공용 그림(KeyArt)으로 그린다. 이 게임 키에는 아이콘이 없다
   function drawKey(cv, down) {
     const ctx = cv.getContext('2d'), c = keyCell, n = KEY_CELLS * c;
+    if (cap !== 0) { KeyArt.draw(ctx, n, cap, down); return; }
     const R = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x * c, y * c, w * c, h * c); };
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, n, n);
@@ -739,7 +843,7 @@
     if (el.screen.getAttribute('aria-label') !== aria) el.screen.setAttribute('aria-label', aria);
   }
 
-  /* ---------- 그리기: 128×(배치별 세로)칸 작은 판에 찍은 뒤 그대로 키운다 ---------- */
+  /* ---------- 그리기: 128×96칸 작은 판에 찍은 뒤 그대로 키운다 ---------- */
   const g = el.screen.getContext('2d');
   const board = document.createElement('canvas');
   const c = board.getContext('2d');
@@ -1012,9 +1116,11 @@
     const subKeys = [];
     if ((phase === 'ready' || landed) && best > 0) subKeys.push('♛', ' ', ...drawn.bestText); // 왕관 + 최고 기록
     if (v.lap > 0) { if (subKeys.length) subKeys.push(' ', ' '); subKeys.push('◍', ' ', ...drawn.lapText); } // 지구 + 바퀴 수
-    const subY = TEXT_Y + 7 * bigK + 2;
+    // 준비 · 착지 화면의 아랫줄(최고 기록)은 폭이 되면 2배로 키운다. 나는 중의 바퀴 수는 1배 그대로
+    const subK = (phase === 'ready' || landed) && subKeys.length && measure(subKeys).w * 2 <= W - 6 ? 2 : 1;
+    const subY = TEXT_Y + 7 * bigK + 2 + (subK - 1);
     const keep = [{ x: TEXT_X - 6, y: TEXT_Y - 3, w: measure(distKeys).w * bigK + 12, h: 7 * bigK + 6 }];
-    if (subKeys.length) keep.push({ x: TEXT_X - 6, y: subY - 3, w: measure(subKeys).w + 12, h: 13 });
+    if (subKeys.length) keep.push({ x: TEXT_X - 6, y: subY - 3, w: measure(subKeys).w * subK + 12, h: 7 * subK + 6 });
     const skyAt = (x, y, rows, halo) => {
       const w = rows[0].length, h = rows.length;
       if (keep.some((r) => x < r.x + r.w && r.x < x + w && y < r.y + r.h && r.y < y + h)) return;
@@ -1091,7 +1197,7 @@
 
     // 숫자: 왼쪽 위 큰 거리(착지하면 더 크게), 그 아래 왕관 + 최고 기록 · 지구 + 바퀴 수
     boardText(distKeys, TEXT_X, TEXT_Y, bigK);
-    if (subKeys.length) boardText(subKeys, TEXT_X, subY, 1);
+    if (subKeys.length) boardText(subKeys, TEXT_X, subY, subK);
 
     // 작은 판을 큰 그림판에 옮긴다
     g.imageSmoothingEnabled = false;
@@ -1145,6 +1251,7 @@
   /* ---------- 자리 맞추기 ----------
      몸통 폭 dw = min(창 폭 − 28, 460). 위에서부터: 띠(작은 버튼 줄 + 위아래 10) → 검은 화면 → 7% → 키캡 → 7% → 오돌토돌한 띠(7%) → 7%.
      합이 창 높이 − 28을 넘으면 화면 칸 크기부터, 그다음 키캡 크기를 줄인다(키캡은 72 아래로 안 줄임) */
+  let bandSide = 0; // 위 띠 양옆 여백(화면 점): 게임 버튼의 왼쪽 자리 = 오른쪽 묶음의 오른쪽 여백
   function fit() { fitDevice(); placeGameBtn(); }
   // 창이 낮으면(가로로 눕힌 폰 등) 몸통 폭부터 줄인다 — 검수 지적: 폭은 그대로 두고 화면만 줄이니 화면이 점 하나 크기가 됐다.
   // 화면 칸 · 키캡을 제 크기로 놓았을 때(위 띠 + 화면 + 키캡 + 틈 넷) 창 높이 안에 들어가는 가장 큰 폭을 찾는다
@@ -1157,9 +1264,9 @@
     return Math.min(maxW, 160);
   }
   function fitDevice() {
-    const r = dpr(), rows = LAYOUTS[layout].rows;
-    const btnH = drawLayoutBtn();
-    drawSkinBtn();
+    const r = dpr(), rows = ROWS;
+    drawSoundBtn(); drawCapBtn(); drawSkinBtn();
+    const btnH = BTN_ROWS * cornerCell() / r; // 작은 버튼 높이(화면 점)
     const band = btnH + 2 * BAND_PAD;
 
     const mb = el.main.getBoundingClientRect();
@@ -1198,10 +1305,17 @@
     ds.width = `${dw}px`; ds.height = `${dh}px`;
     drawBody(dw, dh, rad, bevel);
 
-    // 위 띠: 왼쪽 배치 버튼(게임 버튼은 placeGameBtn이 그 오른쪽에) · 오른쪽 끝 몸통 색 버튼
-    const side = Math.round(dw * 0.08);
-    el.layoutBtn.style.left = `${side}px`; el.layoutBtn.style.top = `${BAND_PAD}px`;
-    el.skinBtn.style.left = ''; el.skinBtn.style.right = `${side}px`; el.skinBtn.style.top = `${BAND_PAD}px`;
+    // 위 띠: 왼쪽 끝 게임 버튼(placeGameBtn이 놓는다) · 오른쪽 끝에서부터 몸통 색 ← 키캡 ← 소리(사이 6점)
+    // 몸통이 아주 좁아 두 묶음이 겹칠 것 같으면 양옆 여백(side)을 줄여 자리를 낸다
+    const oneW = ONE_COLS * cornerCell() / r;
+    const gameW = (3 + gameList().length * (GAME_BOX_W + 1) - 1 + 3) * cornerCell() / r;
+    const need = gameW + BTN_GAP + 3 * oneW + 2 * BTN_GAP;
+    bandSide = Math.max(0, Math.min(Math.round(dw * 0.08), Math.floor((dw - need) / 2)));
+    let bx = dw - bandSide - oneW;
+    [el.skinBtn, el.capBtn, el.soundBtn].forEach((b) => {
+      b.style.right = ''; b.style.left = `${bx}px`; b.style.top = `${BAND_PAD}px`;
+      bx -= oneW + BTN_GAP;
+    });
 
     // 검은 화면: 가운데 정렬
     setRows(rows);
@@ -1227,7 +1341,7 @@
     render();
   }
 
-  /* ---------- 게임 버튼: 배치 버튼 바로 오른쪽, 누른 숫자 칸의 게임으로 바로 간다 ----------
+  /* ---------- 게임 버튼: 위 띠 왼쪽 끝, 누른 숫자 칸의 게임으로 바로 간다 ----------
      비유: TV 리모컨 숫자 버튼. 1 시지프스 · 2 10.00000 · 3 결투 · 4 100m · 5 퍼덕 · 6 멀리뛰기 중 누른 번호로 곧장.
      여섯 게임은 같은 전시장의 옆 폴더라서 「한 칸 위 폴더 → 옆 폴더」 주소로 옮겨 간다.
      이 컴퓨터의 폴더 이름(local)과 인터넷 전시장의 폴더 이름(web)이 달라서 둘 다 적어 두고,
@@ -1263,7 +1377,7 @@
     location.replace(url);
     return true;
   }
-  // 그림: 배치 버튼과 같은 모양. 테두리 안에 1 ~ 6, 지금 게임 숫자만 검게 칠한 칸에 흰 글씨(칸 수는 게임 목록 길이를 따른다)
+  // 그림: 다른 작은 버튼과 같은 틀. 테두리 안에 1 ~ 6, 지금 게임 숫자만 검게 칠한 칸에 흰 글씨(칸 수는 게임 목록 길이를 따른다)
   const GAME_BOX_W = 7, GAME_BOX_H = 9;                // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
   function drawGameBtn(gb) {
     const cv = gb.querySelector('canvas'), ctx = cv.getContext('2d'), cc = cornerCell(), list = gameList();
@@ -1293,14 +1407,13 @@
     const i = Math.floor((cellsX - 3 + 0.5) / (GAME_BOX_W + 1));
     return Math.max(0, Math.min(n - 1, i));
   }
-  // 자리: 배치 버튼 오른쪽 6점 떨어진 곳에 같은 높이로 선다
+  // 자리: 위 띠 왼쪽 끝(몸통 왼쪽에서 bandSide), 다른 작은 버튼과 같은 높이
   function placeGameBtn() {
-    const gb = document.getElementById('gameBtn'), lb = el.layoutBtn;
+    const gb = document.getElementById('gameBtn');
     if (!gb) return;
-    if (gb.parentNode !== lb.parentNode || lb.nextSibling !== gb) lb.parentNode.insertBefore(gb, lb.nextSibling);
     drawGameBtn(gb);
-    gb.style.left = `${lb.offsetLeft + lb.offsetWidth + 6}px`;
-    gb.style.top = `${lb.offsetTop}px`;
+    gb.style.left = `${bandSide}px`;
+    gb.style.top = `${BAND_PAD}px`;
   }
   // 누르는 순간 그 번호 게임으로. 게임 누름으로 세지 않는다(아래로 퍼지지 않게 막음)
   document.getElementById('gameBtn').addEventListener('pointerdown', (e) => {
@@ -1315,10 +1428,15 @@
   /* ---------- 입력: 손가락이 닿는 순간 누름, 떨어지는 순간 뗌 ---------- */
   const mainPointer = (e) => e.pointerType !== 'mouse' || e.button === 0;
   // 작은 버튼: 키캡 누름으로 세지 않는다
-  el.layoutBtn.addEventListener('pointerdown', (e) => {
+  el.soundBtn.addEventListener('pointerdown', (e) => {
     if (!mainPointer(e)) return;
     e.preventDefault(); e.stopPropagation();
-    nextLayout();
+    nextSound();
+  });
+  el.capBtn.addEventListener('pointerdown', (e) => {
+    if (!mainPointer(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    nextCap();
   });
   el.skinBtn.addEventListener('pointerdown', (e) => {
     if (!mainPointer(e)) return;
@@ -1363,9 +1481,15 @@
 
   window.addEventListener('keydown', (e) => {
     const plain = !e.metaKey && !e.ctrlKey && !e.altKey;
-    if (e.code === 'KeyL' && plain) {
+    // S = 소리 다음 · K = 키캡 그림 다음 · C = 몸통 색 다음 (L은 이제 아무 일 없음)
+    if (e.code === 'KeyS' && plain) {
       e.preventDefault();
-      if (!e.repeat) nextLayout();
+      if (!e.repeat) nextSound();
+      return;
+    }
+    if (e.code === 'KeyK' && plain) {
+      e.preventDefault();
+      if (!e.repeat) nextCap();
       return;
     }
     if (e.code === 'KeyC' && plain) {
@@ -1409,13 +1533,15 @@
         scene: sceneName(v.scene), sceneIndex: v.scene % NS, // 지금 배경 이름
         pose: poseNameNow(v), poseIndex: v.pose,            // 지금 몸짓 이름
         ignoreLeft: phase === 'landed' ? Math.max(0, IGNORE_MS - (t - landedAt)) : 0, // 누름을 무시하는 남은 시간
-        layout, layouts: LAYOUT_IDS.slice(), rows: H,
+        layout: 'F', rows: H,
+        sound: KeySound.index,                              // 소리(0 끔 · 1~6)
+        cap, capName: KeyArt.names[cap],                    // 키캡 그림(0~3)
         skin, skinName: SKINS[skin].name, skins: SKINS.map((s) => s.name),
         keyDown: keyHold.push !== null,
         keyRects: { push: rectOf(el.keyPush) },
         rects: {
           device: rectOf(el.deviceE), screen: rectOf(el.screen), key: rectOf(el.keyPush), grip: rectOf(el.grip),
-          layoutBtn: rectOf(el.layoutBtn), gameBtn: rectOf(document.getElementById('gameBtn')), skinBtn: rectOf(el.skinBtn),
+          gameBtn: rectOf(document.getElementById('gameBtn')), soundBtn: rectOf(el.soundBtn), capBtn: rectOf(el.capBtn), skinBtn: rectOf(el.skinBtn),
         },
         game: gameHere(),
       };
@@ -1454,8 +1580,8 @@
     sceneAt(meters) { return sceneName(sceneIndexAt(Number(meters))); },     // 그 거리의 배경 이름
     poseAt(flightSec) { return POSES[poseIndexAt(Number(flightSec))][1]; },  // 난 지 그 초일 때 몸짓 이름
     tables() { return { lap: LAP_M, runupMs: RUNUP_MS, fallMs: FALL_MS, ignoreMs: IGNORE_MS, curve: CURVE, scenes: SCENES, poses: POSES }; },
-    setLayout(id) { return setLayout(String(id).toUpperCase()); },
-    nextLayout() { nextLayout(); return layout; },
+    setSound(i) { KeySound.set(i); drawSoundBtn(); return KeySound.index; }, // 소리 고르기(0 끔 · 1~6). 소리는 내지 않는다
+    setCap(i) { return setCap(i); },                                         // 키캡 그림 고르기(0~3)
     setSkin(n) { return setSkin(n); },
     nextSkin() { nextSkin(); return skin; },
     gameUrl(id) { return gameUrl(id); },               // 그 번호 게임으로 갈 주소(가지는 않음)
