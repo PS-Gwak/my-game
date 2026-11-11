@@ -1600,9 +1600,10 @@ function smoreAgain() {   // 「다시 하기」: 크래커를 처음대로
 $('againBtn').addEventListener('click', smoreAgain);
 function stepSmore(dt) {
   // 크래커를 누르고 있는 동안 금이 쌓임 (처음 닿을 때 한 번 콱 + 누르고 있는 시간만큼)
+  // 검수 반영: 처음 누른 조각에만 쌓는다. 누른 채 옆으로 훑으며 지나가는 조각은 깨지지 않게(「콱 눌러야」 깨짐)
   const ch = press.down && press.touched ? press.thruChunk : null;
-  if (ch) {
-    if (ch !== press.lastChunk) { press.lastChunk = ch; crackChunk(ch, CRUMB.tap); }
+  if (ch && (press.lastChunk === null || ch === press.lastChunk)) {
+    if (press.lastChunk === null) { press.lastChunk = ch; crackChunk(ch, CRUMB.tap); }
     crackChunk(ch, dt/CRUMB.hold);
     // 금 간 조각을 누르고 있으면 가루가 조금씩 흘러내림
     if (!ch.broken && ch.dmg >= CRUMB.crackAt) {
