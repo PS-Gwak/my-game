@@ -471,7 +471,8 @@ const BITE_PHI = .75;        // 앞에서 오른쪽으로 약 43도
 const BITES = [[BITE_PHI - .21, .607, .152], [BITE_PHI, .626, .18], [BITE_PHI + .22, .607, .142]]
   .map(([ph, r, rb]) => ({x: r*Math.sin(ph), z: r*Math.cos(ph), rb}));
 // 불 v4 꼬치구이 윗면 노릇함: 불 가까운 위쪽 띠가 구운 마시멜로처럼 노릇하게 물듦(검게 타지 않음). 「원래 모양 위의 높이」로 칠해서 몸이 눌리고 늘어나도 같이 움직임
-const TOAST = {from: .83, to: .99, max: .8, color: 0xe0ac70};   // 물들기 시작하는 높이 · 가장 진한 높이(몸 높이 1 기준) · 가장 진한 곳의 세기 · 노릇한 색
+// 11/11 검수 반영: 시작 높이 0.83 → 0.72 (새 불 밑동이 위쪽 띠를 덮어 정면에서 노릇함이 안 보였음 → 눈썹 위까지 내려오게. 눈썹 높이에서는 아직 거의 0)
+const TOAST = {from: .72, to: .99, max: 1, color: 0xd29655};   // 물들기 시작하는 높이 · 가장 진한 높이(몸 높이 1 기준) · 가장 진한 곳의 세기 · 노릇한 색
 const toastU = {value: 1};   // 1 = 노릇함 켬(새 불) · 0 = 끔(예전 불)
 const f6 = v => v.toFixed(5);
 // 몸 · 얼굴 그림에 같이 쓰는 모양 계산 (그래픽 카드용 글)
@@ -1151,7 +1152,8 @@ const emM = new THREE.Matrix4();          // 불티 · 부스러기 · 불길 �
    - 주황 불빛: 머리 위 앞쪽에 깜빡이는 조명 하나 — 만지는 화면에만 둠(목록은 여섯 칸을 번갈아 그려서, 조명을 넣으면 칸마다 그리기 준비를 다시 하게 됨) */
 const FLAME2 = {
   // 밑동 덩이 단면: [가운데에서 거리, 높이] (높이 0 = 마시멜로 윗면 바로 아래). 윗면 가장자리 안쪽에서 솟아 통통하게 부풀었다가 위로 둥글게 닫힘
-  dome: [[.17, -.05], [.205, -.028], [.224, .01], [.226, .05], [.21, .095], [.178, .135], [.13, .17], [.068, .192], [0, .2]],
+  // 11/11 검수 반영: 가장 넓은 곳 0.226 → 0.214 (마시멜로 윗면 0.231보다 한 뼘 여유 — 흔들 때 어깨 밖으로 넘치던 것 줄이기)
+  dome: [[.162, -.05], [.195, -.028], [.212, .01], [.214, .05], [.2, .095], [.17, .135], [.126, .17], [.066, .192], [0, .2]],
   // 불 혀 다섯: [둘레 각도(정면 0 · 오른쪽 +), 가운데에서 거리, 밑동 높이, 굵기(반지름), 키, 끝이 바깥으로 휘는 정도]
   tongues: [[0, 0, .04, .112, .36, 0], [.75, .085, 0, .088, .26, .24], [2.0, .12, 0, .08, .19, .3], [3.9, .09, 0, .09, .27, .24], [5.15, .12, 0, .08, .2, .3]],
   seg: 18, tSeg: 10, tRing: 9,                 // 밑동 둘레 조각 수 · 혀 둘레 조각 수 · 혀 세로 마디 수 (폰에서 가볍게: 모두 합쳐 세모 약 1,000개)
@@ -1289,8 +1291,29 @@ function buildFlame(withLight) {
   const posN = new THREE.BufferAttribute(P, 3); posN.setUsage(THREE.DynamicDrawUsage);
   geoN.setAttribute('position', posN);
   geoN.setAttribute('color', new THREE.BufferAttribute(C, 3));
-  geoN.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(NV*3), 3));
+  const NRM = new Float32Array(NV*3), nrmN = new THREE.BufferAttribute(NRM, 3); nrmN.setUsage(THREE.DynamicDrawUsage);
+  geoN.setAttribute('normal', nrmN);
   geoN.setIndex(idx);
+  const IDX = Uint16Array.from(idx);   // 세모 목록 (빛 받는 방향을 직접 계산할 때 읽음)
+  // 빛 받는 방향 직접 계산 (11/11 검수 반영): 도구에 맡기면 부를 때마다 작은 계산용 물체를 새로 만들어서, 같은 계산을 미리 만든 배열만으로 함
+  // 방법은 같음 — 세모마다 바깥 방향을 구해 세 꼭짓점에 더하고(큰 세모일수록 많이), 마지막에 길이를 1로 맞춤
+  const calcNormals = () => {
+    NRM.fill(0);
+    for (let i = 0, m = IDX.length; i < m; i += 3) {
+      const a = IDX[i]*3, b = IDX[i + 1]*3, c = IDX[i + 2]*3;
+      const cx = P[c] - P[b], cy = P[c + 1] - P[b + 1], cz = P[c + 2] - P[b + 2];
+      const ax = P[a] - P[b], ay = P[a + 1] - P[b + 1], az = P[a + 2] - P[b + 2];
+      const nx = cy*az - cz*ay, ny = cz*ax - cx*az, nz = cx*ay - cy*ax;
+      NRM[a] += nx; NRM[a + 1] += ny; NRM[a + 2] += nz;
+      NRM[b] += nx; NRM[b + 1] += ny; NRM[b + 2] += nz;
+      NRM[c] += nx; NRM[c + 1] += ny; NRM[c + 2] += nz;
+    }
+    for (let v = 0; v < NV; v++) {
+      const a = v*3, l = Math.hypot(NRM[a], NRM[a + 1], NRM[a + 2]) || 1;
+      NRM[a] /= l; NRM[a + 1] /= l; NRM[a + 2] /= l;
+    }
+    nrmN.needsUpdate = true;
+  };
   // 몸과 같은 무광(빛을 받음) + 스스로 빛남
   const lump = new THREE.Mesh(geoN, new THREE.MeshLambertMaterial({color: 0xffffff, vertexColors: true, emissive: F.glow, emissiveIntensity: F.glowK}));
   lump.frustumCulled = false; lump.userData.noHit = true; n.add(lump);
@@ -1314,6 +1337,9 @@ function buildFlame(withLight) {
   if (withLight) { light = new THREE.PointLight(F.light.color, 0, 0, 0); light.position.set(0, F.light.y, F.light.z); rootG.add(light); }
   const tipP = new Float32Array(NTG*3);   // 혀끝이 지금 있는 자리 (불 덩이가 여기서 떨어져 나옴)
   let style = 'new', height = 0, heightAvg = 0, lightAvg = 0, alive = 0, bSpawn = 0, bNext = 0;
+  // 11/11 검수 반영: tiltX · tiltZ = 마시멜로 윗면이 기운 만큼 새 불도 같이 기울임(앞뒤 · 좌우, 라디안) / seamRot = 이음매 빛을 화면에서 돌려 놓은 각도
+  let tiltX = 0, tiltZ = 0, seamRot = 0;
+  const fA = new THREE.Vector3(), fB = new THREE.Vector3();   // 화면 기울기를 잴 때 다시 쓰는 두 점 (매 프레임 새로 만들지 않음)
   const updateNew = (t, dt, level) => {
     const hs = F.grow[0] + F.grow[1]*level, ws = .94 + .12*level, live = .6 + .6*level;
     // 밑동: 덩어리 전체가 느리게 출렁 (가로세로가 엇갈려 부풀고, 겉면에 느린 물결)
@@ -1353,12 +1379,14 @@ function buildFlame(withLight) {
       }
     }
     posN.needsUpdate = true;
-    geoN.computeVertexNormals();   // 움직인 모양에 맞춰 빛 받는 방향을 다시 계산 (점 약 530개 — 가벼움)
-    n.rotation.z = .03*Math.sin(t*2.2) + .015*Math.sin(t*3.7);
+    calcNormals();   // 움직인 모양에 맞춰 빛 받는 방향을 다시 계산 (점 약 530개 — 가벼움, 새 물체를 만들지 않음)
+    n.rotation.set(tiltX, 0, tiltZ + .03*Math.sin(t*2.2) + .015*Math.sin(t*3.7));   // 윗면 기울기 + 느린 흔들림
     height = top; heightAvg = TG[0].y + TG[0].h*hs;
     // 빛 덩이: 세기에 따라 조금 커지고 밝아짐, 살짝 깜빡임
     const fl = 1 + .05*Math.sin(t*5.3) + .03*Math.sin(t*8.9 + 1);
-    seam.scale.set(.6*(.92 + .2*level)*fl, .17*(.92 + .2*level)*fl, 1); seam.material.opacity = .45 + .2*level;
+    // 11/11 검수 반영: 이음매 빛을 더 좁고 얇고 옅게 (가로 0.6 → 0.5 · 세로 0.17 → 0.1 · 진하기 0.45 ~ 0.65 → 0.26 ~ 0.38) — 이마 위 띠가 하얗게 날아가지 않고, 빛무리가 몸 밖으로 덜 나가게
+    seam.scale.set(.44*fl, .1*(.92 + .2*level)*fl, 1);   // 가로는 세기가 올라도 안 커짐(재검수: 세게 흔들 때 빛무리가 윗면보다 넓어져 몸 밖으로 옅게 나가던 것)
+    seam.material.opacity = .26 + .12*level;
     const cs = (.3 + .1*level)*fl;
     core.scale.set(cs, cs, 1); core.position.y = .09 + .03*level; core.material.opacity = .4 + .15*level;
     // 주황 조명: 세기를 따라 밝아지고 살짝 깜빡임
@@ -1394,10 +1422,26 @@ function buildFlame(withLight) {
     get light() { return light ? light.intensity : 0; },     // 지금 주황 조명 밝기 (목록의 불 · 예전 불은 0)
     get lightAvg() { return lightAvg; },                     // 깜빡임을 뺀 조명 밝기
     get blobs() { return style === 'old' ? 0 : alive; },     // 지금 떠오르는 불 덩이 수
+    get seamDeg() { return seamRot*180/Math.PI; },           // 이음매 빛이 화면에서 돌아가 있는 각도(도) — 몸이 기운 만큼 따라가야 함
     setStyle(s) {
+      const was = style;
       style = s === 'old' ? 'old' : 'new';
       g.visible = style === 'old'; n.visible = style === 'new';
       if (style === 'old') { lightAvg = 0; if (light) light.intensity = 0; }
+      // 「예전」에서 돌아올 때: 그동안 공중에 멈춰 있던 불 덩이를 전부 치움(안 그러면 허공에서 이어 움직임)
+      if (style === 'new' && was !== 'new') { bAge.fill(1); bSpawn = 0; alive = 0; }
+    },
+    // 마시멜로 윗면이 기운 각도를 받아 둠 (앞뒤 · 좌우, 라디안). 새 불만 기울임 — 예전 불은 v3 그대로
+    setTilt(x, z) { tiltX = x; tiltZ = z; },
+    // 이음매 빛은 「늘 화면을 보는 그림」이라 몸이 기울어도 혼자 가로로 누워 있었음 → 불의 세로 방향이 화면에서 어느 쪽인지 재서 그만큼 돌려 줌
+    // (자리 계산이 끝난 뒤, 그릴 카메라를 넘겨 부름)
+    face(cam) {
+      if (style !== 'new') return;
+      fA.set(0, -.01, 0).applyMatrix4(n.matrixWorld).project(cam);
+      fB.set(0, .09, 0).applyMatrix4(n.matrixWorld).project(cam);
+      const ux = (fB.x - fA.x)*cam.aspect, uy = fB.y - fA.y;
+      if (ux*ux + uy*uy > 1e-12) seamRot = Math.atan2(-ux, uy);
+      seam.material.rotation = seamRot;
     },
     update(t, level) {
       const dt = lastT === null ? 1/60 : clamp(t - lastT, 0, .05); lastT = t;
@@ -1464,7 +1508,13 @@ function buildDeco(id, withLight = false) {   // 불 v4: withLight = 꼬치구�
     dispFrame();
     deco.flame = buildFlame(withLight);
     deco.flame.group.position.y = SKEWER.ky*.5 - .015;
-    add(deco.flame.group, vertsWhere((x, y, z) => y > .97));   // v3: 불이 윗면 전체에 있으니 윗면 전체를 따라감
+    const fpc = add(deco.flame.group, vertsWhere((x, y, z) => y > .97));   // v3: 불이 윗면 전체에 있으니 윗면 전체를 따라감
+    // 11/11 검수 반영: 윗면이 기울면 불도 같이 기울게 — 윗면 점들의 가운데 자리와 퍼진 정도를 한 번만 계산해 둠 (followDeco가 씀)
+    { const A = fpc.anchors; let cx = 0, cz = 0, sxx = 0, szz = 0;
+      for (let k = 0; k < A.length; k++) { cx += rest[A[k]*3]; cz += rest[A[k]*3 + 2]; }
+      cx /= A.length || 1; cz /= A.length || 1;
+      for (let k = 0; k < A.length; k++) { const rx = rest[A[k]*3] - cx, rz = rest[A[k]*3 + 2] - cz; sxx += rx*rx; szz += rz*rz; }
+      fpc.tilt = {cx, cz, sxx, szz, flame: deco.flame}; }
   } else if (id === 'smore') {
     // 위아래 크래커 두 장 (서로 살짝 엇갈리게 돌려 놓음). 몸보다 조금 좁아서 몸이 옆으로 삐져나와 보임. 한 장 = 조각 9개
     const sides = [['top', true, 1.035, .22, 1], ['bottom', false, -.035, -.12, 2]];
@@ -1776,6 +1826,15 @@ function followDeco(deco) {
     pc.d.set(sx*f, sy*f, sz*f);
     if (deco.F) pc.d.applyMatrix4(deco.F);   // 「보이는 크기」 장식: 몸이 원래 크기로 움직인 양을 보이는 크기로 바꿔서 따라감
     if (!pc.arm) pc.obj.position.set(pc.base.x + pc.d.x, pc.base.y + pc.d.y, pc.base.z + pc.d.z);
+    if (pc.tilt && A.length) {
+      // 꼬치구이 불: 윗면 점들이 「오른쪽일수록 · 앞쪽일수록 얼마나 더 올라가 있나」(기울기)를 구해 불을 그만큼 기울임 — 책상이 기울면 위에 놓인 컵도 같이 기우는 것
+      const T = pc.tilt, my = sy/A.length; let sxy = 0, szy = 0;
+      for (let k = 0; k < A.length; k++) { const a = A[k]*3, dy = pos[a+1] - rest[a+1] - my; sxy += (rest[a] - T.cx)*dy; szy += (rest[a+2] - T.cz)*dy; }
+      // 원래 크기에서 잰 기울기 → 보이는 크기(가로 · 세로 배율이 다름)로 바꾸고, 너무 눕지 않게 약 23도에서 멈춤
+      const e = deco.F ? deco.F.elements : null, kx = e ? e[5]/e[0] : 1, kz = e ? e[5]/e[10] : 1;
+      const ax = T.sxx > 1e-9 ? sxy/T.sxx*kx : 0, az = T.szz > 1e-9 ? szy/T.szz*kz : 0;
+      T.flame.setTilt(clamp(-Math.atan(az), -.4, .4), clamp(Math.atan(ax), -.4, .4));
+    }
   }
   for (const pc of deco.pieces) if (pc.arm) bendArm(pc);
   if (deco.hasTop || deco.hasBot) fillGrids(deco.hasTop, deco.hasBot);
@@ -2594,6 +2653,7 @@ function advance(dt) {
     e[12] += curKind.off.x; e[13] += curKind.off.y + bob; e[14] += curKind.off.z; }
   root.matrix.copy(rootM); root.matrixWorldNeedsUpdate = true;
   scene.updateMatrixWorld();
+  if (playDeco && playDeco.flame) playDeco.flame.face(camera);   // 꼬치구이: 이음매 빛을 지금 몸이 기운 쪽으로 돌려 놓음 (자리 계산이 끝난 뒤라야 맞음)
 
   // 표정: 누르는 동안 홍조와 미소가 서서히 올라오고 눈이 손가락을 봄, 놓으면 서서히 평소 얼굴로
   // v3: 꼬치구이는 꼬챙이를 잡고 흔드는 동안에도 만질 때처럼 홍조가 피어나고 「만질 때 얼굴」이 됨
@@ -2708,6 +2768,7 @@ function setVP(r) { renderer.setViewport(r.x, cv.clientHeight - r.y - r.h, r.w, 
 function renderItem(it, r, sc, t) {
   poseItem(it, t, sc);
   frameCamera(cellCam, r.w, r.h);
+  if (it.deco.flame) { it.anchor.updateMatrixWorld(true); it.deco.flame.face(cellCam); }   // 목록의 꼬치구이도 이음매 빛이 휘청이는 몸을 따라 돌게
   it.anchor.visible = true;
   setVP(r); renderer.clearDepth(); renderer.render(listScene, cellCam);
   it.anchor.visible = false;
@@ -2879,17 +2940,20 @@ function shakeAt(h, dx, times, ms) {
   if (press.down) pointerUp();
   press.down = true; press.shaking = true; press.touched = false; press.rotating = false;
   sk.h = clamp(Number(h) || 0, 0, 1); sk.yg = stickY(sk.h);
-  let peak = 0, bowMax = 0, fireMax = 0, blushMax = 0;
+  let peak = 0, bowMax = 0, fireMax = 0, blushMax = 0, tiltMax = 0, tiltErrMax = 0;
   const n = Math.max(1, Math.round(ms/(1000/60)));
   for (let f = 0; f < n; f++) {
     shakeTargetFromPx(dx*Math.sin((f + 1)/n*Math.PI*2*times), 0);
     advance(1/60);
     peak = Math.max(peak, sk.lean); bowMax = Math.max(bowMax, sk.bow); fireMax = Math.max(fireMax, sk.fire); blushMax = Math.max(blushMax, glow);
+    // 11/11 검수 반영: 흔드는 동안 몸이 화면에서 기운 각도와, 이음매 빛이 그 각도에서 벗어난 정도(가장 큰 값)
+    const bd = bodyTiltDeg(); tiltMax = Math.max(tiltMax, Math.abs(bd));
+    if (playDeco.flame.style === 'new') tiltErrMax = Math.max(tiltErrMax, Math.abs(playDeco.flame.seamDeg - bd));
   }
   const faceWhile = faceName();
   pointerUp();
   renderer.render(scene, camera);
-  return {...state(), dangleMax: THREE.MathUtils.radToDeg(peak), bowMax, fireMax, blushMax, faceWhile};
+  return {...state(), dangleMax: THREE.MathUtils.radToDeg(peak), bowMax, fireMax, blushMax, faceWhile, tiltMax, tiltErrMax};
 }
 // v3: 지금 표정 이름 — 'idle'(가만히) · 'touch'(만질 때). 홍조가 TOUCH_AT 넘게 올라오면 만질 때 얼굴
 function faceName() { return glow > TOUCH_AT ? 'touch' : 'idle'; }
@@ -2977,7 +3041,13 @@ function state() {
 // 불 v4: 지금 꼬치구이 불의 모습 — 갈래 수 · 세기 · 모양 이름('new' · 'old') · 꼭대기 높이(일렁임 포함 / 뺀 것) · 주황 조명 밝기(깜빡임 포함 / 뺀 것) · 떠오르는 불 덩이 수 · 윗면 노릇함(1 켬 · 0 끔)
 function flameState() {
   const f = playDeco.flame;
-  return {tongues: f.tongues, level: sk.fire, style: f.style, height: f.height, heightAvg: f.heightAvg, light: f.light, lightAvg: f.lightAvg, blobs: f.blobs, toast: toastU.value};
+  return {tongues: f.tongues, level: sk.fire, style: f.style, height: f.height, heightAvg: f.heightAvg, light: f.light, lightAvg: f.lightAvg, blobs: f.blobs, toast: toastU.value,
+    seamDeg: f.seamDeg, bodyDeg: bodyTiltDeg()};   // 11/11 검수 반영: 이음매 빛이 화면에서 돌아간 각도 · 몸이 화면에서 기운 각도(둘이 비슷해야 함)
+}
+// 11/11 검수 반영(검사용): 몸의 세로 축(밑면 가운데 → 윗면 가운데)이 지금 화면에서 기운 각도(도). 왼쪽으로 기울면 +. 불 쪽 계산과 따로 잼
+function bodyTiltDeg() {
+  const a = toScreen(0, 0, 0), b = toScreen(0, BODY.h, 0);
+  return THREE.MathUtils.radToDeg(Math.atan2(-(b.x - a.x), -(b.y - a.y)));
 }
 const canTouch = () => mode === 'play' && !trans;   // 만지기 함수가 동작하는 때 (목록 · 떠오르는 중에는 아무 일도 하지 않음)
 window.__SQ_TEST__ = {
@@ -3039,6 +3109,8 @@ window.__SQ_TEST__ = {
   flame() { return curKind.id === 'skewer' && playDeco && playDeco.flame ? flameState() : {tongues: 0, level: 0}; },   // 불길 갈래 수 · 세기 (+ 불 v4: style · height · heightAvg · light · lightAvg · blobs · toast)
   // ── 불 v4 ──
   setFire(name) { setFireStyle(name); return fireStyle; },   // 불 고르기: 'new'(새, 처음 값) · 'old'(예전 = v3 불)
+  // 11/11 검수 반영: 몸 앞면의 한 점이 화면 어디인가(px) — u = 좌우(-1 왼쪽 끝 ~ 1 오른쪽 끝), h = 높이(0 밑 ~ 1 꼭대기). 사진에서 그 자리 색을 잴 때 씀
+  bodyPx(u = 0, h = .5) { u = clamp(Number(u) || 0, -1, 1); return toScreen(u*BODY.r*.9, clamp(Number(h) || 0, 0, 1)*BODY.h, BODY.r*.9*Math.sqrt(1 - u*u)); },
   // 지금 종의 장식 · 받침에 든 덩어리 수를 이름표로 셈 — 띠 · 김이 정말 없는지 확인용
   parts() {
     let torus = 0, meshes = 0;

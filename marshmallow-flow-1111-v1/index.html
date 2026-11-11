@@ -155,8 +155,10 @@
   #flowSpeed { right: 10px; min-width: 52px; }
   #flowQuit:active, #flowSpeed:active { background: var(--pressed); }
   #app[data-flow="hold"] #flowQuit, #app[data-flow="wait"] #flowQuit, #app[data-flow="wait"] #flowSpeed { display: block; }
-  /* 실험 중에는 말랑이 방의 버튼 · 손잡이 창 · 안내 글을 숨김 */
-  #app.flow-exp #panel, #app.flow-exp #homeBtn, #app.flow-exp #backBtn, #app.flow-exp.mode-play #againBtn, #app.flow-exp #hint { display: none; }
+  /* 실험 중에는 말랑이 방의 버튼 · 손잡이 창 · 안내 글을 숨김.
+     손잡이 창은 「치우지」 않고 「투명 보자기를 덮어」 자리를 남김 → 무대 크기가 그대로라 마시멜로가 자리를 다시 잡지 않음. 덮인 동안은 눌리지도 않음 */
+  #app.flow-exp #panel { visibility: hidden; pointer-events: none; }
+  #app.flow-exp #homeBtn, #app.flow-exp #backBtn, #app.flow-exp.mode-play #againBtn, #app.flow-exp #hint { display: none; }
   /* 큰 버튼이 떠 있을 때 스모어의 「다시 하기」는 오른쪽 위(「원위치」 아래)로 비켜 줌 */
   #app[data-flow="ready"].kind-smore #againBtn { top: 52px; bottom: auto; }
   /* 모음 화면: 다 모았을 때 맨 위 큰 글씨 · 다음 친구 칸의 기다릴 시간 */
@@ -2568,11 +2570,11 @@ function renderAll(t) {
     renderer.setViewport(0, 0, W, H); renderer.clear();
     if (mode === 'list') {
       const u = clamp((t - listPopT0)/POP_IN, 0, 1), pe = 1 - Math.pow(1 - u, 3);
-      listItems.forEach((it, i) => drawItem(it, cells[i], LIST_S*(.82 + .18*pe), t));
+      listItems.forEach((it, i) => drawItem(it, cells[i], LIST_S*(.82 + .18*pe), t));   // FLOW 연결: renderItem → drawItem (못 얻은 종은 실루엣으로)
     } else {
       // 떠오르는 중: 고른 것은 제 칸에서 무대 전체로 커지고, 나머지는 제 칸에서 작아지며 사라짐
       const u = clamp((t - trans.t0)/RISE_DUR, 0, 1), e = u*u*(3 - 2*u);
-      listItems.forEach((it, i) => { const sc = trans.listS*(1 - e); if (i !== trans.i && sc > .02) drawItem(it, trans.from[i], sc, t); });
+      listItems.forEach((it, i) => { const sc = trans.listS*(1 - e); if (i !== trans.i && sc > .02) drawItem(it, trans.from[i], sc, t); });   // FLOW 연결: renderItem → drawItem (사라지는 칸도 실루엣은 실루엣인 채로)
       const a = trans.from[trans.i], r = {x: a.x*(1 - e), y: a.y*(1 - e), w: a.w + (W - a.w)*e, h: a.h + (H - a.h)*e};
       frameCamera(camera, r.w, r.h);
       const s = trans.listS + (trans.finalS - trans.listS)*e;
@@ -2947,6 +2949,7 @@ const FLOW = {
   shrink: .62,       // 실험 중 마시멜로 크기 배수
   failShow: .45,     // 건드린 뒤 「실험 실패」 글자가 뜨기까지(초) — 그동안 깜짝 놀란 얼굴
   arriveShow: .6,    // 새 친구가 통 튀어 나온 뒤 글자 · 버튼이 뜨기까지(초)
+  mainGuard: .45,    // 큰 버튼의 글자(역할)가 바뀐 뒤 이 시간(초) 동안은 누름을 받지 않음 — 톡톡 두 번 누르다 다음 일까지 넘어가지 않게
   labelH: 46, doneH: 64,   // 모음 화면: 기다릴 시간 글자 높이 · 「다 모았습니다」 높이(px)
 };
 const flow = {
@@ -2955,6 +2958,8 @@ const flow = {
   exp: null,                                   // 실험 중이면 {phase, t, kind, next, total, remain, shade}
   k: 1, x: 0, jit: 0,                          // 지금 마시멜로 크기 배수 · 옆으로 비킨 거리 · 깜짝 떨림
   dirty: false, lastSave: 0, lastNow: performance.now(), sig: '', mainKey: '', stored: true,
+  mainAt: -1e9,                                // 큰 버튼 글자가 마지막으로 바뀐 때(ms) — 그 직후의 누름은 받지 않음
+  fingers: new Map(),                          // 손가락 장부: 지금 화면에 닿아 있는 손가락마다 「마시멜로(꼬챙이)에 닿았나」
   cWall: new THREE.Color(0xe7e4dc), cDark: new THREE.Color(0x221e1b), cTmp: new THREE.Color(),
 };
 // 실루엣용 물감 두 통: 속이 꽉 찬 것(실루엣) · 비치는 것(새 친구가 올 때 검은 막이 걷히는 데 씀)
@@ -3029,8 +3034,20 @@ function flowMainPress() {
   const ph = flowPhase(), e = flow.exp;
   if (ph === 'ready') flowStart();
   else if (ph === 'fail' && e.t >= FLOW.failShow) flow.exp = null;                 // 「돌아가기」
-  else if (ph === 'arrive') { flow.exp = null; flow.kind = e.next; selectKind(e.next, false); flowSave(); }   // 「만져 보기」 → 새 친구의 말랑이 방
+  else if (ph === 'arrive') {                                                      // 「만져 보기」 → 새 친구의 말랑이 방
+    flow.exp = null; flow.kind = e.next;
+    // 실험 중의 작은 크기 · 왼쪽 자리를 바로 제자리로 (안 그러면 새 친구가 왼쪽에 작게 나타났다가 미끄러져 옴)
+    flow.k = 1; flow.x = 0; flow.jit = 0; flowHook.viewK = 1; flowHook.viewX = 0;
+    selectKind(e.next, false); flowSave();
+  }
   flowSync();
+}
+// 진짜 버튼 누름이 들어오는 문: 글자(역할)가 막 바뀐 버튼은 잠깐 누름을 받지 않음.
+// 같은 자리의 버튼 하나를 돌려쓰기 때문 — 「돌아가기」를 톡톡 두 번 누르면 둘째 누름이 「친구 데려올까?」가 되어 버림 (도착 → 「만져 보기」도 같은 규칙)
+function flowMainTap() {
+  if (performance.now() - flow.mainAt < FLOW.mainGuard*1000) return false;
+  flowMainPress();
+  return true;
 }
 function flowSetSpeed(n) {
   flow.speed = flow.speedSaved = FLOW.speeds.includes(n) ? n : 1;
@@ -3079,10 +3096,23 @@ flowHook.drawItem = (it, r, sc, t) => {
     s2 = Math.min(sc, flowFit(it.kind, rr.w, rr.h));
   }
   flowSil.color.copy(flow.cDark);
-  listScene.overrideMaterial = flowSil;      // 이 칸만 모든 겉면을 한 가지 색으로 칠해 그림 → 실루엣
-  renderItem(it, rr, s2, t);
-  listScene.overrideMaterial = null;
+  flowDrawSil(it, rr, s2, t);                // 이 칸만 모든 겉면을 한 가지 색으로 칠해 그림 → 실루엣
 };
+// 실루엣 한 번 그리기. 불티 · 가루 같은 「알갱이 묶음」은 알갱이마다 제 색을 갖고 있어 한 가지 색으로 덮어도 그 색이 비쳐 남음
+// → 실루엣을 그리는 동안만 잠깐 숨기고, 그린 뒤 바로 되돌림 (색이 입혀진 진짜 모습에서는 그대로 보임)
+const flowSpeckWas = [];
+function flowSpecks(it) {   // 그 종의 모형에서 알갱이 묶음을 한 번만 찾아 적어 둠
+  if (!it.flowSpecks) { it.flowSpecks = []; it.anchor.traverse(o => { if (o.isInstancedMesh && o.instanceColor) it.flowSpecks.push(o); }); }
+  return it.flowSpecks;
+}
+function flowDrawSil(it, r, sc, t) {
+  const sp = flowSpecks(it);
+  for (let i = 0; i < sp.length; i++) { flowSpeckWas[i] = sp[i].visible; sp[i].visible = false; }
+  listScene.overrideMaterial = flowSil;
+  renderItem(it, r, sc, t);
+  listScene.overrideMaterial = null;
+  for (let i = 0; i < sp.length; i++) sp[i].visible = flowSpeckWas[i];
+}
 // 실험 중: 마시멜로 옆에 다음 친구를 덧그림. 기다릴수록 또렷해지고(진행 표시), 도착하면 색이 입혀지며 통 튐
 flowHook.overlay = t => {
   const e = flow.exp;
@@ -3106,7 +3136,7 @@ flowHook.overlay = t => {
     if (e.phase !== 'fail') e.shade = shade;
     if (shade > .004) {
       flowSil.color.copy(flow.cWall).lerp(flow.cDark, shade);
-      listScene.overrideMaterial = flowSil; renderItem(it, r, sc, t); listScene.overrideMaterial = null;
+      flowDrawSil(it, r, sc, t);
     }
   }
   renderer.setViewport(0, 0, W, H); renderer.autoClear = true;
@@ -3120,6 +3150,45 @@ flowHook.tick = dt => {
 };
 // 기다리는 중에 마시멜로(또는 꼬챙이)를 누르거나 잡으면 실패. 빈 곳을 끌어 돌려 보는 것은 괜찮음
 flowHook.afterDown = () => { if (flow.exp && flow.exp.phase === 'wait' && flowTouching()) { flowFail(); flowSync(); } };
+
+/* ── 손가락 장부: 둘째 손가락 · 「손을 떼세요」 때 남아 있는 손가락 ──
+   디자인 코드는 손가락 하나만 받음(첫 손가락). 그래서 흐름 쪽에서 「지금 화면에 닿아 있는 모든 손가락」을 따로 적어 둠.
+   ① 기다리는 중: 첫 손가락으로 빈 곳을 돌리는 동안 둘째 손가락이 마시멜로(꼬챙이)에 닿아도 실패
+   ② 「손을 떼세요」: 마시멜로 위에 손가락이 하나라도 남아 있으면 기다리기로 안 넘어감 (다 떼면 넘어감)
+   ※ 이 듣는 귀는 디자인 코드의 누르기 입력보다 「뒤에」 달려 있어, 첫 손가락은 디자인 코드가 먼저 판정한 결과를 그대로 받아 적음 */
+// 그 자리(캔버스 px)에 무엇이 있나: 0 = 빈 곳 · 1 = 다른 장식(컵 · 크래커 끝자락 → 돌리기) · 2 = 마시멜로나 꼬챙이.
+// 디자인 코드의 누르기 판정(probe · 12px 여유)과 같은 순서로 보되, 아무것도 누르거나 바꾸지 않고 「보기만」 함
+function flowHitAt(x, y) {
+  const one = (px, py) => {
+    setRay(px, py);
+    let thru = false;
+    for (const h of ray.intersectObjects(hitList, false)) {
+      const o = h.object;
+      if (!o.visible || (o.parent && !o.parent.visible)) continue;      // 부서져 사라진 조각
+      if (o.userData.through) { thru = true; continue; }                // 크래커: 지나쳐서 그 밑의 몸을 봄
+      if (o === body && curKind.bite && hitInBite(h)) continue;         // 베어 먹혀 빈 자리
+      return o === body || o.userData.shake ? 2 : 1;
+    }
+    return thru ? 1 : 0;
+  };
+  let r = one(x, y);
+  for (let k = 0; k < 8 && r === 0; k++) r = one(x + Math.cos(k*Math.PI/4)*EDGE_SLOP, y + Math.sin(k*Math.PI/4)*EDGE_SLOP);
+  return r;
+}
+const flowFingerOn = () => { for (const on of flow.fingers.values()) if (on) return true; return false; };   // 마시멜로 위에 남은 손가락이 있나
+document.addEventListener('pointerdown', e => {
+  if (mode !== 'play' || trans) return;
+  if (e.target && e.target.closest && e.target.closest('#panel, #homeBtn, #backBtn, #againBtn, .flow-ui')) return;   // 버튼을 누른 손가락은 적지 않음
+  const first = activeId === e.pointerId;                                 // 디자인 코드가 방금 받아 준 첫 손가락인가
+  const on = first ? flowTouching() : flowHitAt(...localXY(e)) === 2;
+  flow.fingers.set(e.pointerId, on);
+  if (!first && activeId !== null && on && flow.exp && flow.exp.phase === 'wait') { flowFail(); flowSync(); }   // ① 둘째 손가락이 건드림
+});
+const flowFingerUp = e => { flow.fingers.delete(e.pointerId); };
+document.addEventListener('pointerup', flowFingerUp);
+document.addEventListener('pointercancel', flowFingerUp);
+document.addEventListener('pointermove', e => { if (e.pointerType !== 'touch' && e.buttons === 0) flow.fingers.delete(e.pointerId); });   // 창 밖에서 뗀 마우스 · 펜
+window.addEventListener('blur', () => flow.fingers.clear());              // 다른 창에 다녀오면 장부를 비움 (뗀 것을 못 들었을 수 있어서)
 flowHook.blockInput = () => !!flow.exp && flow.exp.phase !== 'wait';   // 「손을 떼세요」 · 실패 · 도착 알림 중에는 무대를 눌러도 아무 일 없음
 flowHook.blockNav = () => !!flow.exp;                                  // 실험 중에는 모음 화면으로 못 감
 flowHook.canPick = id => flow.owned.includes(id);                      // 모음에서 실루엣은 안 눌림
@@ -3151,7 +3220,7 @@ flowHook.frame = now => {
   const e = flow.exp;
   if (e) {
     e.t += dt;
-    if (e.phase === 'hold' && e.t >= FLOW.holdSec) { e.phase = 'wait'; e.t = 0; }
+    if (e.phase === 'hold' && e.t >= FLOW.holdSec && !flowFingerOn()) { e.phase = 'wait'; e.t = 0; }   // 마시멜로 위에 손가락이 남아 있으면 「손을 떼세요」에 머묾
     else if (e.phase === 'wait') { e.remain -= dt*flow.speed; if (e.remain <= 0) flowArrive(); }
   }
   if (mode === 'play' && !trans) {
@@ -3181,6 +3250,7 @@ function flowSync(force) {
   appEl.dataset.flow = ph;
   appEl.dataset.flowDone = next ? '0' : '1';
   appEl.classList.toggle('flow-exp', !!e && ph !== 'album');
+  if (e && ph !== 'album') { const a = document.activeElement; if (a && a.closest && a.closest('#panel')) a.blur(); }   // 숨긴 손잡이 창에 키보드 초점이 남아 화살표 키로 값이 바뀌지 않게
   $('flowHeartFill').style.width = (flow.heart*100).toFixed(1) + '%';
   // 큰 글씨 · 그 아래 한 줄
   let big = '', sub = '', main = '';
@@ -3194,6 +3264,7 @@ function flowSync(force) {
   const mb = $('flowMain');
   if (main !== flow.mainKey) {       // 버튼 글자가 바뀔 때마다 통 튀어 나오는 움직임을 다시
     flow.mainKey = main; mb.classList.remove('on'); mb.textContent = main;
+    flow.mainAt = performance.now();   // 글자가 바뀐 때를 적어 둠 → 그 직후의 누름은 받지 않음 (flowMainTap)
     if (main) { void mb.offsetWidth; mb.classList.add('on'); }
   }
   $('flowSpeed').textContent = '×' + flow.speed;
@@ -3209,13 +3280,13 @@ function flowSync(force) {
 }
 
 /* ── 버튼 ── */
-$('flowMain').addEventListener('click', flowMainPress);
+$('flowMain').addEventListener('click', flowMainTap);
 $('flowQuit').addEventListener('click', () => { flowQuit(); flowSync(); });
 $('flowSpeed').addEventListener('click', () => {   // ×1 → ×10 → ×60 → ×1 (기다리는 시간만 빨리 감음)
   flowSetSpeed(FLOW.speeds[(FLOW.speeds.indexOf(flow.speed) + 1) % FLOW.speeds.length]); flowSync();
 });
 $('flowResetBtn').addEventListener('click', flowReset);
-document.addEventListener('visibilitychange', () => { flow.lastNow = performance.now(); if (document.hidden && flow.dirty) flowSave(); });
+document.addEventListener('visibilitychange', () => { flow.lastNow = performance.now(); if (document.hidden) flow.fingers.clear(); if (document.hidden && flow.dirty) flowSave(); });
 window.addEventListener('pagehide', () => { if (flow.dirty) flowSave(); });
 
 /* ── 검사용 손잡이 (기존 __SQ_TEST__에 더함) ── */
@@ -3238,6 +3309,10 @@ Object.assign(window.__SQ_TEST__, {
   flowShown(sec = 1) { if (flow.exp) flow.exp.t += Math.max(0, Number(sec) || 0); flowSync(); return flowInfo(); },   // 실패 · 도착 알림의 뜸 들이는 시간을 건너뜀
   flowFriendRect() { const r = flowFriendRect(), c = cv.getBoundingClientRect(); return {x: r.x + c.left, y: r.y + c.top, w: r.w, h: r.h}; },   // 다음 친구가 서는 네모(화면 좌표 px)
   flowShade() { return flow.exp ? flow.exp.shade : 0; },                           // 실루엣 진하기 0(안 보임) ~ 1(검정)
+  // ── 11/11 검수 반영 ──
+  flowView() { return {k: flow.k, x: flow.x}; },                                   // 흐름이 정한 마시멜로 크기 배수 · 옆으로 비킨 거리 (방에서는 1 · 0)
+  flowHitAt(x, y) { return mode === 'play' && !trans ? flowHitAt(x, y) : 0; },     // 그 자리(캔버스 px)에 무엇이 있나: 0 빈 곳 · 1 다른 장식(컵 등) · 2 마시멜로 · 꼬챙이 (보기만 함)
+  flowFingers() { return {count: flow.fingers.size, on: flowFingerOn()}; },        // 손가락 장부: 닿아 있는 손가락 수 · 마시멜로 위에 남은 손가락이 있나
 });
 
 /* ── 시작: 저장을 읽고 곧바로 말랑이 방으로 ── */
