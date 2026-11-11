@@ -1214,7 +1214,7 @@
 
     // 숫자 글자와 자리를 먼저 정한다.
     // 왼쪽 위에 늘(준비 · 도움닫기 · 비행 · 착지) 세 줄: 왕관 + 최고 기록(작게) → 지금 거리 → 지구 + 바퀴 수(한 바퀴 넘은 뒤에만).
-    // 착지(끝) 화면에서만 두 배로: 최고 기록 7칸 · 거리 14칸. 글자 뒤로는 하늘 것(구름 · 새)이 그대로 지나간다
+    // 착지(끝) 화면에서만 두 배로: 최고 기록 7칸 · 거리 14칸. 글자 뒤로 새 · 비행기는 그대로 지나가고, 구름 · 바람 줄만 글자 둘레를 건너뛴다
     drawn.distText = distText(v.dist || 0);
     drawn.bestText = distText(Math.max(best, v.dist || 0)); // 나는 중에 최고 기록을 넘어서면 그 자리에서 같이 올라간다
     drawn.lapText = v.lap > 0 ? String(v.lap) : '';
@@ -1230,14 +1230,18 @@
     const lapY = distY + HUD_DIST_H * bigK + gap;
     const lineBox = (keys, y, k, font) => ({ x: HUD_X, y, w: measure(keys, font).w * k, h: measure(keys, font).h * k });
     drawn.hud = { best: lineBox(bestKeys, HUD_Y, 1, smallFont), dist: lineBox(distKeys, distY, bigK, GLYPHS), lap: lapKeys.length ? lineBox(lapKeys, lapY, 1, smallFont) : null };
-    const skyAt = (x, y, rows, halo) => {
+    // 검수 반영(11/11): 구름과 바람 줄만 글자 둘레(좌우 6칸 · 위아래 2칸)를 건너뛴다 — 숫자 옆에 붙으면 빼기 부호 · 소수점처럼 읽혀서
+    // 기록을 잘못 보게 된다(예: 「807.38km」). 검은 바탕 상자는 그대로 없고, 새 · 비행기는 글자 뒤로 그대로 지나간다
+    const keep = [drawn.hud.best, drawn.hud.dist, drawn.hud.lap].filter(Boolean).map((r) => ({ x: r.x - 6, y: r.y - 2, w: r.w + 12, h: r.h + 4 }));
+    const skyAt = (x, y, rows, halo, avoid) => {
+      if (avoid && keep.some((r) => x < r.x + r.w && r.x < x + rows[0].length && y < r.y + r.h && r.y < y + rows.length)) return;
       if (halo) spriteWithHalo(x, y, rows); else sprite(x, y, rows);
     };
 
     // 높은 구름(가장 느리게): 원래 셋 + 늘어난 하늘에 더 띄운 것들
     const cloudShift = Math.floor(v.scroll * 0.15);
-    CLOUDS.forEach(([home, y, rows]) => { const w = rows[0].length; skyAt(mod(home + w - cloudShift, W + 24) - w, y + oy, rows); });
-    skyClouds.forEach(([home, y, rows]) => { const w = rows[0].length; skyAt(mod(home + w - cloudShift, W + 24) - w, y, rows); });
+    CLOUDS.forEach(([home, y, rows]) => { const w = rows[0].length; skyAt(mod(home + w - cloudShift, W + 24) - w, y + oy, rows, false, true); });
+    skyClouds.forEach(([home, y, rows]) => { const w = rows[0].length; skyAt(mod(home + w - cloudShift, W + 24) - w, y, rows, false, true); });
     // 하늘을 스치는 것들(새 · 비행기 · 인공위성): 오래 날수록 하나씩 더 나온다
     const flyer = (front) => FLYERS.forEach(([frames, y, share, slow, loopLen, from, isFront]) => {
       if (isFront !== front || v.f < from) return;
@@ -1274,6 +1278,7 @@
       for (let i = 0; i < n; i += 1) {
         const len = 5 + (i * 3) % 5, y = WIND_ROWS[i] + oy;
         const x = W + len - Math.floor(mod(v.f * 220 + i * 53, W + 60));
+        if (keep.some((r) => x < r.x + r.w && r.x < x + len && y >= r.y && y < r.y + r.h)) continue; // 글자 둘레의 바람 줄은 건너뜀
         for (let k = 0; k < len; k += 1) dot(x + k, y);
       }
     }
