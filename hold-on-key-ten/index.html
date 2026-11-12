@@ -736,8 +736,8 @@
   }
 
   /* ---------- 게임 버튼: 위 띠 왼쪽 끝, 누른 숫자 칸의 게임으로 바로 간다 ----------
-     비유: TV 리모컨 숫자 버튼. 1 시지프스 · 2 10.00000 · 3 결투 · 4 100m · 5 퍼덕 · 6 멀리뛰기 중 누른 번호로 바로.
-     여섯 게임은 같은 전시장의 옆 폴더라서 「한 칸 위 폴더 → 옆 폴더」 주소로 옮겨 간다.
+     비유: TV 리모컨 숫자 버튼. 1 시지프스 · 2 10.00000 · 3 결투 · 4 100m · 5 퍼덕 · 6 멀리뛰기 · 7 100연승 · 8 무궁화꽃 중 누른 번호로 바로.
+     여덟 게임은 같은 전시장의 옆 폴더라서 「한 칸 위 폴더 → 옆 폴더」 주소로 옮겨 간다.
      이 컴퓨터의 폴더 이름(local)과 인터넷 전시장의 폴더 이름(web)이 달라서 둘 다 적어 두고,
      지금 열린 폴더 이름이 어느 쪽인지 보고 같은 쪽 이름으로 간다.
      키보드 바로 가기는 두지 않는다(100m의 F · J 사이 G처럼, 달리다 스치면 판이 날아가서).
@@ -751,6 +751,8 @@
       { id: '4', name: '100m', local: 'key-100m', web: 'hold-on-key-100m' },
       { id: '5', name: '퍼덕', local: 'key-flap', web: 'hold-on-key-flap' },
       { id: '6', name: '멀리뛰기', local: 'key-leap', web: 'hold-on-key-leap' },
+      { id: '7', name: '100연승', local: 'key-streak', web: 'hold-on-key-streak' },
+      { id: '8', name: '무궁화꽃', local: 'key-redlight', web: 'hold-on-key-redlight' },
     ];
   }
   function gameUrl(id) {
@@ -778,7 +780,7 @@
     const i = Math.max(0, Math.min(list.length - 1, Math.floor((cellX - 3 + 0.5) / (BOX_W + 1))));
     return list[i].id;
   }
-  // 그림: 흰 바탕 · 테두리 안에 1~6, 지금 게임 숫자만 검게 칠한 칸에 흰 글씨
+  // 그림: 흰 바탕 · 테두리 안에 1~8, 지금 게임 숫자만 검게 칠한 칸에 흰 글씨
   function drawGameBtn() {
     const cv = el.gameCanvas, ctx = cv.getContext('2d'), cc = cornerCell(), list = gameList();
     const cols = 3 + list.length * (BOX_W + 1) - 1 + 3;

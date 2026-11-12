@@ -25,7 +25,7 @@
   .body-art { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
   .screen { position: absolute; display: block; image-rendering: pixelated; background: var(--black); }
   .grip { position: absolute; display: block; image-rendering: pixelated; pointer-events: none; }
-  /* 몸통 위 띠의 작은 점 그림 버튼 셋: 왼쪽 = 게임(123456), 오른쪽 = 소리 · 몸통 색 */
+  /* 몸통 위 띠의 작은 점 그림 버튼 셋: 왼쪽 = 게임(12345678), 오른쪽 = 소리 · 몸통 색 */
   .corner-btn {
     position: absolute; top: 10px; padding: 0; margin: 0; border: 0; background: transparent;
     line-height: 0; cursor: pointer; touch-action: none; outline: none;
@@ -1043,8 +1043,8 @@
   }
 
   /* ---------- 게임 버튼: 띠의 왼쪽 끝, 누른 숫자 칸의 게임으로 바로 간다 ----------
-     비유: TV 리모컨 숫자 버튼. 1 시지프스 · 2 10.00000 · 3 결투 · 4 100m · 5 퍼덕 · 6 멀리뛰기 중 누른 번호로 곧장.
-     여섯 게임은 같은 전시장의 옆 폴더라서 「한 칸 위 폴더 → 옆 폴더」 주소로 옮겨 간다.
+     비유: TV 리모컨 숫자 버튼. 1 시지프스 · 2 10.00000 · 3 결투 · 4 100m · 5 퍼덕 · 6 멀리뛰기 · 7 100연승 · 8 무궁화꽃 중 누른 번호로 곧장.
+     여덟 게임은 같은 전시장의 옆 폴더라서 「한 칸 위 폴더 → 옆 폴더」 주소로 옮겨 간다.
      이 컴퓨터의 폴더 이름(local)과 인터넷 전시장의 폴더 이름(web)이 달라서 둘 다 적어 두고,
      지금 열린 폴더 이름이 어느 쪽인지 보고 같은 쪽 이름으로 간다.
      키보드 바로 가기는 두지 않는다(100m의 F · J 사이 G처럼, 달리다 스치면 판이 날아가서).
@@ -1058,6 +1058,8 @@
       { id: '4', name: '100m', local: 'key-100m', web: 'hold-on-key-100m' },
       { id: '5', name: '퍼덕', local: 'key-flap', web: 'hold-on-key-flap' },
       { id: '6', name: '멀리뛰기', local: 'key-leap', web: 'hold-on-key-leap' },
+      { id: '7', name: '100연승', local: 'key-streak', web: 'hold-on-key-streak' },
+      { id: '8', name: '무궁화꽃', local: 'key-redlight', web: 'hold-on-key-redlight' },
     ];
   }
   function gameUrl(id) {
@@ -1078,7 +1080,7 @@
     location.replace(url);
     return true;
   }
-  // 그림: 테두리 안에 1~6, 지금 게임 숫자만 검게 칠한 칸에 흰 글씨(칸 수 = 게임 목록 길이)
+  // 그림: 테두리 안에 1~8, 지금 게임 숫자만 검게 칠한 칸에 흰 글씨(칸 수 = 게임 목록 길이)
   const GAME_BOX_W = 7, GAME_BOX_H = 9;                // 글자 한 칸 상자(글자 5×7 + 둘레 한 칸)
   function gameCols() { return 3 + gameList().length * (GAME_BOX_W + 1) - 1 + 3; }
   function drawGameBtn(gb) {
