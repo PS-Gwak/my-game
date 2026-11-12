@@ -1968,10 +1968,10 @@ function applyView() {
   // 장식이 큰 종(컵 · 크래커 · 꼬챙이)은 장식까지 화면에 들어오게 그만큼 더 봄. 생은 v4와 같은 값(배수 1)
   const ex = curKind.ext;
   view.fit = clamp(Math.min((camHH*.96 - .135)/(P.scale*hEff*1.25*(ex.hy/.5)), camHW*.985/(P.scale*.59*(ex.w/.55))), .3, 1);
-  const s = P.scale*view.fit*(flowHook.viewK || 1);   // FLOW 연결: 흐름이 정한 크기 배수 (v2: 실험 중에도 그대로 · 성공 때 바뀌는 순간만 줄었다 커짐)
+  const s = P.scale*view.fit*(flowHook.viewK || 1);   // FLOW 연결: 흐름이 정한 크기 배수 (실험 중 무대가 낮으면 줄어듦 · 성공 때 바뀌는 순간 줄었다 커짐)
   anchor.scale.setScalar(s);
-  anchor.position.x = flowHook.viewX || 0;            // FLOW 연결: 흐름이 정한 옆자리 (v2: 늘 가운데 · 실패 순간의 부르르만)
-  anchor.position.y = CY*(1 - s) + floatY - (flowHook.viewY || 0);      // 크기를 바꿔도 몸 한가운데는 같은 자리. FLOW 연결: 키 큰 종은 실험 중 위쪽 글을 피해 그만큼 내려 섬
+  anchor.position.x = flowHook.viewX || 0;            // FLOW 연결: 흐름이 정한 옆자리 (늘 가운데 · 실패 순간의 부르르만)
+  anchor.position.y = CY*(1 - s) + floatY - (flowHook.viewY || 0);      // 크기를 바꿔도 몸 한가운데는 같은 자리. FLOW 연결: 실험 중 위쪽 글 · 말풍선 자리를 피해 그만큼 내려 섬
   pivot.rotation.set(view.pitch, view.yaw + (flowHook.viewYaw || 0), 0, 'XYZ');   // 세로축으로 돌린 뒤 앞뒤로 기울임. FLOW 연결: 기다리는 동안 혼자 도는 각도(viewYaw)를 손으로 돌린 각도 위에 얹음 (0이면 예전과 같음)
   scene.updateMatrixWorld(true);
 }
@@ -2551,7 +2551,7 @@ function advance(dt) {
     curKind.face({lx: lookX, ly: lookY, blink, blush: glow, smile: smileOf(glow), touch: glow > TOUCH_AT, t}, faceCtx);
     faceTex.needsUpdate = true;
   }
-  if (flowHook.tick) flowHook.tick(dt);   // FLOW 연결: 만지는 동안 하트 채우기
+  if (flowHook.tick) flowHook.tick(dt);   // FLOW 연결: 만지는 동안 실험 게이지 채우기
 }
 function smileOf(g) { return g*g*(3 - 2*g); }   // 미소는 홍조보다 조금 늦게 올라왔다 조금 먼저 사라짐
 
@@ -2591,7 +2591,7 @@ let LIST_S = 1.2, listPopT0 = 0;
 // 칸 나누기: 폰 세로 = 2열 × 3행, 넓은 화면 = 3열 × 2행. 크기는 여섯 종 모두 같게 (장식이 가장 큰 종이 칸에 들어가는 크기)
 function layoutCells(w, h) {
   const cols = (wideMQ.matches || w > h*1.05) ? 3 : 2, rows = 6/cols, pad = 4;
-  const top = flowHook.listTop ? flowHook.listTop() : 0;   // FLOW 연결: 모음 화면 맨 위에 큰 글씨가 뜰 때 그만큼 칸을 내림
+  const top = flowHook.listTop ? flowHook.listTop() : 0;   // FLOW 연결: 메뉴판 화면 맨 위 한 줄(「돌아가기」 · 「다 모았습니다」)만큼 칸을 내림
   const cw = (w - pad*2)/cols, ch = (h - pad*2 - top)/rows;
   cells.forEach((c, i) => { c.x = pad + (i % cols)*cw; c.y = pad + top + Math.floor(i/cols)*ch; c.w = cw; c.h = ch; });
   const f = frameCamera(cellCam, cw, ch);
@@ -2680,7 +2680,7 @@ function renderAll(t) {
     return;
   }
   renderer.render(scene, camera);
-  if (flowHook.overlay) flowHook.overlay(t);   // FLOW 연결: 덧그리기 자리 (v2: 기다리는 화면의 실루엣을 빼서 지금은 걸린 것이 없음)
+  if (flowHook.overlay) flowHook.overlay(t);   // FLOW 연결: 덧그리기 자리 (기다리는 화면의 실루엣을 빼서 지금은 걸린 것이 없음)
 }
 
 // 만지던 상태를 모두 처음으로 (다른 종을 고르거나 다시 고를 때 깨끗하게 시작)
@@ -2720,6 +2720,7 @@ function selectKind(id, animate) {
   if (from) {
     const cr = cv.getBoundingClientRect();
     trans = {i: k.i, t0: tNow, listS: listS0, finalS: anchor.scale.x, from: from.map(r => ({x: r.x - cr.left, y: r.y - cr.top, w: r.w, h: r.h}))};
+    if (flowHook.riseFrom) flowHook.riseFrom(trans);   // FLOW 연결: 떠오르기의 출발 네모 · 출발 크기를 메뉴판에서 보이던 그림(이름표 자리를 비우고 줄여 그린 것)에 맞춤
     // 목록에서 보이던 모습에서 이어지게: 숨쉬기 박자 · 살짝 돈 각도를 그대로 넘겨받고, 각도는 부드럽게 정면으로
     simTime = tNow*it.rate + it.ph/BODY.breath[0]; blinkStart = -9; nextBlink = simTime + 1.5;
     view.yaw = it.yaw; view.homing = true; applyView();
@@ -2730,7 +2731,7 @@ function selectKind(id, animate) {
 // 목록으로 돌아가기
 function back() {
   if (mode !== 'play') return false;
-  if (flowHook.blockNav && flowHook.blockNav()) return false;   // FLOW 연결: 실험 중에는 모음 화면으로 못 감 (Esc 포함)
+  if (flowHook.blockNav && flowHook.blockNav()) return false;   // FLOW 연결: 실험 중 · 초대권이 떠 있는 중에는 메뉴판 화면으로 못 감 (Esc 포함)
   if (press.down) pointerUp();
   activeId = null;
   trans = null; mode = 'list'; listPopT0 = performance.now()/1000;
@@ -2761,7 +2762,7 @@ document.addEventListener('pointerdown', e => {
     return;
   }
   if (trans) { e.preventDefault(); return; }   // 떠오르는 동안에는 만지지 않음
-  if (flowHook.blockInput && flowHook.blockInput()) { e.preventDefault(); return; }   // FLOW 연결: 팝업 · 「손을 떼세요」 · 실패 · 성공 알림 중에는 만지지 않음
+  if (flowHook.blockInput && flowHook.blockInput()) { e.preventDefault(); return; }   // FLOW 연결: 초대권 · 「손을 떼세요」 · 실패 · 성공 알림 중에는 만지지 않음
   activeId = e.pointerId;
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
   pointerDown(...localXY(e)); e.preventDefault();
@@ -3049,7 +3050,7 @@ const FLOW = {
   words: {album: '메뉴판', home: '제자리', back: '돌아가기', unknown: '???', warn: '마시멜로를 건드리면 실험 실패'},
   // 기다리는 동안의 말풍선: show초 보이고 rest초 쉼, 차례대로 한 줄씩(같은 말이 연달아 나오지 않음). 남은 시간이 lastSec초 아래면 last 만
   // 대사는 「건드리고 싶게 꾀는 말」과 「마시멜로 토막 지식(널리 알려진 것만)」을 섞어 둠
-  say: {show: 4, rest: 2, lastSec: 3, last: '…', lines: [
+  say: {show: 4, rest: 2, lastSec: 3, minShow: 2, last: '…', lines: [
     '날 만져', '아니, 만지지 마', '마시멜로는 원래 풀 이름이에요', '아니, 꼭 만져', '건들지 말아 줘. 부탁할게',
     '옛날엔 뿌리즙으로 만들었대요', '지금이야', '아무도 안 봐', '구우면 겉만 바삭해져요', '한 번만',
     '요즘은 젤라틴으로 굳혀요', '진짜 안 만질 거야?', '코코아에 띄우면 녹아요', '…참는 중이구나',
@@ -3063,8 +3064,10 @@ const FLOW = {
   swapAt: .2,        // 성공 뒤 이 시간(초) 동안 작게 줄어든 다음, 그 순간 새 마시멜로로 바꿔 통 튀어 커짐 (합쳐서 0.4초쯤)
   mainGuard: .45,    // 큰 버튼의 글자(역할)가 바뀐 뒤 이 시간(초) 동안은 누름을 받지 않음 — 톡톡 두 번 누르다 다음 일까지 넘어가지 않게
   askGuard: .45,     // 초대권이 뜬 뒤 이 시간(초) 동안은 「예」 · 「아니요」가 안 눌림 — 연달아 누르던 손가락이 그대로 답해 버리지 않게
-  top: {skewer: 1.3},   // 키 큰 종의 「맨 위」 높이(몸 한가운데에서 위로, 몸 자체 단위 — 불 1.0 + 불티 여유). 안 적힌 종은 그 종의 세로 절반(ext.hy)을 씀
+  top: {skewer: 1.3, smore: .62, chocopie: .46},   // 키 큰 종의 「맨 위」 높이(몸 한가운데에서 위로, 몸 자체 단위 — 불 1.0 + 불티 여유). 안 적힌 종은 그 종의 세로 절반(ext.hy)을 씀
+  rad: {smore: .8, chocopie: .8},   // 넓고 둥근 종의 반지름(몸 단위): 기울였을 때 뒤쪽 테두리가 위로 올라오는 몫을 재는 데 씀. 안 적힌 종은 가로 절반과 0.6 중 작은 쪽
   topGap: 14,        // 위쪽 글(말풍선 자리 포함) 아래 끝과 마시멜로 맨 위 사이에 둘 틈(px) — 말풍선 끝을 눌러도 마시멜로에 닿지 않을 만큼
+  botGap: 8,         // 실험 중 마시멜로 맨 아래와 무대 바닥 사이에 둘 틈(px) — 낮은 화면에서 아래가 잘리지 않게
   barH: 56,          // 메뉴판 화면 맨 위 한 줄(「돌아가기」 · 「다 모았습니다」)의 높이(px)
   infoH: 58, infoH2: 80, narrowW: 130,   // 메뉴판 칸 아래 이름표 높이(px) · 칸 폭이 narrowW보다 좁으면(이름이 두 줄) infoH2
 };
@@ -3075,6 +3078,7 @@ const flow = {
   ask: null,                                   // 초대권이 떠 있으면 {at: 뜬 때(ms)}
   say: {on: false, text: '', t: 0, c: -1, i: -1},                     // 말풍선: 보이나 · 글 · 기다린 시간(초) · 지금 몇째 차례 · 대사 번호(실험이 바뀌어도 이어 감)
   act: {kind: '', off: 0, env: 0, clock: 0, next: 0, spinT: -1, spins: 0},   // 혼자 움직임: 종 · 지금 얹은 각도 · 갸웃 세기 0~1 · 시계 · 다음 바퀴 때 · 도는 중이면 0부터 흐른 초(아니면 -1) · 돈 횟수
+  vtKey: '', vt: [1, 0],                       // 실험 중 자리 잡기: 마지막으로 푼 조건 · 그 답(크기 배수 · 내려 설 거리)
   fitKey: '', fitRatio: 1, cards: [],          // 메뉴판: 이름표 자리를 비운 만큼 그림을 줄이는 비율(칸 크기별로 기억) · 칸마다의 이름표 요소
   k: 1, x: 0, jit: 0, pop: 1,                  // 지금 마시멜로 크기 배수 · 옆으로 비킨 거리 · 깜짝 떨림 · 성공 때 줄었다 커지는 배수
   y: 0, textBottom: 0, tbW: 0, tbH: 0,         // 아래로 내려 선 거리(무대 단위) · 위쪽 글 상자의 아래 끝(무대 위에서 px) · 그것을 잰 때의 무대 크기
@@ -3174,7 +3178,10 @@ function flowTapAt(key) {
   flow[key] = 0;
   return down > 0 && now - down < 1500 ? down : now;
 }
-function flowQuit() { flow.exp = null; }   // 실패 없이 말랑이 방으로 (게이지는 그대로)
+function flowQuit() {                      // 실패 없이 말랑이 방으로 (게이지는 그대로). 빈 곳을 잡고 돌리던 손가락이 있으면 놓은 것으로 침
+  if (press.down) { pointerUp(); activeId = null; }
+  flow.exp = null;
+}
 function flowFail() {
   const e = flow.exp;
   if (!e || e.phase !== 'wait') return;
@@ -3277,10 +3284,17 @@ function flowCellRatio(w, h, ih) {
 flowHook.drawItem = (it, r, sc, t) => {
   const id = it.kind.id, ih = flowInfoH(r.w);
   const rr = {x: r.x, y: r.y, w: r.w, h: Math.max(30, r.h - ih)};
-  const s2 = sc*flowCellRatio(r.w, r.h, ih);
+  const s2 = trans ? sc : sc*flowCellRatio(r.w, r.h, ih);   // 떠오르는 중에는 넘겨받은 크기가 이미 줄인 값(riseFrom)
   if (flow.owned.includes(id)) { renderItem(it, rr, s2, t); return; }
   flowSil.color.copy(flow.cDark);
   flowDrawSil(it, rr, s2, t);                // 이 칸만 모든 겉면을 한 가지 색으로 칠해 그림 → 실루엣
+};
+// 메뉴판 칸에서 방으로 떠오르기 시작할 때: 출발 네모 · 출발 크기를 「이름표 자리를 비우고 줄여 그린」 메뉴판 그림과 똑같이 맞춤
+// → 첫 순간에 그림이 툭 커지며 내려앉지 않고, 보이던 그 자리 · 그 크기에서 이어서 떠오름
+flowHook.riseFrom = tr => {
+  const a = tr.from[tr.i], ih = flowInfoH(a.w);
+  tr.listS *= flowCellRatio(a.w, a.h, ih);
+  tr.from[tr.i] = {x: a.x, y: a.y, w: a.w, h: Math.max(30, a.h - ih)};
 };
 // 실루엣 한 번 그리기. 불티 · 가루 같은 「알갱이 묶음」은 알갱이마다 제 색을 갖고 있어 한 가지 색으로 덮어도 그 색이 비쳐 남음
 // → 실루엣을 그리는 동안만 잠깐 숨기고, 그린 뒤 바로 되돌림 (색이 입혀진 진짜 모습에서는 그대로 보임)
@@ -3304,8 +3318,9 @@ function flowDrawSil(it, r, sc, t) {
 function flowSayStep(dt) {
   const s = flow.say, C = FLOW.say, e = flow.exp;
   if (!e || e.phase !== 'wait') { s.on = false; s.t = 0; s.c = -1; return; }
-  if (e.remain < C.lastSec) { s.on = true; s.text = C.last; s.t += dt; return; }
   const T = C.show + C.rest, c = Math.floor(s.t/T);
+  // 곧 끝남(실제 시계로 남은 초 = 남은 시간 ÷ 빠르기) → 「…」. 다만 방금 뜬 대사는 minShow초는 보여 준 뒤에 바꿈
+  if (e.remain/flow.speed < C.lastSec && !(s.on && s.text !== C.last && c === s.c && s.t - c*T < C.minShow)) { s.on = true; s.text = C.last; s.t += dt; return; }
   if (c !== s.c) { s.c = c; s.i = (s.i + 1) % C.lines.length; s.text = C.lines[s.i]; }   // 새 차례 = 다음 대사
   else if (s.text === C.last) s.text = C.lines[Math.max(0, s.i)];                        // 「…」에서 돌아왔으면(남은 시간이 다시 늘어난 경우) 하던 대사로
   s.on = s.t - c*T < C.show;
@@ -3318,18 +3333,26 @@ function flowActClear() {
   if (a.off !== 0) { a.off = 0; flowHook.viewYaw = 0; if (mode === 'play' && !trans) applyView(); }
 }
 // 혼자 하는 움직임: 기다리는 동안 좌우로 갸웃거리다가 가끔 제자리에서 한 바퀴 빙글. 손으로 돌린 각도(view.yaw)는 건드리지 않고 그 위에 얹기만 함.
-// 사람이 빈 곳을 잡고 돌리는 동안에는 멈춤(사람 손이 먼저). 기다리기가 끝나면 돌던 바퀴는 마저 돌고 갸웃은 스르르 가라앉음. 돌려주는 값 = 각도가 바뀌었나
+// 사람이 빈 곳을 잡고 돌리는 동안에는 멈춤(사람 손이 먼저). 기다리기가 끝나면(실패 · 그만두기 · 성공) 돌던 바퀴를 마저 돌지 않고
+// 가까운 정면 쪽으로 얼른(0.2초 안) 되돌림 — 놀란 얼굴 대신 등이 보이거나, 방에 돌아와서도 계속 도는 일이 없게. 돌려주는 값 = 각도가 바뀌었나
 function flowActStep(dt) {
   const a = flow.act, C = FLOW.act, e = flow.exp;
   const here = mode === 'play' && !trans;
   if (!here || a.kind !== curKind.id) { flowActClear(); a.kind = here ? curKind.id : ''; if (!here) return false; }
   const inWait = !!e && e.phase === 'wait';
-  if (!inWait && a.env === 0 && a.spinT < 0) { a.clock = 0; a.next = C.first; return false; }   // 쉬는 중
+  if (!inWait) {
+    a.env = 0; a.spinT = -1; a.clock = 0; a.next = C.first;
+    if (a.off === 0) return false;                                                              // 쉬는 중
+    const goal = Math.PI*2*Math.round(a.off/(Math.PI*2));                                       // 가까운 정면(한 바퀴 = 정면과 같은 모습)
+    let off = goal + (a.off - goal)*Math.exp(-dt*25);
+    if (dt <= 0 || Math.abs(off - goal) < .01) off = 0;                                         // 다 돌아왔으면 0으로 (한 바퀴째든 0이든 같은 모습)
+    a.off = flowHook.viewYaw = off;
+    return true;
+  }
   if (press.down && press.rotating) return false;                                               // 사람이 돌리는 중
   a.clock += dt;
-  a.env += ((inWait ? 1 : 0) - a.env)*(1 - Math.exp(-dt*5));
-  if (!inWait && a.env < .01) a.env = 0;
-  if (inWait && a.spinT < 0 && a.clock >= a.next) a.spinT = 0;                                  // 한 바퀴 시작
+  a.env += (1 - a.env)*(1 - Math.exp(-dt*5));
+  if (a.spinT < 0 && a.clock >= a.next) a.spinT = 0;                                            // 한 바퀴 시작
   let spin = 0;
   if (a.spinT >= 0) {
     a.spinT += dt;
@@ -3412,27 +3435,53 @@ function flowMeasureTop() {
 // 지금 단계에 맞는 마시멜로 크기 배수 · 옆으로 비킬 거리 · 아래로 내려 설 거리(무대 단위)
 function flowViewTarget() {
   if (mode !== 'play') return [1, 0, 0];
-  const ph = flowPhase(), ex = curKind.ext;
-  const halfH = P.scale*view.fit*ex.hy;   // 장식까지 합친 세로 절반(무대 좌표)
-  const H = Math.max(1, cv.clientHeight), ppu = H/(2*camHH);
-  let k = 1, x = 0, y = 0;    // 실험 중에도 옆으로 비키지 않음 — 만지던 마시멜로가 가운데 줄에
-  if (ph === 'fail' || ph === 'arrive') { // 아래쪽 큰 버튼(「돌아가기」 · 「만져 보기」)과 겹치지 않게 (낮은 화면에서만 실제로 줄어듦)
-    k = Math.min(k, Math.max(.3, ((H/2 - 76)/ppu - .16)/Math.max(.1, halfH)));
+  const ph = flowPhase();
+  if (!flow.exp) return [1, 0, 0];           // 방에서는 만지던 크기 · 자리 그대로
+  // 실험 중: 마시멜로가 「위쪽 글 상자(남은 시간 · 한 줄 · 말풍선 자리) 아래 ~ 무대 바닥(버튼이 뜨는 단계는 버튼 위)」 사이에 들어오게 자리를 잡음.
+  // 넉넉하면 그대로, 맨 위가 글에 닿으면 내려 서고, 그래도 바닥을 넘으면 그만큼만 줄임. 옆으로는 비키지 않음(가운데 줄).
+  // 자리는 어림셈이 아니라 「화면에 실제로 비칠 자리」를 재서 정함 → 무대가 낮아도 아래가 잘리지 않고, 빈 곳을 끌어 앞뒤로 기울여도 말풍선 자리로 올라오지 않음
+  if (flow.tbW !== cv.clientWidth || flow.tbH !== cv.clientHeight) flowMeasureTop();
+  const H = Math.max(1, cv.clientHeight), btn = ph === 'fail' || ph === 'arrive';
+  const key = [curKind.id, btn, Math.round(flow.textBottom), cv.clientWidth, H, Math.round(view.pitch*100), P.scale, view.fit.toFixed(3)].join('|');
+  if (key !== flow.vtKey) {                  // 달라졌을 때만 다시 풂 (매 프레임 재지 않음)
+    flow.vtKey = key;
+    flow.vt = flowSolve(flow.textBottom > 0 ? flow.textBottom + FLOW.topGap : 0, H - (btn ? 76 : FLOW.botGap));
   }
-  // 실험 중: 마시멜로 맨 위(꼬치구이는 불 · 불티까지)가 위쪽 글 상자(남은 시간 · 한 줄 · 말풍선 자리) 아래 끝보다 조금 아래에 오게 내려 섬.
-  // 먼저 「글 아래 ~ 바닥(버튼이 뜨는 단계는 버튼 위)」 사이에 들어가는지 보고, 안 들어가는 만큼만 줄인 뒤, 맨 위가 글 밑에 닿을 만큼만 내림 (넉넉하면 그대로)
-  const T = FLOW.top[curKind.id] || ex.hy;
-  if (flow.exp) {
-    if (flow.tbW !== cv.clientWidth || flow.tbH !== cv.clientHeight) flowMeasureTop();
-    if (flow.textBottom > 0) {
-      const u = P.scale*view.fit, pad = .05;                              // 몸 자체 단위 → 무대 단위 · 둥실 떠다니는 여유
-      const topLine = (flow.textBottom + FLOW.topGap)/ppu;                // 맨 위가 넘지 말아야 할 줄 (무대 위에서)
-      const botLine = (H - (ph === 'fail' || ph === 'arrive' ? 76 : 12))/ppu;   // 맨 아래(꼬챙이 끝)가 넘지 말아야 할 줄
-      k = Math.min(k, Math.max(.3, (botLine - topLine - 2*pad)/(u*(T + ex.hy))));
-      y = Math.max(0, topLine + pad + k*u*T - H/2/ppu);
-    }
+  return [flow.vt[0], 0, flow.vt[1]];
+}
+// 지금 종을 크기 배수 k · 내려 선 거리 yDown(무대 단위)으로 놓으면 화면에서 세로로 어디부터 어디까지 비치나(캔버스 px).
+// 종의 겉 상자(폭 · 맨 위 · 맨 아래)의 윗테 · 아랫테에 점을 둥글게 찍어 카메라로 비춰 봄 — 지금 앞뒤 기울기도 넣고, 좌우로 도는 것과는 상관없게(둥글게 찍으므로)
+function flowSpan(k, yDown) {
+  const ex = curKind.ext, T = FLOW.top[curKind.id] || ex.hy, R = FLOW.rad[curKind.id] || Math.min(ex.w, .6);
+  const s = P.scale*view.fit*k, cp = Math.cos(view.pitch), sp = Math.sin(view.pitch), H = Math.max(1, cv.clientHeight);
+  const ay = CY*(1 - s) - yDown;
+  let top = Infinity, bot = -Infinity;
+  for (const [rk, hk] of [[.75, 1], [1, .6]]) for (const h of [T*hk, -ex.hy*hk]) for (let i = 0; i < 8; i++) {   // 모서리가 둥근 몫을 봐서 「조금 안쪽 테 + 끝 높이」 · 「바깥 테 + 조금 낮은 높이」
+    const a = i*Math.PI/4, x = R*rk*Math.cos(a), z = R*rk*Math.sin(a);
+    tmpV.set(s*x, ay + s*(CY + h*cp - z*sp), s*(h*sp + z*cp)).project(camera);
+    const py = (1 - tmpV.y)/2*H;
+    if (py < top) top = py;
+    if (py > bot) bot = py;
   }
-  return [k, x, y];
+  return {top, bot};
+}
+// 맨 위가 topPx 아래, 맨 아래가 botPx 위에 오게 하는 크기 배수 · 내려 설 거리를 찾음 (둥실 떠다니는 몫만큼 여유를 더 둠)
+function flowSolve(topPx, botPx) {
+  let k = 1, y = 0;
+  const g = Math.max(1, (flowSpan(1, .2).top - flowSpan(1, 0).top)/.2);   // 한 단위 내려 서면 화면에서 몇 px 내려가나
+  const pad = FLOAT.amp*g + 2;
+  topPx += pad; botPx -= pad;
+  for (let i = 0; i < 10; i++) {
+    const m = flowSpan(k, y), under = topPx - m.top, over = m.bot - botPx;
+    if (under <= .5 && over <= .5) break;
+    const span = m.bot - m.top, room = botPx - topPx;
+    if (span > room) k = Math.max(.3, k*room/span*.98);                  // 통째로 안 들어감 → 줄임
+    else if (under > .5) y += under/g;                                    // 맨 위가 글에 닿음 → 내려 섬
+    else if (y > 0) y = Math.max(0, y - over/g);                          // 너무 내려섰음 → 올림
+    else { const c = (m.top + m.bot)/2; k = Math.max(.3, k*(botPx - c)/Math.max(1, m.bot - c)*.98); }   // 제자리인데 바닥(버튼)을 넘음 → 줄임
+    if (k <= .3 && i > 5) break;
+  }
+  return [k, y];
 }
 // 매 프레임: 실험 시간 흘리기(화면이 가려지면 멈춤) → 마시멜로 크기 · 자리 → 화면 글자
 flowHook.frame = now => {
@@ -3474,7 +3523,7 @@ function flowSync(force) {
   let cell = '';
   if (ph === 'album') { const a = cells[0], b = cells[cells.length - 1]; cell = [a.x, a.y, a.w, a.h, b.x, b.y].map(Math.round).join(','); }   // 칸 자리가 바뀌면 이름표도 다시 놓음
   const say = ph === 'wait' && flow.say.on ? flow.say.text : '';
-  const sig = [ph, Math.round(flow.heart*200), remain, flow.speed, next, flow.owned.length, shown, cell, e ? e.next : '', say].join('|');
+  const sig = [ph, Math.round(flow.heart*200), remain, flow.speed, next, flow.owned.length, shown, cell, e ? e.next : '', say, !!trans].join('|');
   if (!force && sig === flow.sig) return;
   if (ph !== flow.sig.split('|')[0]) flowColors();   // 단계가 바뀔 때 바탕색(밝은 · 어두운 화면)을 다시 읽음
   flow.sig = sig;
@@ -3483,8 +3532,8 @@ function flowSync(force) {
   appEl.classList.toggle('flow-exp', !!e && ph !== 'album');
   if (e && ph !== 'album') { const a = document.activeElement; if (a && a.closest && a.closest('#panel')) a.blur(); }   // 숨긴 손잡이 창에 키보드 초점이 남아 화살표 키로 값이 바뀌지 않게
   $('flowHeartFill').style.width = (flow.heart*100).toFixed(1) + '%';
-  // 실험병 알림: 게이지가 가득 차 있으면 느낌표가 붙고 통통 튐 (그때만 눌림)
-  const inv = $('flowInvite'), invOn = ph === 'ready' || ph === 'ask';
+  // 실험병 알림: 게이지가 가득 차 있으면 느낌표가 붙고 통통 튐 (그때만 눌림). 메뉴판에서 막 떠오르는 동안에는 눌러도 못 여니 붙이지 않음
+  const inv = $('flowInvite'), invOn = (ph === 'ready' || ph === 'ask') && !trans;
   if (inv.classList.contains('on') !== invOn) { inv.classList.toggle('on', invOn); inv.tabIndex = invOn ? 0 : -1; }
   // 큰 글씨 · 그 아래 한 줄
   let big = '', sub = '', main = '';
@@ -3581,6 +3630,21 @@ Object.assign(window.__SQ_TEST__, {
     const p = projectPx(playDeco.flame.group.localToWorld(tmpV.set(0, -.01 + .30*(.65 + .65*sk.fire)*1.23, 0)));
     return {y: p.y, textBottom: flow.textBottom};
   },
+  // 실험 중 자리 잡기가 본 세로 범위(캔버스 px): 지금 크기 · 자리로 놓은 종의 겉 상자 맨 위 · 맨 아래, 위쪽 글 아래 끝, 무대 높이
+  flowBox() { const m = mode === 'play' ? flowSpan(flow.k, flow.y) : {top: 0, bot: 0}; return {top: m.top, bot: m.bot, textBottom: flow.textBottom, H: cv.clientHeight}; },
+  // 지금 화면에 비친 「몸」의 실제 네모(캔버스 px): 몸 겉면의 점을 하나하나 비춰서 잼(눌림 · 기울기 · 돌기 반영). 꼬치구이는 꼬챙이 맨 아래 · 불 맨 위까지. 컵 같은 다른 장식은 빠짐
+  flowBodyRect() {
+    if (mode !== 'play' || trans) return null;
+    scene.updateMatrixWorld(true);
+    let x = Infinity, y = Infinity, r = -Infinity, b = -Infinity;
+    const add = p => { if (p.x < x) x = p.x; if (p.x > r) r = p.x; if (p.y < y) y = p.y; if (p.y > b) b = p.y; };
+    for (let v = 0; v < NW; v++) { const a = v*3; add(toScreen(pos[a], pos[a + 1], pos[a + 2])); }
+    if (curKind.id === 'skewer') { add(stickPx(0)); const f = this.flowFireTop(); if (f) add({x: (x + r)/2, y: f.y}); }
+    return {x, y, r, b};
+  },
+  // 메뉴판 칸의 그림이 실제로 그려지는 네모(캔버스 px)와 크기 배수 · 지금 떠오르는 중이면 그 출발 네모와 출발 크기 (둘이 같아야 이어져 보임)
+  flowCellDraw(id) { const c = cells[KIND_BY_ID[id].i], ih = flowInfoH(c.w); return {x: c.x, y: c.y, w: c.w, h: Math.max(30, c.h - ih), s: LIST_S*flowCellRatio(c.w, c.h, ih)}; },
+  flowRise() { return trans ? {...trans.from[trans.i], s: trans.listS, kind: KIND_IDS[trans.i]} : null; },
   flowHitAt(x, y) { return mode === 'play' && !trans ? flowHitAt(x, y) : 0; },     // 그 자리(캔버스 px)에 무엇이 있나: 0 빈 곳 · 1 다른 장식(컵 등) · 2 마시멜로 · 꼬챙이 (보기만 함)
   flowFingers() { return {count: flow.fingers.size, on: flowFingerOn()}; },        // 손가락 장부: 닿아 있는 손가락 수 · 마시멜로 위에 남은 손가락이 있나
 });
