@@ -86,7 +86,7 @@
     horizonY: 40,         // 지평선 높이
     canopyTopY: 29,       // 나무 잎 덩이 맨 윗줄(그 위는 게임 글자 자리)
     trunkTopY: 38,        // 나무 줄기가 시작하는 줄(잎 덩이 바로 아래)
-    bangTopY: 29,         // 「!」 맨 윗줄
+    bangTopY: 30,         // 「!」 맨 윗줄(위쪽 글자 상자와 두 칸 띄운다). 맨 아랫줄은 지평선에 걸친다
     bangGap: 3,           // 잎 덩이 오른쪽 끝에서 「!」 왼쪽 끝까지(사이에 빈칸 2칸)
     meFootY: 95,          // 내 발이 닿는 줄(화면 맨 아래)
     nearPower: 1.55,      // 가까운 정도 = (거리 ÷ 100) ^ 이 값
@@ -131,8 +131,8 @@
 
   // ───────────────────────── 그림 자료('#' = 흰 점, 줄 길이는 그림마다 모두 같게) ─────────────────────────
   const ART = {
-    // 「!」: 술래 오른쪽 옆 하늘에 흰색으로(크기는 언제나 그대로)
-    bang: ['.##.', '####', '####', '####', '####', '.##.', '.##.', '....', '.##.', '.##.'],
+    // 「!」: 술래 오른쪽 옆 하늘에 흰색으로 굵게(크기는 언제나 그대로) — 위 막대 6×7칸 · 빈 한 줄 · 아래 점 6×3칸
+    bang: ['.####.', '######', '######', '######', '######', '######', '.####.', '......', '.####.', '######', '.####.'],
 
     // 나무 잎 덩이(단계별, 높이는 모두 9줄): 윤곽선 + 안쪽 잎사귀 줄 몇 개
     canopy: [
@@ -581,7 +581,9 @@
     // 「!」: 잎 덩이 오른쪽 끝에서 bangGap칸 떨어진 하늘에 흰색으로(술래 크기가 바뀌면 자리만 따라간다)
     if (L.bang) {
       const left = L.tree.x + Math.floor(ART.canopy[L.tree.si][0].length / 2) + CFG.bangGap;
-      paint(pen, place(ART.bang, left + Math.floor(ART.bang[0].length / 2), CFG.bangTopY + ART.bang.length - 1));
+      const bp = place(ART.bang, left + Math.floor(ART.bang[0].length / 2), CFG.bangTopY + ART.bang.length - 1);
+      clearAround(pen, bp); // 지평선에 걸치는 아랫부분이 선과 붙지 않게 둘레 한 칸을 비운다
+      paint(pen, bp);
     }
     // 먼저 두 사람 둘레를 비우고, 그다음 두 사람을 찍는다(서로의 선을 지우지 않게)
     if (L.tagger) clearAround(pen, L.tagger);
@@ -784,13 +786,16 @@
     return Number.isInteger(n) && n >= 0 && n < count ? n : first;
   }
   const loadSkin = () => loadPick(SKIN_KEY, SKINS.length, FIRST_SKIN);
-  // 최단 기록(초). 숫자 모양 글자(12 · 12.345)이고 0 초과 120 이하일 때만 받아들인다.
-  // 그 밖(글자 · 빈칸 섞임 · 부호 · 1e1 · 0x10 · 0 · 120 초과)은 0 = 기록 없음
+  // 최단 기록(초). 숫자 모양 글자(13 · 23.456)이고 12.5초 이상 120초 이하일 때만 받아들인다
+  // (한 번도 안 멈추고 걸어도 100 ÷ 8 = 12.5초가 걸리니 그보다 짧은 기록은 있을 수 없다).
+  // 그 밖(글자 · 빈칸 섞임 · 부호 · 1e1 · 0x10 · 12.5 미만 · 120 초과)은 0 = 기록 없음
   const BEST_SHAPE = /^\d{1,3}(\.\d+)?$/;
+  const MIN_S = GOAL / SPEED;
+  const validBest = (value) => (Number.isFinite(value) && value >= MIN_S && value <= MAX_S ? value : 0);
+  const roundBest = (value) => Math.round(value * 1000) / 1000; // 저장하고 견주는 단위: 1000분의 1초
   function parseBest(raw) {
     if (typeof raw !== 'string' || !BEST_SHAPE.test(raw)) return 0;
-    const value = Number(raw);
-    return value > 0 && value <= MAX_S ? value : 0;
+    return validBest(Number(raw));
   }
   function loadBest() {
     let raw = memory[KEYS.best];
@@ -809,7 +814,7 @@
   }
   // 화면에는 소수 첫째 자리까지만 보이지만, 저장은 1000분의 1초까지 한다
   function saveBest(value) {
-    const text = String(Math.round(value * 1000) / 1000);
+    const text = String(roundBest(value));
     memory[KEYS.best] = text;
     try { localStorage.setItem(KEYS.best, text); } catch (e) { /* 메모리에만 */ }
   }
@@ -1083,14 +1088,19 @@
     if (kind === 'won') {
       record = clock;
       // 저장하기 직전에 저장소를 다시 읽는다: 다른 탭이 그사이 더 짧은 기록을 남겼으면 그 값을 지킨다(덮어쓰지 않는다)
-      const stored = loadBest();
-      newBest = !(stored > 0) || record < stored;
-      best = newBest ? record : stored;
+      // 견줄 때는 저장할 때와 같은 단위(1000분의 1초)로 맞춘 값끼리 — 같은 기록이 「신기록」으로 뜨지 않게
+      const stored = loadBest(), mine = roundBest(record);
+      newBest = !(stored > 0) || mine < stored;
+      best = newBest ? mine : stored;
       if (newBest) saveBest(best);
     } else { record = null; newBest = false; }
   }
-  // 다른 탭이 최단 기록을 바꿨다는 신호: 다시 읽어 화면의 기록 줄만 고친다(진행 중인 판은 건드리지 않는다)
+  // 다른 탭이 최단 기록을 바꿨다는 신호: 다시 읽어 화면의 기록 줄만 고친다(진행 중인 판은 건드리지 않는다).
+  // 이 게임이 쓰는 저장소(localStorage)의 신호일 때만 따른다
   window.addEventListener('storage', (e) => {
+    let area = null;
+    try { area = localStorage; } catch (err) { return; }
+    if (e.storageArea !== area) return;
     if (e.key !== null && e.key !== KEYS.best) return;
     if (e.key === null || e.newValue === null) delete memory[KEYS.best]; else memory[KEYS.best] = e.newValue;
     best = loadBest();
@@ -1111,7 +1121,7 @@
     let left = ms / 1000, used = 0;
     for (let guard = 0; guard < 5000 && left > 0 && phase === 'play'; guard += 1) {
       if (stage === 'watch' && pressed) { endRun('caught', simT + used * 1000); return; } // 지켜보는 중에 움직임
-      let lim = Math.min(left, MAX_S + 0.001 - clock);
+      let lim = Math.min(left, MAX_S - clock); // 시계는 120초 정각까지만 간다
       if (pressed) lim = Math.min(lim, (GOAL - dist) / SPEED);
       if (stage === 'chant') lim = Math.min(lim, gaps[letter] - letterT);
       else if (stage === 'turn') lim = Math.min(lim, GRACE - stageT);
@@ -1122,7 +1132,7 @@
       if (pressed) { dist += SPEED * lim; walk += WALK_RATE * lim; }
       const at = simT + used * 1000;
       if (dist >= GOAL - EPS) { dist = GOAL; endRun('won', at); return; }   // 술래 등에 닿음
-      if (clock > MAX_S) { voidRun(); return; }                             // 너무 오래 걸린 판
+      if (clock >= MAX_S - EPS) { voidRun(); return; }                      // 120초 정각까지 못 닿았다 → 너무 오래 걸린 판(정각에 닿았으면 위에서 성공)
       if (stage === 'chant') {
         if (letterT >= gaps[letter] - EPS) {
           letter += 1; letterT = 0; letterClock = clock;
@@ -1136,13 +1146,13 @@
       } else if (stageT >= watchFor - EPS) newChant();                      // 다 지켜봤다 → 다시 돌아서서 외친다
     }
   }
-  // 규칙 계산을 지금 시각(t)까지 따라잡는다. 마지막 계산 뒤 1초 넘게 비었으면(화면이 멈춰 있었음) 그 판은 무효
+  // 규칙 계산을 시각 t까지 따라잡는다(t = 지금, 또는 누름 · 뗌이 일어난 시각).
+  // 마지막으로 화면을 그린 뒤 1초 넘게 비었으면(화면이 멈춰 있었음) 그 판은 무효 — 멈춘 사이에 들어온 누름 · 뗌이 있어도 마찬가지
+  let seenT = 0; // 마지막으로 화면 한 장을 그린 시각(판이 시작된 때부터 잰다)
   function sync(t) {
     if (phase !== 'play') return;
-    const gap = t - simT;
-    if (gap > STALL_MS) { voidRun(); return; }
-    if (gap > 0) advance(gap);
-    simT = t;
+    if (now() - seenT > STALL_MS) { voidRun(); return; }
+    if (t - simT > 0) { advance(t - simT); simT = t; }
   }
   // 키캡을 누른 순간. 받아들였으면 true(끝난 뒤 0.9초 안에는 무시)
   function grab(t) {
@@ -1153,7 +1163,7 @@
     } else if (phase === 'ready' || t - endT >= IGNORE_MS) {
       // 새 판: 누른 순간 시계가 0에서 시작하고 첫 글자 줄이 시작된다. 그 누름으로 바로 걷는다
       phase = 'play'; dist = 0; clock = 0; walk = 0; record = null; newBest = false; letterClock = -Infinity;
-      simT = t; pressed = true;
+      simT = t; seenT = now(); pressed = true;
       newChant();
     } else return false;
     render(); startLoop();
@@ -1175,7 +1185,7 @@
   }
 
   /* ---------- 화면 다시 그리기: 움직이는 동안은 그릴 때마다 ---------- */
-  function refresh() { sync(now()); render(); }
+  function refresh() { sync(now()); seenT = now(); render(); }
   let rafId = 0;
   // 그림이 움직이는 때: 판 진행 중 · 끝난 직후 연출 · 신기록 왕관이 깜빡이는 동안
   const animating = (t) => phase === 'play' || (ended() && (t - endT < END_ANIM_MS || newBest));
@@ -1287,22 +1297,40 @@
   const keyHold = { push: null };
   let keyCell = 1;        // 키캡 그림 한 칸이 기기 화면 점 몇 개인지
 
-  function holdKey(name, who) {
+  /* 누름 · 뗌이 「일어난 시각」.
+     비유: 편지의 소인. 화면이 잠깐 멈춰 있던 동안 손을 뗐다면, 편지가 늦게 도착해도(처리가 늦어도) 소인 찍힌 때에 뗀 것으로 친다.
+     그래야 멈춘 사이 술래가 돌아봤어도 이미 뗀 사람이 억울하게 잡히지 않고, 뗀 뒤에 더 걸은 것으로 치지도 않는다.
+     eventTime = 브라우저가 적어 준 소인(e.timeStamp). 게임 시계와 다른 시계 값이거나(아주 큰 값 · 앞날) 너무 낡았으면 버린다.
+     inputTime = 소인을 「이미 규칙 계산을 마친 시각 ~ 지금」 사이로 묶는다(지나간 계산은 되돌리지 않는다) */
+  const EVENT_OLD_MS = 2000; // 이보다 낡은 소인은 믿지 않는다
+  function eventTime(e) {
+    if (manual !== null) return undefined; // 손으로 돌리는 검사 시계를 쓰는 동안에는 검사 시계의 지금
+    const ts = e ? Number(e.timeStamp) : NaN, t = performance.now();
+    return Number.isFinite(ts) && ts <= t + 1 && ts >= t - EVENT_OLD_MS ? ts : undefined;
+  }
+  function inputTime(at) {
+    const t = now(), v = Number(at);
+    const when = at === undefined || at === null || !Number.isFinite(v) || v > t ? t : v;
+    const done = phase === 'play' ? simT : (ended() ? endT : -Infinity); // 여기까지는 이미 계산이 끝났다
+    return Math.max(when, Math.min(done, t));
+  }
+  // at = 누른 시각(없으면 지금)
+  function holdKey(name, who, at) {
     if (keyHold[name] !== null) return false; // 이미 눌려 있음: 떼기 전엔 다시 받지 않는다
     keyHold[name] = who;
     if (who !== 'test') { KeySound.unlock(); KeySound.down(); } // 누르는 순간 「딸깍」 한 번(검사 손잡이는 조용히)
-    grab(now());
+    grab(inputTime(at));
     drawKeys();
     return true;
   }
-  // who를 주면 그 손가락(또는 키보드 키)이 누른 경우에만 뗀다
-  function releaseKey(name, who) {
+  // who를 주면 그 손가락(또는 키보드 키)이 누른 경우에만 뗀다. at = 뗀 시각(없으면 지금)
+  function releaseKey(name, who, at) {
     if (keyHold[name] === null) return false;
     if (who !== undefined && keyHold[name] !== who) return false;
     const by = keyHold[name];
     keyHold[name] = null;
     if (by !== 'test') KeySound.up(); // 떼는 순간 한 번(누르고 있는 동안에는 소리 없음)
-    letGo(now());
+    letGo(inputTime(at));
     drawKeys();
     return true;
   }
@@ -1595,8 +1623,12 @@
       drawn.resultBest = { x: bx, y: by, w: bw, h: measure(bestKeys).h };
       const ex = Math.min(top.x, bx) - END_PAD, er = Math.max(top.x + top.w, bx + bw) + END_PAD;
       drawn.endBox = { x: ex, y: END_Y - END_PAD, w: er - ex, h: by + drawn.resultBest.h + END_PAD - (END_Y - END_PAD) };
-      // 등 뒤 구도는 그 자리에 나무 · 지평선이 깔려 있어서, 네모를 검정으로 지운 뒤에 표시를 그린다
-      if (behind) box(drawn.endBox.x, drawn.endBox.y, drawn.endBox.w, drawn.endBox.h, BG);
+      // 등 뒤 구도는 그 자리에 나무가 깔려 있어서, 지평선 위쪽 전체(나무 잎이 통째로 안 보이게)를 검정으로 지우고,
+      // 표시가 지평선 아래로 내려오는 부분은 표시 둘레 네모만 지운 뒤에 표시를 그린다(지평선 아래 줄기는 남는다)
+      if (behind) {
+        box(0, 0, W, Math.min(H, window.BehindScene.CFG.horizonY), BG);
+        box(drawn.endBox.x, drawn.endBox.y, drawn.endBox.w, drawn.endBox.h, BG);
+      }
       if (phase === 'caught') { spriteWithHalo(top.x, top.y, SKULL); drawn.skull = top; }
       else { boardText(keys, top.x, top.y, RESULT_K, GLYPHS); drawn.result = top; }
       // 신기록이면 왕관이 깜빡인다(숫자는 제자리에 그대로)
@@ -1871,23 +1903,23 @@
     const t = e.currentTarget;
     try { if (t.hasPointerCapture && t.hasPointerCapture(e.pointerId)) t.releasePointerCapture(e.pointerId); } catch (err) { /* 그대로 */ }
     // 새로 닿은 첫 손가락인데 키가 눌린 채 남아 있으면, 떼는 신호를 놓친 낡은 누름이다 → 풀고 받는다(키가 먹통이 되지 않게)
-    if (e.isPrimary && keyHold.push !== null && keyHold.push !== e.pointerId) releaseKey('push');
-    holdKey('push', e.pointerId);
+    if (e.isPrimary && keyHold.push !== null && keyHold.push !== e.pointerId) releaseKey('push', undefined, eventTime(e));
+    holdKey('push', e.pointerId, eventTime(e));
   });
   const insideRect = (node, x, y) => {
     const b = node.getBoundingClientRect();
     return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom;
   };
   window.addEventListener('pointermove', (e) => {
-    if (keyHold.push === e.pointerId && !insideRect(el.keyPush, e.clientX, e.clientY)) releaseKey('push', e.pointerId);
+    if (keyHold.push === e.pointerId && !insideRect(el.keyPush, e.clientX, e.clientY)) releaseKey('push', e.pointerId, eventTime(e));
   });
   ['pointerup', 'pointercancel'].forEach((type) => window.addEventListener(type, (e) => {
-    releaseKey('push', e.pointerId);
+    releaseKey('push', e.pointerId, eventTime(e));
   }));
   // 마우스가 창 밖으로 나감(옮겨 간 곳이 없음)
   window.addEventListener('pointerout', (e) => {
     if (e.relatedTarget) return;
-    releaseKey('push', e.pointerId);
+    releaseKey('push', e.pointerId, eventTime(e));
   });
   // 다른 창으로 넘어가면 뗀 것(멈춰 섬). 창이 아예 가려지면 그 판은 없던 일로 하고 준비 화면으로 돌아간다
   // (시간이 기록인 게임이라, 안 보이는 동안 시계만 흐른 판은 세지 않는다). 돌아오면 화면만 다시 그린다
@@ -1897,7 +1929,7 @@
     else { refresh(); startLoop(); }
   });
   window.addEventListener('keyup', (e) => {
-    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') releaseKey('push', `kb:${e.code}`);
+    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') releaseKey('push', `kb:${e.code}`, eventTime(e));
   });
 
   window.addEventListener('keydown', (e) => {
@@ -1924,8 +1956,8 @@
     e.preventDefault();
     if (e.repeat) return; // 꾹 누르고 있어 저절로 반복되는 입력은 무시
     // 같은 키가 눌린 채 남아 있는데 새로 눌렸다면 떼는 신호를 놓친 것이다 → 풀고 받는다(키보드가 먹통이 되지 않게)
-    if (keyHold.push === `kb:${e.code}`) releaseKey('push');
-    holdKey('push', `kb:${e.code}`); // 키캡을 누른 것과 같음(떼면 keyup에서 올라옴)
+    if (keyHold.push === `kb:${e.code}`) releaseKey('push', undefined, eventTime(e));
+    holdKey('push', `kb:${e.code}`, eventTime(e)); // 키캡을 누른 것과 같음(떼면 keyup에서 올라옴)
   });
   // 화면이 확대되거나 끌리거나, 길게 눌러 메뉴가 뜨지 않게 막는다(길게 누르는 게임이라 특히 중요)
   const block = (e) => e.preventDefault();
@@ -1944,6 +1976,7 @@
       refresh();
       const t = now();
       return {
+        now: t,                                             // 지금 시계 값(ms). keyPress(at) · keyRelease(at)에 줄 시각의 기준
         phase,                                              // 'ready' · 'play' · 'caught' · 'won'
         stage: phase === 'play' ? stage : null,             // 술래: 'chant' 외치는 중 · 'turn' 돌아보는 찰나 · 'watch' 지켜보는 중
         holding: phase === 'play' && pressed,               // 걷는 중인가
@@ -1978,8 +2011,16 @@
         game: gameHere(),
       };
     },
-    keyPress() { return holdKey('push', 'test'); }, // 키캡을 누르고 있기 시작(이미 눌려 있으면 false)
-    keyRelease() { return releaseKey('push'); },    // 키캡에서 손 떼기
+    // 키캡을 누르고 있기 시작(이미 눌려 있으면 false) · 키캡에서 손 떼기.
+    // at = 그 일이 일어난 시각(state().now와 같은 시계의 ms). 안 주면 지금. 「화면이 멈춘 사이에 뗐다」를 흉내 낼 때 쓴다
+    keyPress(at) { return holdKey('push', 'test', at); },
+    keyRelease(at) { return releaseKey('push', undefined, at); },
+    // 화면이 멈춘 것 흉내: 시계만 ms만큼 흐르고 화면(규칙 계산)은 따라오지 않는다. 다음 tick · state에서 한꺼번에 따라잡는다
+    stall(ms) {
+      if (manual === null) manual = performance.now();
+      manual += Math.max(0, Number(ms) || 0);
+      return manual;
+    },
     press() { holdKey('push', 'test'); releaseKey('push'); return this.state(); }, // 눌렀다 바로 뗌
     // 처음 상태로: 준비 화면 · 최단 기록 지움 · 주사위(난수)도 원래 것으로
     reset() {
@@ -1991,8 +2032,7 @@
     },
     // 최단 기록을 정해 둔다(초). 0이나 터무니없는 값이면 기록 없음
     setBest(sec) {
-      const v = Number(sec);
-      best = Number.isFinite(v) && v > 0 && v <= MAX_S ? v : 0;
+      best = validBest(Number(sec));
       if (best > 0) saveBest(best); else clearKey(KEYS.best);
       render();
       return this.state();
@@ -2016,7 +2056,7 @@
     realClock() {
       if (manual !== null) {
         const shift = performance.now() - manual;
-        simT += shift; endT += shift;
+        simT += shift; endT += shift; seenT += shift;
         manual = null;
       }
       refresh(); startLoop();
