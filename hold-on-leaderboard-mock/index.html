@@ -153,7 +153,7 @@
     <button id="placeScreen" data-v="screen">화면 안</button><button id="placeSheet" data-v="sheet">별도 창</button>
   </div>
   <div class="grp" data-k="result"><span>결과 순위</span>
-    <button id="resSame" data-v="same">같이</button><button id="resNext" data-v="next">한 번 더</button>
+    <button id="resNone" data-v="none">없음</button><button id="resLine" data-v="line">한 줄</button><button id="resSame" data-v="same">같이</button><button id="resNext" data-v="next">한 번 더</button>
   </div>
   <div class="grp" data-k="why"><span>거절</span>
     <button id="whyBad" data-v="bad">금지</button><button id="whyTaken" data-v="taken">중복</button><button id="whyShort" data-v="short">짧음</button>
@@ -367,7 +367,7 @@
     font: 'han',       // 닉네임 글자: han = 한글 픽셀 글꼴(갈무리11) · eng = 영문 · 숫자만(점 글씨)
     place: 'screen',   // 전체 순위표 자리: screen = 검은 화면 안 · sheet = 몸통 위 별도 창
     period: 'all',     // 기간: today 오늘 · all 전체
-    result: 'same',    // 결과 화면의 순위 네 줄: same = 결과 화면 아래에 같이 · next = 한 번 더 누르면 순위 화면
+    result: 'none',    // 결과 화면의 순위: none = 없음(순위는 왕관 버튼으로만, 처음 값) · line = 내 순위 한 줄 · same = 네 줄을 결과 화면 아래에 같이 · next = 한 번 더 누르면 순위 화면
     step: 0,           // result = next일 때: 0 결과 화면 · 1 순위 화면
     why: 'bad',        // 거절 까닭: bad 금지 단어 · taken 이미 있는 이름 · short 너무 짧음
     page: 0,           // 전체 순위표 쪽
@@ -384,6 +384,11 @@
   let copied = false;      // 「복사」를 막 눌렀는지(버튼 글이 잠깐 「복사됨」)
   let reactNow = false;    // 지금 그리는 순위 줄이 결투 반응 속도 순위인지
   let prevScene = 3;   // 왕관 버튼으로 순위표를 닫으면 돌아갈 장면
+  let meTop = false;   // 내가 3등 안인 견본인지(장면 ④에서 켜지고, 거기서 연 순위표에도 이어진다)
+  let newRounds = 0;   // 결과 화면에서 키캡으로 「새 판 시작 흉내」를 낸 횟수
+  let blankUntil = 0;  // 새 판 흉내: 이 시각까지 검은 화면을 잠깐 비운다
+  let rankLineNow = ''; // 결과 화면에 그린 「내 순위 한 줄」의 글(안 그렸으면 빈 글)
+  const RESULT_NAMES = { none: '없음', line: '한 줄', next: '한 번 더', same: '같이' };
   let retrying = false;
   const fi = () => (S.font === 'han' ? 0 : 1);
 
@@ -424,7 +429,7 @@
     return n || '내이름';
   }
   // 내 순위: 장면 ④만 2등, 나머지는 3등 밖
-  const meRank = () => (S.scene === 4 ? 2 : MY_RANK[S.period]);
+  const meRank = () => (S.scene === 4 || meTop ? 2 : MY_RANK[S.period]);
   // 오늘 순위표는 전체보다 기록이 조금 낮다
   // 결투 반응 속도 순위: 0.187초부터(작을수록 위, 0.100 미만은 없음)
   const scoreAt = (rank) => {
@@ -719,6 +724,9 @@
       sprite(ME_X - 9, gy - HAT.length, HAT);
       drawPerson(OPP_X, false, OPP_STAND, 5, gy);          // 상대: 서 있음(검은 모자)
       box(0, gy, W, 1, INK);
+      // 그림이 차지한 자리(「내 순위 한 줄」이 피해 갈 곳): 해 · 능선부터 땅 끝까지
+      mark('sun', 'art', SUN_X, SUN_Y, SUN[0].length, SUN.length);
+      mark('desert', 'art', 0, gy - STAND.length, W, T.h - (gy - STAND.length));
     }
     // 왼쪽 위: 왕관 + 최고 연승 · 번개 + 최고 반응 속도 · 그 아래 「N연승」(졌으니 0연승)
     smallRow('hud-best', ['♛'].concat([...mine]), 3, 2);
@@ -741,9 +749,44 @@
   }
   let squeezedNow = false, panelTopNow = null;
   // ③④ 결과 화면
+  // 「내 순위 한 줄」: 「오늘 12위」 꼴. 한글 방식 = 갈무리 낱말 + 점 글씨 숫자, 영문 방식 = TODAY RANK 12
+  function rankLineBmp() {
+    const n = String(meRank()), today = S.period === 'today';
+    if (S.font !== 'han') {
+      rankLineNow = (today ? 'TODAY' : 'ALL') + ' RANK ' + n;
+      return dotBmp([...rankLineNow], GLYPHS);
+    }
+    rankLineNow = (today ? '오늘' : '전체') + ' ' + n + '위';
+    const a = hanBmp(today ? '오늘' : '전체'), d = dotBmp([...n], GLYPHS), u = hanBmp('위');
+    const dx = a.w + 3, ux = dx + d.w + 2, dy = numY(d);
+    return {
+      w: ux + u.w, h: Math.max(hanH, dy + d.h),
+      cells: a.cells.concat(d.cells.map(([x, y]) => [x + dx, y + dy]), u.cells.map(([x, y]) => [x + ux, y])),
+    };
+  }
+  // 자리 찾기: 이미 그린 글 · 그림 상자(marks)와 두 칸 넘게 떨어진 곳. 오른쪽 위 → 가운데 위 → 오른쪽 아래 → 가운데 아래 순서로 보고,
+  // 다 막혀 있으면 위에서부터 훑어 처음 비는 자리
+  function drawRankLine() {
+    const b = rankLineBmp();
+    const free = (x, y) => x >= 1 && y >= 1 && x + b.w <= W - 1 && y + b.h <= T.h - 1
+      && !T.marks.some((m) => x - 2 < m.x + m.w && m.x < x + b.w + 2 && y - 2 < m.y + m.h && m.y < y + b.h + 2);
+    const cx = Math.floor((W - b.w) / 2), rx = W - 2 - b.w;
+    let spot = [[rx, 3], [cx, 3], [rx, T.h - b.h - 3], [cx, T.h - b.h - 3]].find(([x, y]) => free(x, y));
+    for (let y = 1; !spot && y + b.h <= T.h - 1; y += 1) for (let x = rx; !spot && x >= 1; x -= 2) if (free(x, y)) spot = [x, y];
+    if (!spot) spot = [rx, 3];
+    box(spot[0] - 1, spot[1] - 1, b.w + 2, b.h + 2, BG);
+    put(b, spot[0], spot[1]);
+    mark('my-rank', 'text', spot[0], spot[1], b.w, b.h);
+  }
   function drawResult() {
     const list = rankList();
-    squeezedNow = false; panelTopNow = null;
+    squeezedNow = false; panelTopNow = null; rankLineNow = '';
+    if (S.result === 'none' || S.result === 'line') {
+      // 없음 = 게임의 결과 화면 그대로(순위는 왕관 버튼으로만) · 한 줄 = 거기에 내 순위 한 줄만
+      drawResultTop(false, false);
+      if (S.result === 'line') drawRankLine();
+      return;
+    }
     if (S.result === 'next') {
       if (S.step === 0) { drawResultTop(false, false); return; }
       // 한 번 더 누른 뒤의 순위 화면: 머리 줄 + 네 줄을 가운데에
@@ -763,8 +806,8 @@
 
   // ⑤⑥⑦ 전체 순위표(지금 종이가 검은 화면이든 별도 창이든 같은 짜임)
   let board = { perPage: 1, pages: 1 };
-  function boardRoom() {
-    const lh = lineH(), top = lh + 4 + 2, bottom = T.h - 10 - 1;
+  function boardRoom(rows) {
+    const lh = lineH(), top = lh + 4 + 2, bottom = (rows || T.h) - 10 - 1;
     const perPage = Math.max(1, Math.floor((bottom - top + 1 + rowGap()) / (lh + rowGap())));
     return { top, perPage, pages: Math.ceil(TOTAL[S.period] / perPage) };
   }
@@ -874,7 +917,11 @@
     let t = SCENE_NAMES[S.scene];
     if (S.scene === 1) t += ' — 입력칸을 눌러 쳐 보고 「확인」';
     if (S.scene === 2) t += ' — 「' + WHY_TEXT[S.why] + '」';
-    if (S.scene === 3 || S.scene === 4) t += S.result === 'next' ? ' — 오른쪽 키캡: 결과 ↔ 순위' : ' — 결과 화면 아래에 같이';
+    if (S.scene === 3 || S.scene === 4) {
+      t += S.result === 'next' ? ' — 오른쪽 키캡: 결과 ↔ 순위' : S.result === 'same' ? ' — 결과 화면 아래에 같이'
+        : S.result === 'line' ? ' — 내 순위 한 줄만 · 위 3명은 왕관 버튼' : ' — 순위는 왕관 버튼으로만';
+    }
+    t += ' · 결과 순위: ' + RESULT_NAMES[S.result];
     if (S.scene === 5) t += S.place === 'sheet' ? ' — 창 아래 왼쪽 = 내 줄 · 오른쪽 = 다음 쪽 · × 닫기' : ' — 오른쪽 키캡 = 다음 쪽 · 왼쪽 = 내 줄 · 왕관 버튼 = 닫기';
     if (S.scene === 7) t += ' — 왼쪽 키캡(RE) = 다시';
     if (S.scene === 8) t += ' — 순위표에서 내 줄을 누르면 뜸';
@@ -887,6 +934,7 @@
     lastPlan = null;
     use(TS);
     if (S.scene <= 2) drawNickBack();
+    else if (S.scene <= 4 && Date.now() < blankUntil) rankLineNow = '';   // 새 판 시작 흉내: 검은 화면이 잠깐 비었다가 결과 화면으로 돌아온다
     else if (S.scene <= 4 || sheetOn()) drawResult();   // 별도 창이 떠 있을 때 검은 화면에는 결과 화면이 그대로 남아 있다
     else drawBoard();
     blit(TS);
@@ -931,6 +979,8 @@
     });
     if (!(S.scene >= 1 && S.scene <= 11)) S.scene = before.scene;
     if (!GAMES[S.game]) S.game = before.game;
+    if (!RESULT_NAMES[S.result]) S.result = before.result;
+    if (S.scene === 4) meTop = true; else if (S.scene <= 3) meTop = false; // ④에서 연 순위표 · 계정 창에서도 「3등 안」 견본이 이어진다
     const changed = (k) => S[k] !== before[k];
     if (S.scene >= 8 && before.scene < 8) acctBack = before.scene >= 3 ? before.scene : 5; // 계정 창을 닫으면 돌아갈 곳
     if (changed('metric') && !('page' in patch)) S.page = 0;
@@ -984,12 +1034,20 @@
   function toggleBoard() {
     if (S.scene >= 5) { setState({ scene: prevScene }); return; }
     prevScene = S.scene <= 2 ? 3 : S.scene;
-    setState({ scene: 5 });
+    // 왕관 버튼으로 열면 내 순위가 있는 쪽부터 보여 준다(고른 자리 — 검은 화면 안 또는 별도 창 — 의 한 쪽 줄 수로 셈)
+    const per = boardRoom(S.place === 'sheet' ? TH.h : TS.h).perPage;
+    setState({ scene: 5, page: Math.floor((meRank() - 1) / per) });
   }
   // 키캡이 하는 일: 오른쪽(push) · 왼쪽(slide, RE)
   function keyAct(name) {
     if (S.scene === 3 || S.scene === 4) {
       if (S.result === 'next') setState({ step: name === 'push' ? (S.step ? 0 : 1) : 0 });
+      else if (S.result === 'none' || S.result === 'line') {
+        // 순위 화면으로 넘어가지 않는다. 새 판 시작 흉내만: 검은 화면이 잠깐 비었다가 같은 결과 화면
+        newRounds += 1; blankUntil = Date.now() + 150;
+        render();
+        setTimeout(render, 180);
+      }
       return;
     }
     if (S.scene === 5 && S.place === 'screen') { boardAct(name === 'push' ? 'next' : 'me'); return; }
@@ -1359,6 +1417,7 @@
         input: el.nickInput.value, msg: el.nickMsg.textContent, guide: el.nickGuide.textContent, caption: el.cap.textContent,
         skin: SKINS[skin].name,
         metric: S.metric, google: S.google, wrong: S.wrong, ctlOpen,
+        rankLine: rankLineNow, newRounds, crownOpen: S.scene >= 5, prevScene, meTop,
         // 계정 창: 열렸는지 · 자리 · 안의 버튼과 입력칸 자리 · 내용이 창 밖으로 넘치는지
         acct: {
           open: el.acctWrap.classList.contains('open'), rect: rectOf(el.acctWrap), text: el.acct.textContent,
