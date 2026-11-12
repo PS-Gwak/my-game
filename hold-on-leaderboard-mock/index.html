@@ -1,0 +1,1392 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>전체 순위표 화면 시안</title>
+<style>
+  /* 전체 순위표 화면 시안(가짜 자료). 비유: 가게 문 열기 전에 메뉴판 견본을 벽에 붙여 보는 것 — 진짜 주문(서버)은 받지 않는다.
+     맨 위 어두운 줄 = 시안용 조작 줄(여기만 일반 글씨). 그 아래 = 게임과 같은 기기(회색 몸통 · 검은 화면 128×96칸 · 키캡 둘).
+     검은 화면 안은 검정과 흰색 두 가지만 쓴다 */
+  @font-face {
+    font-family: 'Galmuri11';
+    src: url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri11.woff2') format('woff2');
+    font-display: swap;
+  }
+  :root { --black: #000000; --white: #f2f2f2; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+  body {
+    background: var(--black); color: var(--white);
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    display: flex; flex-direction: column; height: 100vh; height: 100dvh;
+    touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  /* ---- 시안용 조작 줄(몸통 밖) ---- */
+  #ctl {
+    flex: none; position: relative; z-index: 1; background: #1b1b1b; color: #dddddd; border-bottom: 1px solid #3a3a3a;
+    font-size: 11px; line-height: 1.2; padding: 5px 6px 4px;
+    display: flex; flex-wrap: wrap; gap: 3px 10px; align-items: center;
+  }
+  .grp { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; }
+  .grp > span { color: #9a9a9a; margin-right: 3px; white-space: nowrap; }
+  .grp button {
+    font: inherit; height: 22px; min-width: 24px; padding: 0 5px; margin: 0; cursor: pointer; white-space: nowrap;
+    border: 1px solid #555555; background: #2a2a2a; color: #dddddd; border-radius: 3px;
+  }
+  .grp button.on { background: #f2f2f2; color: #000000; border-color: #f2f2f2; }
+  .grp.off { opacity: 0.4; }
+  #cap { flex-basis: 100%; color: #bbbbbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 14px; }
+  /* 조작 줄 접기: 「시안 조작」 버튼 하나 + 지금 장면 한 줄만 남는다 */
+  #ctlFold {
+    font: inherit; height: 22px; padding: 0 6px; margin: 0; cursor: pointer; white-space: nowrap;
+    border: 1px solid #777777; background: #3a3a3a; color: #ffffff; border-radius: 3px;
+  }
+  #ctl.fold .grp { display: none; }
+  #ctl.fold #cap { flex: 1 1 0; min-width: 0; }
+
+  /* ---- 기기(게임과 같은 생김새) ---- */
+  main {
+    flex: 1 1 auto; min-height: 0; width: 100%; padding: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+  }
+  .stage { min-height: 0; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .device-e { position: relative; flex: none; line-height: 0; }
+  .screen { position: absolute; display: block; image-rendering: pixelated; background: var(--black); border-radius: 2px; }
+  .body-art { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+  .grip { position: absolute; display: block; image-rendering: pixelated; pointer-events: none; }
+  .corner-btn {
+    position: absolute; top: 3px; padding: 0; margin: 0; border: 0; background: transparent;
+    line-height: 0; cursor: pointer; touch-action: none; outline: none;
+  }
+  .corner-btn canvas { display: block; image-rendering: pixelated; }
+  .key {
+    position: absolute; padding: 0; margin: 0; border: 0; background: transparent;
+    line-height: 0; cursor: pointer; touch-action: none; outline: none;
+  }
+  .key canvas { display: block; image-rendering: pixelated; }
+  .ghost { position: absolute; left: 0; top: 0; width: 100%; height: 100%; color: transparent; overflow: hidden; white-space: nowrap; pointer-events: none; line-height: 1; }
+
+  /* ---- 닉네임 입력: 검은 화면 자리 위에 겹쳐 띄우는 진짜 입력칸(폰 자판이 뜬다). --u = 화면 한 칸의 크기 ---- */
+  .nick {
+    position: absolute; display: none; margin: 0; padding: calc(var(--u) * 22) 0 0; line-height: 1;
+    flex-direction: column; align-items: center; gap: calc(var(--u) * 2);
+    color: var(--white); font-family: 'Galmuri11', "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    font-size: calc(var(--u) * 12); -webkit-font-smoothing: none; font-smooth: never;
+  }
+  .nick.show { display: flex; }
+  .nick-guide, .nick-msg { height: calc(var(--u) * 12); white-space: nowrap; }
+  .nick input {
+    width: calc(var(--u) * 104); height: calc(var(--u) * 20); margin: 0; padding: 0 calc(var(--u) * 3);
+    border: calc(var(--u) * 1) solid var(--white); border-radius: 0; outline: none; background: var(--black); color: var(--white);
+    caret-color: var(--white); font: inherit; text-align: center; -webkit-appearance: none; appearance: none;
+    user-select: text; -webkit-user-select: text;
+  }
+  .nick button {
+    height: calc(var(--u) * 18); padding: 0 calc(var(--u) * 8); margin: 0; border: 0; border-radius: 0; cursor: pointer;
+    background: var(--white); color: var(--black); font: inherit;
+  }
+  /* 「영문 · 숫자만」일 때 입력칸 글자: 웹 글꼴 없이 기기의 고정폭 글꼴(대문자) */
+  .nick.eng input { font-family: Menlo, Consolas, "Courier New", monospace; font-weight: 700; text-transform: uppercase; letter-spacing: calc(var(--u) * 1); }
+  .nick.eng { font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; font-weight: 700; }
+
+  .nick-row { display: flex; gap: calc(var(--u) * 4); }
+  .nick button.line { background: var(--black); color: var(--white); border: calc(var(--u) * 1) solid var(--white); padding: 0 calc(var(--u) * 4); }
+
+  /* ---- 계정 창(내 계정 · 이어하기 코드 · 이어 가기 · 앱 안 브라우저 안내): 글이 길어 검은 화면에 못 넣는 것들.
+     전체 순위표 「별도 창」과 같은 자리 · 같은 생김새(검은 바탕 · 흰 글씨 · 흰 테두리)로 아래에서 올라온다 ---- */
+  .acct-wrap { position: absolute; overflow: hidden; pointer-events: none; border-radius: 2px; }
+  .acct-wrap.open { pointer-events: auto; }
+  .acct {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--black); color: var(--white); border: calc(var(--u) * 1) solid var(--white); padding: calc(var(--u) * 3);
+    display: flex; flex-direction: column; gap: calc(var(--u) * 4);
+    font-family: 'Galmuri11', "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    font-size: calc(var(--u) * 12); line-height: calc(var(--u) * 14); word-break: keep-all;
+    -webkit-font-smoothing: none; font-smooth: never;
+    transform: translateY(102%); transition: transform 0.2s steps(8);
+  }
+  .acct-wrap.open .acct { transform: none; }
+  .acct-wrap.eng .acct { font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; font-weight: 700; }
+  .acct p { margin: 0; }
+  .acct-head { display: flex; justify-content: space-between; align-items: center; border-bottom: calc(var(--u) * 1) solid var(--white); padding-bottom: calc(var(--u) * 2); }
+  .acct button {
+    font: inherit; margin: 0; border-radius: 0; cursor: pointer; width: 100%; min-height: calc(var(--u) * 18); padding: calc(var(--u) * 1) calc(var(--u) * 2);
+    background: var(--black); color: var(--white); border: calc(var(--u) * 1) solid var(--white);
+  }
+  .acct button.solid { background: var(--white); color: var(--black); }
+  .acct button.x { width: calc(var(--u) * 16); min-height: calc(var(--u) * 14); padding: 0; border: 0; flex: none; }
+  .acct .name { background: var(--white); color: var(--black); text-align: center; padding: calc(var(--u) * 2) 0; white-space: nowrap; overflow: hidden; }
+  .acct .code { font-size: calc(var(--u) * 24); line-height: calc(var(--u) * 28); text-align: center; letter-spacing: calc(var(--u) * 2); white-space: nowrap; }
+  .acct .msg { min-height: calc(var(--u) * 28); }
+  .acct input {
+    width: 100%; height: calc(var(--u) * 20); margin: 0; padding: 0 calc(var(--u) * 3);
+    border: calc(var(--u) * 1) solid var(--white); border-radius: 0; outline: none; background: var(--black); color: var(--white);
+    caret-color: var(--white); font: inherit; text-align: center; -webkit-appearance: none; appearance: none;
+    user-select: text; -webkit-user-select: text;
+  }
+  .acct input::placeholder { color: #8a8a8a; }
+
+  /* ---- 별도 창: 몸통 위로 아래에서 올라오는 검은 창(검은 화면 + 키캡 자리를 덮는다) ---- */
+  .sheet-wrap { position: absolute; overflow: hidden; pointer-events: none; border-radius: 2px; }
+  .sheet-wrap.open { pointer-events: auto; }
+  .sheet { display: block; image-rendering: pixelated; background: var(--black); transform: translateY(102%); transition: transform 0.2s steps(8); touch-action: none; }
+  .sheet-wrap.open .sheet { transform: none; }
+</style>
+</head>
+<body>
+<div id="ctl">
+  <button id="ctlFold" type="button">시안 조작 ▾</button>
+  <div class="grp" data-k="scene"><span>장면</span>
+    <button id="sc1" data-v="1" title="닉네임 입력(처음)">①</button><button id="sc2" data-v="2" title="닉네임 거절">②</button><button id="sc3" data-v="3" title="결과 + 내 순위와 위 3명">③</button><button id="sc4" data-v="4" title="내가 3등 안">④</button><button id="sc5" data-v="5" title="전체 순위표">⑤</button><button id="sc6" data-v="6" title="불러오는 중">⑥</button><button id="sc7" data-v="7" title="연결 실패">⑦</button><button id="sc8" data-v="8" title="내 계정 창">⑧</button><button id="sc9" data-v="9" title="이어하기 코드 보기">⑨</button><button id="sc10" data-v="10" title="다른 폰에서 이어 가기">⑩</button><button id="sc11" data-v="11" title="앱 안 브라우저 안내">⑪</button>
+  </div>
+  <div class="grp" data-k="game"><span>게임</span>
+    <button id="gm1" data-v="1">1</button><button id="gm2" data-v="2">2</button><button id="gm3" data-v="3">3</button><button id="gm4" data-v="4">4</button><button id="gm5" data-v="5">5</button><button id="gm6" data-v="6">6</button>
+  </div>
+  <div class="grp" data-k="font"><span>글자</span>
+    <button id="fontHan" data-v="han">한글</button><button id="fontEng" data-v="eng">영문</button>
+  </div>
+  <div class="grp" data-k="period"><span>기간</span>
+    <button id="perToday" data-v="today">오늘</button><button id="perAll" data-v="all">전체</button>
+  </div>
+  <div class="grp" data-k="place"><span>순위표</span>
+    <button id="placeScreen" data-v="screen">화면 안</button><button id="placeSheet" data-v="sheet">별도 창</button>
+  </div>
+  <div class="grp" data-k="result"><span>결과 순위</span>
+    <button id="resSame" data-v="same">같이</button><button id="resNext" data-v="next">한 번 더</button>
+  </div>
+  <div class="grp" data-k="why"><span>거절</span>
+    <button id="whyBad" data-v="bad">금지</button><button id="whyTaken" data-v="taken">중복</button><button id="whyShort" data-v="short">짧음</button>
+  </div>
+  <div class="grp" data-k="metric"><span>결투 순위</span>
+    <button id="metStreak" data-v="streak">연승</button><button id="metReact" data-v="react">반응</button>
+  </div>
+  <div class="grp" data-k="google"><span>구글</span>
+    <button id="gOff" data-v="off">안 됨</button><button id="gOn" data-v="on">연결됨</button>
+  </div>
+  <div class="grp" data-k="wrong"><span>이어 가기</span>
+    <button id="wrongOff" data-v="off">평소</button><button id="wrongOn" data-v="on">틀림</button>
+  </div>
+  <div id="cap"></div>
+</div>
+<main id="main">
+  <div class="stage" id="stage">
+    <div class="device-e" id="deviceE">
+      <svg class="body-art" id="bodyArt" aria-hidden="true"><path id="bodyFill"></path><path id="bodyLine" fill="none"></path></svg>
+      <button class="corner-btn game-btn" id="gameBtn" type="button" tabindex="-1"><canvas id="gameCanvas"></canvas><span class="ghost" id="gameLabel">게임 3 결투</span></button>
+      <button class="corner-btn" id="crownBtn" type="button" tabindex="-1"><canvas id="crownCanvas"></canvas><span class="ghost" id="crownLabel">순위표 열기</span></button>
+      <button class="corner-btn" id="soundBtn" type="button" tabindex="-1"><canvas id="soundCanvas"></canvas><span class="ghost" id="soundLabel">소리(시안에서는 안 남)</span></button>
+      <button class="corner-btn skin-btn" id="skinBtn" type="button" tabindex="-1"><canvas id="skinCanvas"></canvas><span class="ghost" id="skinLabel">몸통 gray</span></button>
+      <canvas class="screen" id="screen" aria-label="순위표 시안 화면"></canvas>
+      <form class="nick" id="nick" autocomplete="off" novalidate>
+        <div class="nick-guide" id="nickGuide">닉네임 2~8자</div>
+        <input id="nickInput" type="text" maxlength="8" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="닉네임">
+        <div class="nick-msg" id="nickMsg"></div>
+        <div class="nick-row"><button id="nickOk" type="submit">확인</button><button id="nickCont" type="button" class="line">이어 가기</button></div>
+      </form>
+      <button class="key" id="keySlide" type="button" tabindex="-1"><canvas id="keySlideCanvas"></canvas><span class="ghost">왼쪽 키캡</span></button>
+      <button class="key" id="keyPush" type="button" tabindex="-1"><canvas id="keyPushCanvas"></canvas><span class="ghost">오른쪽 키캡</span></button>
+      <canvas class="grip" id="grip"></canvas>
+      <div class="sheet-wrap" id="sheetWrap"><canvas class="sheet" id="sheet" aria-label="전체 순위표 창"></canvas></div>
+      <div class="acct-wrap" id="acctWrap"><div class="acct" id="acct"></div></div>
+    </div>
+  </div>
+</main>
+<script>
+/* 전체 순위표 화면 시안 (2026-11-12) — 게임 파일은 건드리지 않는 견본 한 장.
+   틀(몸통 · 위 띠 버튼 · 검은 화면 · 점 글씨 · 키캡)은 3번 결투(key-duel/index.html)에서 그대로 가져왔다. 소리는 뺐다.
+   순위 자료는 전부 가짜(규칙으로 지어낸 이름과 기록)이고 서버에는 아무것도 보내지 않는다.
+   장면 일곱: ① 닉네임 입력 ② 닉네임 거절 ③ 결과 + 내 순위와 위 3명 ④ 내가 3등 안 ⑤ 전체 순위표 ⑥ 불러오는 중 ⑦ 연결 실패 */
+(function () {
+  'use strict';
+
+  const W = 128;          // 그림판 가로 칸 수
+  const ROWS = 96;        // 검은 화면 세로 칸 수
+  const BG = '#000000', INK = '#f2f2f2';
+
+  /* ---------- 키캡 그림(여섯 게임 공용 도트 키캡 — tools/key-shared-blocks.js의 KeyArt에서 그림만 가져옴, 소리 없음) ---------- */
+  const KeyArt = {
+    dots: {
+      RE: ['###..###', '#..#.#..', '#..#.#..', '###..##.', '#.#..#..', '#..#.#..', '#..#.###'],
+      gun: ['##########', '##########', '####.#....', '###..#....', '######....', '###.......', '###.......'],
+    },
+    pixel(c, n, down, kind) {
+      const u = n / 20, K = '#000000', Wt = '#f2f2f2';
+      const R = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x * u), Math.round(y * u), Math.round((x + w) * u) - Math.round(x * u), Math.round((y + h) * u) - Math.round(y * u)); };
+      c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, n, n);
+      R(1, 0, 18, 20, Wt); R(0, 1, 20, 18, Wt);
+      R(1, 0, 18, 1, K); R(1, 19, 18, 1, K); R(0, 1, 1, 18, K); R(19, 1, 1, 18, K);
+      const fx = 3, fw = 14, fh = 14, fy = down ? 4 : 2;
+      const ticks = down ? [[1, 1], [2, 2], [3, 3], [18, 1], [17, 2], [16, 3], [2, 18], [17, 18]]
+        : [[1, 1], [2, 2], [18, 1], [17, 2], [1, 18], [2, 17], [3, 16], [18, 18], [17, 17], [16, 16]];
+      ticks.forEach(([x, y]) => R(x, y, 1, 1, K));
+      R(fx + 1, fy, fw - 2, 1, K); R(fx + 1, fy + fh - 1, fw - 2, 1, K); R(fx, fy + 1, 1, fh - 2, K); R(fx + fw - 1, fy + 1, 1, fh - 2, K);
+      const art = this.dots[kind];
+      if (!art) return;
+      const ax = fx + 1 + Math.floor((fw - 2 - art[0].length) / 2), ay = fy + 1 + Math.floor((fh - 2 - art.length) / 2);
+      art.forEach((row, j) => { for (let i = 0; i < row.length; i += 1) if (row[i] === '#') R(ax + i, ay + j, 1, 1, K); });
+    },
+  };
+
+  /* ---------- 몸통 색 · 기기 치수(결투와 같은 값) ---------- */
+  const SKINS = [
+    { name: 'white', body: '#f2f2f2', grip: '#cfcfcf' },
+    { name: 'gray', body: '#c9cbcc', grip: '#a9abac' },
+    { name: 'cream', body: '#e7dfcb', grip: '#c9c0aa' },
+    { name: 'black', body: '#1c1c1c', grip: '#3a3a3a', line: true },
+  ];
+  let skin = 1;
+  const DEVICE_MAX = 460, EDGE = 28, SCREEN_SHARE = 0.86, GAP_SHARE = 0.07, KEY_SHARE_TWO = 0.34, GRIP_SHARE = 0.46;
+  const BODY_TALL = 1.5, CORNER_SHARE = 0.1, BAND_PAD = 10, BAND_GAP = 6, BTN_ROWS = 17, BOX_W = 7, BOX_H = 9;
+  const ONE_COLS = 3 + BOX_W + 3, GAME_BOX_W = BOX_W, GAME_BOX_H = BOX_H, KEY_MIN = 72, KEY_MAX = 190, KEY_CELLS = 20;
+
+  /* ---------- 결투 결과 화면 그림 재료(결투에서 가져옴) ---------- */
+  const STAND = [
+    '....###....', '....###....', '..#######..', '....###....', '....###....', '.....#.....', '....###....', '...#.#.#...', '...#.#.#...',
+    '..#..#..#..', '..#..#..#..', '.....#..##.', '....#.#.#..', '....#.#....', '...#...#...', '...#...#...', '..#.....#..', '.##.....##.',
+  ];
+  const DOWN = ['..............###.', '#........#.#..###.', '#################.'];
+  const HAT = ['.###.', '#####'];
+  const OPP_HAT_ROWS = ['...#####...', '...#...#...', '.#########.'];
+  const OPP_STAND = STAND.map((row, j) => (j < OPP_HAT_ROWS.length ? OPP_HAT_ROWS[j] : row));
+  const SUN = ['.....#.....', '.#.......#.', '....###....', '...#####...', '..#######..', '#.#######.#', '..#######..', '...#####...', '....###....', '.#.......#.', '.....#.....'];
+  const CACTUS_BIG = ['..#..', '#.#..', '#.#.#', '###.#', '..###', '..#..', '..#..'];
+  const CACTUS_SMALL = ['.#.', '##.', '.##', '.#.', '.#.'];
+  const GROUND_TEX = ['#.......#.......', '....#.......#...', '..........#.....', '.#....#.........'];
+  const SKULL = [
+    '....#######....', '..###########..', '.#############.', '###############', '###############', '##...#####...##', '##...#####...##', '##...#####...##',
+    '###############', '#######.#######', '######...######', '.#############.', '..###########..', '...#.#.#.#.#...', '...#.#.#.#.#...', '...#########...',
+  ];
+  const SKY = 19;                       // 결투 장면을 아래로 내린 칸 수(96칸 화면)
+  const GROUND_Y = 60 + SKY, ME_X = 9, OPP_X = 118, SUN_X = 108, SUN_Y = 3 + SKY;
+  const CACTI = [[28, CACTUS_BIG], [98, CACTUS_SMALL]];
+  const RIDGE_BASE = 54;
+  const PEAKS = [[8, 6, 16], [34, 9, 22], [66, 4, 14], [92, 8, 20], [120, 6, 14]];
+  const RIDGE_TOP = Array.from({ length: W }, (_, x) => {
+    let h = 0;
+    PEAKS.forEach(([cx, ph, hw]) => { h = Math.max(h, ph - (Math.abs(x - cx) * ph) / hw); });
+    return RIDGE_BASE - Math.floor(h);
+  });
+
+  /* ---------- 점 글씨: 5×7칸(숫자 · 영문 대문자 · 기호) ---------- */
+  const GLYPHS = {
+    0: ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
+    1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
+    2: ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'],
+    3: ['#####', '...#.', '..#..', '...#.', '....#', '#...#', '.###.'],
+    4: ['...#.', '..##.', '.#.#.', '#..#.', '#####', '...#.', '...#.'],
+    5: ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'],
+    6: ['..##.', '.#...', '#....', '####.', '#...#', '#...#', '.###.'],
+    7: ['#####', '....#', '...#.', '..#..', '.#...', '.#...', '.#...'],
+    8: ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'],
+    9: ['.###.', '#...#', '#...#', '.####', '....#', '...#.', '.##..'],
+    '.': ['.', '.', '.', '.', '.', '.', '#'],
+    ',': ['..', '..', '..', '..', '..', '.#', '#.'],
+    ' ': ['...', '...', '...', '...', '...', '...', '...'],
+    '-': ['...', '...', '...', '###', '...', '...', '...'],
+    '?': ['.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'],
+    A: ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+    B: ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'],
+    C: ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'],
+    D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'],
+    E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'],
+    F: ['#####', '#....', '#....', '####.', '#....', '#....', '#....'],
+    G: ['.###.', '#...#', '#....', '#.###', '#...#', '#...#', '.###.'],
+    H: ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+    I: ['###', '.#.', '.#.', '.#.', '.#.', '.#.', '###'],
+    J: ['..###', '...#.', '...#.', '...#.', '...#.', '#..#.', '.##..'],
+    K: ['#...#', '#..#.', '#.#..', '##...', '#.#..', '#..#.', '#...#'],
+    L: ['#....', '#....', '#....', '#....', '#....', '#....', '#####'],
+    M: ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'],
+    N: ['#...#', '##..#', '#.#.#', '#..##', '#...#', '#...#', '#...#'],
+    O: ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
+    P: ['####.', '#...#', '#...#', '####.', '#....', '#....', '#....'],
+    Q: ['.###.', '#...#', '#...#', '#...#', '#.#.#', '#..#.', '.##.#'],
+    R: ['####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'],
+    S: ['.####', '#....', '#....', '.###.', '....#', '....#', '####.'],
+    T: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..'],
+    U: ['#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
+    V: ['#...#', '#...#', '#...#', '#...#', '#...#', '.#.#.', '..#..'],
+    W: ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '##.##', '#...#'],
+    X: ['#...#', '#...#', '.#.#.', '..#..', '.#.#.', '#...#', '#...#'],
+    Y: ['#...#', '#...#', '.#.#.', '..#..', '..#..', '..#..', '..#..'],
+    Z: ['#####', '....#', '...#.', '..#..', '.#...', '#....', '#####'],
+    '연': ['.#.##', '#.#.#', '.#.##', '....#', '#....', '#....', '#####'],
+    '승': ['..#..', '.#.#.', '#...#', '#####', '.###.', '#...#', '.###.'],
+    '최': ['.#..#', '###.#', '.#..#', '#.#.#', '....#', '.#..#', '###.#'],
+    '고': ['#####', '....#', '....#', '.....', '..#..', '..#..', '#####'],
+    '♛': ['#..#..#', '#..#..#', '##.#.##', '#######', '#######', '#.#.#.#', '#######'],
+    '×': ['.....', '#...#', '.#.#.', '..#..', '.#.#.', '#...#', '.....'],
+  };
+  // 작은 점 글씨(높이 5칸): 순위 · 기록 숫자, 쪽 번호
+  const SMALL = {
+    0: ['###', '#.#', '#.#', '#.#', '###'],
+    1: ['.#.', '##.', '.#.', '.#.', '###'],
+    2: ['###', '..#', '###', '#..', '###'],
+    3: ['###', '..#', '###', '..#', '###'],
+    4: ['#.#', '#.#', '###', '..#', '..#'],
+    5: ['###', '#..', '###', '..#', '###'],
+    6: ['###', '#..', '###', '#.#', '###'],
+    7: ['###', '..#', '..#', '..#', '..#'],
+    8: ['###', '#.#', '###', '#.#', '###'],
+    9: ['###', '#.#', '###', '..#', '###'],
+    '♛': ['#..#..#', '##.#.##', '#######', '#.#.#.#', '#######'],
+    '.': ['.', '.', '.', '.', '#'],
+    ',': ['..', '..', '..', '.#', '#.'],
+    '-': ['...', '...', '###', '...', '...'],
+    '/': ['..#', '..#', '.#.', '#..', '#..'],
+    ' ': ['.', '.', '.', '.', '.'],
+    '?': ['###', '..#', '.#.', '...', '.#.'],
+    '⚡': ['....##.', '...##..', '.#####.', '..##...', '.##....'],
+    '▶': ['#..', '##.', '###', '##.', '#..'],
+    '▼': ['.....', '#####', '.###.', '..#..', '.....'],
+  };
+
+  // 띠 버튼용(캔버스 종이에 바로 찍는 글자)
+  function stamp(ctx, rows, x, y, cell, color) {
+    ctx.fillStyle = color;
+    rows.forEach((row, j) => {
+      for (let i = 0; i < row.length; i += 1) if (row[i] === '#') ctx.fillRect(x + i * cell, y + j * cell, cell, cell);
+    });
+  }
+  function pixelFrame(ctx, w, h, b, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(2 * b, 0, w - 4 * b, b); ctx.fillRect(2 * b, h - b, w - 4 * b, b);
+    ctx.fillRect(0, 2 * b, b, h - 4 * b); ctx.fillRect(w - b, 2 * b, b, h - 4 * b);
+    ctx.fillRect(b, b, b, b); ctx.fillRect(w - 2 * b, b, b, b); ctx.fillRect(b, h - 2 * b, b, b); ctx.fillRect(w - 2 * b, h - 2 * b, b, b);
+  }
+  function pixelBlock(ctx, w, h, b, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(2 * b, 0, w - 4 * b, h); ctx.fillRect(b, b, w - 2 * b, h - 2 * b); ctx.fillRect(0, 2 * b, w, h - 4 * b);
+  }
+
+  /* ---------- 시안의 지금 상태(조작 줄 버튼이 바꾼다) ---------- */
+  const S = {
+    scene: 1,          // 장면 1~7
+    game: '3',         // 게임 1~6
+    font: 'han',       // 닉네임 글자: han = 한글 픽셀 글꼴(갈무리11) · eng = 영문 · 숫자만(점 글씨)
+    place: 'screen',   // 전체 순위표 자리: screen = 검은 화면 안 · sheet = 몸통 위 별도 창
+    period: 'all',     // 기간: today 오늘 · all 전체
+    result: 'same',    // 결과 화면의 순위 네 줄: same = 결과 화면 아래에 같이 · next = 한 번 더 누르면 순위 화면
+    step: 0,           // result = next일 때: 0 결과 화면 · 1 순위 화면
+    why: 'bad',        // 거절 까닭: bad 금지 단어 · taken 이미 있는 이름 · short 너무 짧음
+    page: 0,           // 전체 순위표 쪽
+    myName: '',        // 입력한 닉네임(없으면 견본 이름)
+    tick: 0,           // 불러오는 중 점 움직임
+    metric: 'streak',  // 결투 전체 순위표의 순위 종류: streak 최고 연승 · react 최고 반응 속도(결과 화면 네 줄은 언제나 연승)
+    google: 'off',     // 구글 연결: off 안 됨 · on 연결됨
+    wrong: 'off',      // 이어 가기에서 틀렸을 때 문구: off 평소 · on 틀림
+  };
+  const METRICS = [{ id: 'streak', label: ['연승', 'WINS'] }, { id: 'react', label: ['반응', 'TIME'] }];
+  const CODE = 'K7M2QX';   // 이어하기 코드 견본(여섯 글자 — 헷갈리는 0 · O · 1 · I는 안 씀)
+  let ctlOpen = true;      // 조작 줄이 펼쳐져 있는지
+  let acctBack = 5;        // 계정 창을 닫으면 돌아갈 장면
+  let copied = false;      // 「복사」를 막 눌렀는지(버튼 글이 잠깐 「복사됨」)
+  let reactNow = false;    // 지금 그리는 순위 줄이 결투 반응 속도 순위인지
+  let prevScene = 3;   // 왕관 버튼으로 순위표를 닫으면 돌아갈 장면
+  let retrying = false;
+  const fi = () => (S.font === 'han' ? 0 : 1);
+
+  /* ---------- 가짜 자료 ---------- */
+  // 게임마다 순위 기준과 단위가 다르다. unit = [한글 글꼴일 때, 영문 점 글씨일 때]
+  const GAMES = {
+    1: { name: '시지프스', unit: ['회', 'HITS'], score: (q) => Math.round(12345 * Math.pow(0.9905, q - 1)).toLocaleString('en-US') },   // 누른 횟수(많을수록 위)
+    2: { name: '10.00000', unit: ['초 차이', 'DIFF'], score: (q) => (0.00213 + (q - 1) * 0.00087).toFixed(5) },                          // 10초와의 차이(작을수록 위)
+    3: { name: '결투', unit: ['연승', 'WINS'], score: (q) => String(Math.max(1, Math.round(17 / (1 + (q - 1) * 0.02)))) },               // 최고 연승
+    4: { name: '100m', unit: ['초', 'SEC'], score: (q) => (9.58 + (q - 1) * 0.013).toFixed(2) },                                         // 100m 기록(작을수록 위)
+    5: { name: '퍼덕', unit: ['점', 'PTS'], score: (q) => String(Math.max(1, Math.round(42 / (1 + (q - 1) * 0.02)))) },                  // 퍼덕 점수
+    6: { name: '멀리뛰기', unit: ['km', 'KM'], score: (q) => (29.9 / (1 + (q - 1) * 0.012)).toFixed(1) },                                // 멀리뛰기 거리
+  };
+  const PERIODS = [{ id: 'today', label: ['오늘', 'TODAY'] }, { id: 'all', label: ['전체', 'ALL'] }];
+  const TOTAL = { today: 86, all: 1204 };   // 순위표에 오른 사람 수
+  const MY_RANK = { today: 23, all: 128 };
+  // 가짜 닉네임(한글 · 영문 · 숫자 섞임, 2~8자). 지어낸 이름뿐이다
+  const HAN_POOL = ['닉네임여덟글자임', 'mushrm7', '오늘도야근', '엄지하나로', 'ㅇㅇ', '결투왕', 'NO1', '감자튀김', '퇴근하고싶다', 'sonic99',
+    '번개손', '한판만더', 'zzz', '고양이발바닥', '7연패중', '라면물조절', 'K2', '선인장', '느린손가락', 'BEST',
+    '월요일싫어', '콩나물국밥', 'ab', '도전자', '새벽네시', 'pixel', '엄마가불러', '탕수육부먹', '0000', '마지막한판', 'GG', '치즈돈까스'];
+  const ENG_POOL = ['EIGHTCHR', 'MUSHRM7', 'OVERTIME', 'THUMB1', 'OO', 'DUELKING', 'NO1', 'FRIES', 'GOHOME', 'SONIC99',
+    'BOLT', 'ONEMORE', 'ZZZ', 'CATPAW', 'LOSE7', 'RAMEN', 'K2', 'CACTUS', 'SLOWHAND', 'BEST',
+    'MONDAY', 'SOUP', 'AB', 'ROOKIE', '4AM', 'PIXEL', 'MOMCALLS', 'TANGSU', '0000', 'LASTONE', 'GG', 'CHEESE'];
+  const BANNED = ['운영자', '관리자', '바보', 'ADMIN', 'GM'];   // 시안용 금지 단어 견본(진짜 목록은 서버에서)
+  const SAMPLE = { bad: ['운영자', 'ADMIN'], taken: ['결투왕', 'DUELKING'], short: ['ㅇ', 'A'] };
+  const WHY_TEXT = { bad: '쓸 수 없는 이름', taken: '이미 있는 이름', short: '2~8자' };
+
+  function nameAt(i) {
+    const pool = S.font === 'han' ? HAN_POOL : ENG_POOL;
+    const base = pool[i % pool.length], round = Math.floor(i / pool.length);
+    if (!round) return base;
+    const tail = String(round + 1);
+    return [...base].slice(0, 8 - tail.length).join('') + tail;
+  }
+  function myName() {
+    const n = S.myName;
+    if (S.font === 'eng') return /^[A-Za-z0-9]{2,8}$/.test(n) ? n.toUpperCase() : 'MYNAME';
+    return n || '내이름';
+  }
+  // 내 순위: 장면 ④만 2등, 나머지는 3등 밖
+  const meRank = () => (S.scene === 4 ? 2 : MY_RANK[S.period]);
+  // 오늘 순위표는 전체보다 기록이 조금 낮다
+  // 결투 반응 속도 순위: 0.187초부터(작을수록 위, 0.100 미만은 없음)
+  const scoreAt = (rank) => {
+    const q = S.period === 'today' ? rank + 2 : rank;
+    return reactNow ? (0.187 + (q - 1) * 0.0011).toFixed(3) : GAMES[S.game].score(q);
+  };
+  function entry(rank) {
+    const mine = meRank(), me = rank === mine;
+    return { rank, me, name: me ? myName() : nameAt(rank - 1 - (rank > mine ? 1 : 0)), score: scoreAt(rank) };
+  }
+
+  /* ---------- 글자 그림(칸 좌표 묶음) 만들기 ----------
+     bmp = { w, h, cells: [[x, y], …] }. 점 글씨는 글자 표에서, 한글 픽셀 글꼴은 작은 숨은 종이에 12점 크기로 쓴 뒤
+     점마다 「켜짐 / 꺼짐」으로 딱 잘라(흐린 회색 없이) 칸으로 옮긴다 */
+  function dotBmp(keys, font, k) {
+    k = k || 1;
+    const cells = []; let x = 0, h = 0;
+    keys.forEach((key, n) => {
+      const gl = font[key] || font['?'];
+      if (n) x += 1;
+      gl.forEach((row, j) => {
+        for (let i = 0; i < row.length; i += 1) {
+          if (row[i] !== '#') continue;
+          for (let dy = 0; dy < k; dy += 1) for (let dx = 0; dx < k; dx += 1) cells.push([(x + i) * k + dx, j * k + dy]);
+        }
+      });
+      x += gl[0].length; h = Math.max(h, gl.length);
+    });
+    return { w: x * k, h: h * k, cells };
+  }
+  const HAN_FONT = '12px Galmuri11, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif';
+  const SC_W = 240, SC_H = 30, SC_BASE = 20;
+  const scratch = document.createElement('canvas');
+  scratch.width = SC_W; scratch.height = SC_H;
+  const sctx = scratch.getContext('2d', { willReadFrequently: true });
+  let fontState = 'loading';     // loading → ok(갈무리11 불러옴) / fallback(못 불러와 기기 글꼴)
+  let hanTop = 9, hanH = 12, hanBase = 11; // 한 줄의 위 끝(숨은 종이 기준) · 줄 높이 · 한글 바닥까지의 높이(글꼴을 재서 정한다)
+  const hanCache = new Map();
+  function raster(text) {
+    sctx.clearRect(0, 0, SC_W, SC_H);
+    sctx.font = HAN_FONT; sctx.textBaseline = 'alphabetic'; sctx.fillStyle = '#ffffff';
+    sctx.fillText(text, 2, SC_BASE);
+    const d = sctx.getImageData(0, 0, SC_W, SC_H).data;
+    const px = []; let l = SC_W, r = -1, t = SC_H, b = -1;
+    for (let y = 0; y < SC_H; y += 1) {
+      for (let x = 0; x < SC_W; x += 1) {
+        if (d[(y * SC_W + x) * 4 + 3] < 120) continue;
+        px.push([x, y]);
+        if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > b) b = y;
+      }
+    }
+    return { px, l, r, t, b };
+  }
+  function hanMetrics() {
+    hanCache.clear();
+    const all = raster('가힣뷁Agjy0'), han = raster('가힣뷁');
+    if (all.b < 0 || han.b < 0) { hanTop = 9; hanH = 12; hanBase = 11; return; }
+    hanTop = all.t; hanH = all.b - all.t + 1; hanBase = han.b - all.t + 1;
+  }
+  function hanBmp(text) {
+    if (hanCache.has(text)) return hanCache.get(text);
+    const r = raster(text);
+    const cells = r.b < 0 ? [] : r.px.filter(([, y]) => y >= hanTop && y < hanTop + hanH).map(([x, y]) => [x - r.l, y - hanTop]);
+    const bmp = { w: r.b < 0 ? 0 : r.r - r.l + 1, h: hanH, cells };
+    hanCache.set(text, bmp);
+    return bmp;
+  }
+  // 이름 한 줄 높이 · 줄 사이 틈(칸)
+  const lineH = () => (S.font === 'han' ? hanH : 7);
+  const rowGap = () => (S.font === 'han' ? 1 : 2);
+  const nameBmp = (name) => (S.font === 'han' ? hanBmp(name) : dotBmp([...name.toUpperCase()], GLYPHS));
+  const label = (pair) => (S.font === 'han' ? hanBmp(pair[0]) : dotBmp([...pair[1]], GLYPHS));
+  // 숫자를 이름 줄에 나란히 놓을 때의 세로 자리: 한글 바닥(영문은 줄 바닥)에 숫자 바닥을 맞춘다
+  const numY = (bmp) => Math.max(0, (S.font === 'han' ? Math.min(hanBase, hanH) : 7) - bmp.h);
+
+  /* ---------- 그림판: 검은 화면(128×96) · 별도 창(128×N) 두 장. 그리는 함수는 「지금 종이」에 찍는다 ---------- */
+  const el = {
+    main: document.getElementById('main'), stage: document.getElementById('stage'), ctl: document.getElementById('ctl'), cap: document.getElementById('cap'),
+    screen: document.getElementById('screen'), deviceE: document.getElementById('deviceE'),
+    bodyArt: document.getElementById('bodyArt'), bodyFill: document.getElementById('bodyFill'), bodyLine: document.getElementById('bodyLine'),
+    gameBtn: document.getElementById('gameBtn'), gameCanvas: document.getElementById('gameCanvas'), gameLabel: document.getElementById('gameLabel'),
+    crownBtn: document.getElementById('crownBtn'), crownCanvas: document.getElementById('crownCanvas'), crownLabel: document.getElementById('crownLabel'),
+    soundBtn: document.getElementById('soundBtn'), soundCanvas: document.getElementById('soundCanvas'),
+    skinBtn: document.getElementById('skinBtn'), skinCanvas: document.getElementById('skinCanvas'), skinLabel: document.getElementById('skinLabel'),
+    grip: document.getElementById('grip'),
+    keySlide: document.getElementById('keySlide'), keySlideCanvas: document.getElementById('keySlideCanvas'),
+    keyPush: document.getElementById('keyPush'), keyPushCanvas: document.getElementById('keyPushCanvas'),
+    nick: document.getElementById('nick'), nickGuide: document.getElementById('nickGuide'), nickInput: document.getElementById('nickInput'),
+    nickMsg: document.getElementById('nickMsg'), nickOk: document.getElementById('nickOk'), nickCont: document.getElementById('nickCont'),
+    acctWrap: document.getElementById('acctWrap'), acct: document.getElementById('acct'), ctlFold: document.getElementById('ctlFold'),
+    sheetWrap: document.getElementById('sheetWrap'), sheet: document.getElementById('sheet'),
+  };
+  const dpr = () => window.devicePixelRatio || 1;
+  const setGhost = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+
+  function makeTarget(name, out) {
+    const cv = document.createElement('canvas');
+    return { name, out, cv, c: cv.getContext('2d'), h: 0, marks: [], hits: [] };
+  }
+  const TS = makeTarget('screen', el.screen), TH = makeTarget('sheet', el.sheet);
+  function sizeTarget(t, rows) {
+    if (t.h === rows && t.cv.width === W) return;
+    t.h = rows; t.cv.width = W; t.cv.height = rows;
+  }
+  sizeTarget(TS, ROWS); sizeTarget(TH, ROWS);
+  let T = TS;          // 지금 종이
+  let ink = null;
+  function use(t) { T = t; ink = null; t.marks = []; t.hits = []; box(0, 0, W, t.h, BG); }
+  function dot(x, y, color) {
+    if (x < 0 || x >= W || y < 0 || y >= T.h) return;
+    if (color !== ink) { T.c.fillStyle = color; ink = color; }
+    T.c.fillRect(x, y, 1, 1);
+  }
+  function box(x, y, w, h, color) { T.c.fillStyle = color; ink = color; T.c.fillRect(x, y, w, h); }
+  function sprite(x, y, rows, color, k) {
+    color = color || INK; k = k || 1;
+    rows.forEach((row, j) => {
+      for (let i = 0; i < row.length; i += 1) {
+        if (row[i] !== '#') continue;
+        for (let dy = 0; dy < k; dy += 1) for (let dx = 0; dx < k; dx += 1) dot(x + i * k + dx, y + j * k + dy, color);
+      }
+    });
+  }
+  function put(bmp, x, y, color) { color = color || INK; bmp.cells.forEach(([i, j]) => dot(x + i, y + j, color)); }
+  // 검사용 자리 기록: kind = row(순위 줄) · text(글자) · art(그림)
+  function mark(id, kind, x, y, w, h) { T.marks.push({ id, kind, x, y, w, h }); }
+  function hit(id, x, y, w, h) { T.hits.push({ id, x, y, w, h }); }
+  function blit(t) {
+    const g = t.out.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.drawImage(t.cv, 0, 0, t.out.width, t.out.height);
+  }
+
+  /* ---------- 순위 줄 ----------
+     한 줄 = [순위] [이름] ……… [기록]. 양끝 2칸 · 틈 2칸. 내 줄은 뒤집힌 색(흰 바탕 검은 글씨, 위아래 한 칸씩 더 칠함).
+     128칸에 안 들어가면 차례로 줄인다: ① 순위 숫자를 작은 점 글씨로 ② 기록도 작은 점 글씨로 ③ 천 단위 쉼표 빼기 ④ 이름 뒤를 자르고 점 셋 */
+  const PAD = 2, GAPX = 2, DOTS_H = 6;
+  const LEVELS = [['big', 'big', true], ['small', 'big', true], ['small', 'small', true], ['small', 'small', false]];
+  const ELL_W = 5;
+  let lastPlan = null;
+  function planRows(list, width) {
+    const num = (text, size) => dotBmp([...text], size === 'big' ? GLYPHS : SMALL);
+    let plan = null;
+    for (let lv = 0; lv < LEVELS.length; lv += 1) {
+      const [rs, ss, comma] = LEVELS[lv];
+      const items = list.map((e) => ({ e, rank: num(String(e.rank), rs), score: num(comma ? e.score : e.score.replace(/,/g, ''), ss), name: nameBmp(e.name), cut: 0 }));
+      const rankW = Math.max.apply(null, items.map((i) => i.rank.w));
+      const nameX = PAD + rankW + GAPX;
+      const fits = items.every((i) => nameX + i.name.w + GAPX + i.score.w + PAD <= width);
+      plan = { lv, items, rankW, nameX, fits };
+      if (fits) break;
+    }
+    if (!plan.fits) {
+      const ellY = S.font === 'han' ? Math.min(hanBase, hanH) - 1 : 6;
+      plan.items.forEach((it) => {
+        const avail = width - PAD - it.score.w - GAPX - plan.nameX;
+        if (it.name.w <= avail) return;
+        const chars = [...it.e.name];
+        let b = it.name;
+        while (chars.length > 1 && b.w + 1 + ELL_W > avail) { chars.pop(); b = nameBmp(chars.join('')); }
+        const x0 = b.w + 1;
+        it.name = { w: x0 + ELL_W, h: b.h, cells: b.cells.concat([[x0, ellY], [x0 + 2, ellY], [x0 + 4, ellY]]) };
+        it.cut = chars.length;
+      });
+    }
+    return plan;
+  }
+  // 순위 줄 묶음이 차지하는 높이(칸): 줄 높이 × 줄 수 + 틈. 「…」 줄은 6칸. 마지막이 내 줄이면 아래 한 칸 더
+  function rankHeight(list) {
+    const lh = lineH(), g = rowGap();
+    let h = 0;
+    list.forEach((e, n) => { if (n) h += e.far ? DOTS_H : g; h += lh; });
+    return h + (list.length && list[list.length - 1].me ? 1 : 0);
+  }
+  function drawRankRows(list, y0, width) {
+    const plan = planRows(list, width), lh = lineH(), g = rowGap();
+    let y = y0;
+    plan.items.forEach((it, n) => {
+      if (n) y += it.e.far ? DOTS_H : g;
+      if (it.e.far) {
+        const dx = Math.floor(width / 2) - 3, dy = y - DOTS_H + 2;
+        [0, 3, 6].forEach((o) => dot(dx + o, dy, INK));
+        mark('dots', 'text', dx, dy, 7, 1);
+      }
+      const col = it.e.me ? BG : INK;
+      if (it.e.me) { box(0, y - 1, width, lh + 2, INK); mark('row-' + it.e.rank, 'row', 0, y - 1, width, lh + 2); hit('acct', 0, y - 1, width, lh + 2); } else mark('row-' + it.e.rank, 'row', PAD, y, width - 2 * PAD, lh);
+      put(it.rank, PAD + plan.rankW - it.rank.w, y + numY(it.rank), col);
+      put(it.name, plan.nameX, y, col);
+      put(it.score, width - PAD - it.score.w, y + numY(it.score), col);
+      y += lh;
+    });
+    lastPlan = {
+      level: plan.lv, rankW: plan.rankW, nameX: plan.nameX, fits: plan.fits,
+      rows: plan.items.map((it) => ({ rank: it.e.rank, name: it.e.name, score: it.e.score, me: it.e.me, nameW: it.name.w, scoreW: it.score.w, cut: it.cut })),
+    };
+    return y;
+  }
+  // 결과 화면용 네 줄: 위 3명 + (3등 밖이면 「…」 뒤에) 내 줄
+  function rankList() {
+    const list = [entry(1), entry(2), entry(3)];
+    if (meRank() > 3) { const me = entry(meRank()); me.far = true; list.push(me); }
+    return list;
+  }
+
+  /* ---------- 장면 그리기 ---------- */
+  // 순위표 머리 줄: 왕관 + 기간 탭 둘(고른 쪽이 뒤집힌 색) + 오른쪽 끝 단위(별도 창이면 그 오른쪽에 × 닫기)
+  // duelTabs = 결투 전체 순위표: 단위 자리에 「연승 / 반응」 두 탭(자리가 모자라 왼쪽 왕관은 뺀다)
+  function drawHeader(close, duelTabs) {
+    const lh = lineH(), hh = lh + 3;
+    let x = 2;
+    if (!duelTabs) {
+      sprite(2, 1 + Math.floor((lh + 2 - 5) / 2), SMALL['♛']);
+      mark('crown', 'art', 2, 1 + Math.floor((lh + 2 - 5) / 2), 7, 5);
+      x = 12;
+    }
+    PERIODS.forEach((p) => {
+      const b = label(p.label), bw = b.w + 4;
+      if (S.period === p.id) { box(x, 1, bw, lh + 2, INK); put(b, x + 2, 2, BG); } else put(b, x + 2, 2, INK);
+      mark('tab-' + p.id, 'text', x, 1, bw, lh + 2);
+      hit('tab-' + p.id, x - 1, 0, bw + 1, hh + 2);
+      x += bw + 1;
+    });
+    let rx = W - PAD;
+    if (close) {
+      const xb = dotBmp(['×'], GLYPHS);
+      put(xb, rx - xb.w, 1 + Math.floor((lh + 2 - 7) / 2));
+      mark('close', 'art', rx - xb.w, 1 + Math.floor((lh + 2 - 7) / 2), 5, 7);
+      hit('close', rx - xb.w - 4, 0, xb.w + 6, hh + 2);
+      rx -= xb.w + 5;
+    }
+    if (duelTabs) {
+      METRICS.slice().reverse().forEach((m) => {
+        const b = label(m.label), bw = b.w + 4, bx = rx - bw;
+        if (S.metric === m.id) { box(bx, 1, bw, lh + 2, INK); put(b, bx + 2, 2, BG); } else put(b, bx + 2, 2, INK);
+        mark('met-' + m.id, 'text', bx, 1, bw, lh + 2);
+        hit('met-' + m.id, bx, 0, bw + 1, hh + 2);
+        rx = bx - 1;
+      });
+    } else {
+      const u = label(GAMES[S.game].unit);
+      put(u, rx - u.w, 2);
+      mark('unit', 'text', rx - u.w, 2, u.w, lh);
+    }
+    box(0, hh, W, 1, INK);
+    return hh + 1;
+  }
+
+  // ①② 닉네임: 검은 화면에는 왕관만(큰 것 하나). 안내 · 입력칸 · 「확인」 · 거절 문구는 그 위에 겹친 진짜 입력칸이 보여 준다
+  function drawNickBack() {
+    const k = 2, cw = 7 * k;
+    sprite(Math.floor((W - cw) / 2), 4, GLYPHS['♛'], INK, k);
+    mark('crown', 'art', Math.floor((W - cw) / 2), 4, cw, 7 * k);
+  }
+
+  // 작은 점 글씨 한 줄(아이콘 + 두 칸 띄움 + 글자): 왼쪽 위 왕관 · 번개 줄
+  function smallRow(id, keys, x, y) {
+    let cx = x;
+    keys.forEach((k, n) => { sprite(cx, y, SMALL[k] || SMALL['?']); cx += (SMALL[k] || SMALL['?'])[0].length + (n === 0 ? 2 : 1); });
+    mark(id, 'text', x, y, cx - 1 - x, 5);
+  }
+  function drawPerson(anchor, right, rows, ax, gy) {
+    const top = gy - rows.length;
+    const sx = (i) => (right ? anchor - ax + i : anchor + ax - i);
+    const cells = [];
+    rows.forEach((row, j) => { for (let i = 0; i < row.length; i += 1) if (row[i] === '#') cells.push([sx(i), top + j]); });
+    cells.forEach(([x, y]) => { for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) dot(x + dx, y + dy, BG); });
+    cells.forEach(([x, y]) => dot(x, y, INK));
+  }
+  // 결과 화면 위쪽. compact = 순위 줄을 같이 넣으려고 위쪽만 남긴 꼴(사막 그림 · 「최고 N연승」 줄 없음), squeezed = 그래도 좁아 연승 숫자를 한 배로
+  function drawResultTop(compact, squeezed) {
+    const mine = scoreAt(meRank());
+    if (S.game !== '3') {
+      // 결투가 아닌 게임: 진짜 결과 그림 대신 「이번 기록」 큰 숫자 + 단위로 자리만 잡는다
+      const nb = dotBmp([...mine], GLYPHS, 2), ub = label(GAMES[S.game].unit);
+      const tw = nb.w + 3 + ub.w, x = Math.floor((W - tw) / 2), y = compact ? 4 : 30;
+      put(nb, x, y); put(ub, x + nb.w + 3, y + nb.h - ub.h);
+      mark('record', 'text', x, Math.min(y, y + nb.h - ub.h), tw, Math.max(nb.h, ub.h));
+      return;
+    }
+    if (!compact) {
+      const gy = GROUND_Y;
+      sprite(SUN_X, SUN_Y, SUN);
+      for (let x = 0; x < W; x += 1) {
+        const y = RIDGE_TOP[x], prev = x > 0 ? RIDGE_TOP[x - 1] : y;
+        for (let yy = Math.min(y, prev + 1); yy <= Math.max(y, prev - 1); yy += 1) dot(x, yy + SKY, INK);
+      }
+      CACTI.forEach(([x, rows]) => sprite(x, gy - rows.length, rows));
+      for (let y = gy + 2; y < T.h; y += 1) {
+        for (let x = 0; x < W; x += 1) if (GROUND_TEX[(y - gy) % GROUND_TEX.length][x % GROUND_TEX[0].length] === '#') dot(x, y, INK);
+      }
+      drawPerson(ME_X, true, DOWN, 3, gy);                 // 나: 쓰러짐
+      sprite(ME_X - 9, gy - HAT.length, HAT);
+      drawPerson(OPP_X, false, OPP_STAND, 5, gy);          // 상대: 서 있음(검은 모자)
+      box(0, gy, W, 1, INK);
+    }
+    // 왼쪽 위: 왕관 + 최고 연승 · 번개 + 최고 반응 속도 · 그 아래 「N연승」(졌으니 0연승)
+    smallRow('hud-best', ['♛'].concat([...mine]), 3, 2);
+    smallRow('hud-ms', ['⚡'].concat([...'0.231']), 3, 8);
+    const k = compact && squeezed ? 1 : 2;
+    const sb = dotBmp(['0'], GLYPHS, k), ub = dotBmp(['연', '승'], GLYPHS);
+    put(sb, 3, 15); put(ub, 3 + sb.w + 2, 15 + sb.h - 7);
+    mark('streak', 'text', 3, 15, sb.w + 2 + ub.w, sb.h);
+    // 해골: 같이 넣는 꼴이면 맨 위로 올린다
+    const sx = Math.floor((W - SKULL[0].length) / 2), sy = compact ? 3 : 6 + SKY;
+    sprite(sx, sy, SKULL);
+    mark('skull', 'art', sx, sy, SKULL[0].length, SKULL.length);
+    if (!compact) {
+      const keys = ['♛', ' ', '최', '고', ' '].concat([...mine], ['연', '승']);
+      const one = dotBmp(keys, GLYPHS), kk = one.w * 2 <= W - 8 ? 2 : 1, b = dotBmp(keys, GLYPHS, kk);
+      const bx = Math.floor((W - b.w) / 2), by = sy + SKULL.length + 2;
+      box(bx - 1, by - 1, b.w + 2, b.h + 2, BG); put(b, bx, by);
+      mark('best-line', 'text', bx, by, b.w, b.h);
+    }
+  }
+  let squeezedNow = false, panelTopNow = null;
+  // ③④ 결과 화면
+  function drawResult() {
+    const list = rankList();
+    squeezedNow = false; panelTopNow = null;
+    if (S.result === 'next') {
+      if (S.step === 0) { drawResultTop(false, false); return; }
+      // 한 번 더 누른 뒤의 순위 화면: 머리 줄 + 네 줄을 가운데에
+      const hb = drawHeader(false), need = rankHeight(list);
+      drawRankRows(list, hb + 1 + Math.max(1, Math.floor((T.h - hb - 1 - need) / 2)), W);
+      return;
+    }
+    // 결과 화면 아래에 같이: 아래쪽을 순위 판으로 쓴다(가로줄 하나로 나눔)
+    const need = rankHeight(list);
+    const panelTop = T.h - need - 3;
+    squeezedNow = panelTop < 31;
+    panelTopNow = panelTop;
+    drawResultTop(true, squeezedNow);
+    box(0, panelTop, W, 1, INK);
+    drawRankRows(list, panelTop + 2, W);
+  }
+
+  // ⑤⑥⑦ 전체 순위표(지금 종이가 검은 화면이든 별도 창이든 같은 짜임)
+  let board = { perPage: 1, pages: 1 };
+  function boardRoom() {
+    const lh = lineH(), top = lh + 4 + 2, bottom = T.h - 10 - 1;
+    const perPage = Math.max(1, Math.floor((bottom - top + 1 + rowGap()) / (lh + rowGap())));
+    return { top, perPage, pages: Math.ceil(TOTAL[S.period] / perPage) };
+  }
+  function drawBoard() {
+    reactNow = S.game === '3' && S.metric === 'react';
+    try { drawBoardIn(); } finally { reactNow = false; }
+  }
+  function drawBoardIn() {
+    const sheet = T.name === 'sheet';
+    drawHeader(sheet, S.game === '3');
+    const room = boardRoom();
+    board = { perPage: room.perPage, pages: room.pages };
+    if (S.scene === 6) {
+      // 불러오는 중: 가운데 네모 셋이 차례로 켜진다(글자 없음)
+      const cy = Math.floor(T.h / 2) - 2, x0 = Math.floor(W / 2) - 10, on = S.tick % 4;
+      [0, 1, 2].forEach((n) => { if (n < on) box(x0 + n * 8, cy, 4, 4, INK); else box(x0 + n * 8 + 1, cy + 1, 2, 2, INK); });
+      mark('loading', 'art', x0, cy, 20, 4);
+      return;
+    }
+    if (S.scene === 7) {
+      // 연결 실패: 큰 가위표 + 한 마디. 왼쪽 키캡(RE)을 누르면 다시 불러온다
+      const xb = dotBmp(['×'], GLYPHS, 2), lb = label(['연결 실패', 'OFFLINE']);
+      const y = Math.floor((T.h - (xb.h + 4 + lb.h)) / 2) + 4;
+      put(xb, Math.floor((W - xb.w) / 2), y); put(lb, Math.floor((W - lb.w) / 2), y + xb.h + 4);
+      mark('fail-x', 'art', Math.floor((W - xb.w) / 2), y, xb.w, xb.h);
+      mark('fail-word', 'text', Math.floor((W - lb.w) / 2), y + xb.h + 4, lb.w, lb.h);
+      hit('retry', 0, y - 4, W, xb.h + lb.h + 12);
+      return;
+    }
+    if (S.page >= room.pages) S.page = room.pages - 1;
+    const first = S.page * room.perPage + 1, list = [];
+    for (let r = first; r < first + room.perPage && r <= TOTAL[S.period]; r += 1) list.push(entry(r));
+    drawRankRows(list, room.top, W);
+    // 바닥 줄: 왼쪽 = 내 줄로 바로 가기(▼ + 내 순위), 오른쪽 = 쪽 번호 + 다음 쪽(▶)
+    const fy = T.h - 10;
+    box(0, fy, W, 1, INK);
+    const meB = dotBmp(['▼'].concat([...String(meRank())]), SMALL);
+    put(meB, PAD, fy + 3); mark('foot-me', 'text', PAD, fy + 3, meB.w, 5);
+    const pgB = dotBmp([...(String(S.page + 1) + '/' + String(room.pages))].concat([' ', '▶']), SMALL);
+    put(pgB, W - PAD - pgB.w, fy + 3); mark('foot-page', 'text', W - PAD - pgB.w, fy + 3, pgB.w, 5);
+    hit('me', 0, fy, Math.floor(W / 2), 10);
+    hit('next', Math.floor(W / 2), fy, W - Math.floor(W / 2), 10);
+  }
+
+  const SCENE_NAMES = ['', '① 닉네임 입력(처음)', '② 닉네임 거절', '③ 결과 + 내 순위와 위 3명', '④ 내가 3등 안일 때', '⑤ 전체 순위표', '⑥ 불러오는 중', '⑦ 연결 실패',
+    '⑧ 내 계정 창', '⑨ 이어하기 코드 보기', '⑩ 다른 폰에서 이어 가기', '⑪ 앱 안 브라우저 안내'];
+
+  /* ---------- 계정 창(⑧~⑪): 글이 길어 검은 화면 대신 몸통 위 별도 창에 진짜 글자로 쓴다. 구글 버튼은 모양만(진짜 로그인 없음) ---------- */
+  const escHtml = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  function acctHtml() {
+    const head = (t) => '<div class="acct-head"><span>' + t + '</span><button type="button" class="x" id="acctX" aria-label="닫기">×</button></div>';
+    if (S.scene === 8) {
+      return head('내 계정') + '<div class="name" id="acctName">' + escHtml(myName()) + '</div>'
+        + '<button type="button" id="acctRename">이름 바꾸기</button>'
+        + (S.google === 'on'
+          ? '<p id="acctLinked">구글에 연결됨</p><button type="button" id="acctUnlink">연결 끊기</button>'
+          : '<button type="button" class="solid" id="acctGoogle">G 구글로 연결</button>')
+        + '<button type="button" id="acctCode">이어하기 코드</button>';
+    }
+    if (S.scene === 9) {
+      return head('이어하기 코드') + '<div class="code" id="acctCodeText">' + CODE + '</div>'
+        + '<p>다른 폰에서 닉네임과 이 코드로 이어 갑니다</p>'
+        + '<button type="button" class="solid" id="acctCopy">복사</button>';
+    }
+    if (S.scene === 10) {
+      return head('이어 가기')
+        + '<input id="contNick" type="text" maxlength="8" placeholder="닉네임" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="닉네임">'
+        + '<input id="contCode" type="text" maxlength="6" placeholder="코드" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-label="이어하기 코드">'
+        + '<p class="msg" id="contMsg"></p>'
+        + '<button type="button" class="solid" id="contGo">이어 가기</button>'
+        + '<button type="button" class="solid" id="contGoogle">G 구글로 이어 가기</button>';
+    }
+    return head('구글 연결') + '<p>이 창에서는 구글 연결이 안 됩니다</p><p>사파리 · 크롬으로 열기</p>'
+      + '<button type="button" class="solid" id="inappCopy">주소 복사</button>'
+      + '<button type="button" id="inappCode">이어하기 코드로 하기</button>';
+  }
+  let acctKey = '';
+  function buildAcct() {
+    const key = [S.scene, S.google, S.font, myName()].join('|');
+    if (key !== acctKey) { acctKey = key; el.acct.innerHTML = acctHtml(); } // 같은 창이면 다시 짓지 않는다(치던 글자가 지워지지 않게)
+    const q = (id) => el.acct.querySelector('#' + id);
+    if (q('contMsg')) q('contMsg').textContent = S.wrong === 'on' ? '닉네임이나 코드가 달라요' : '';
+    if (q('acctCopy')) q('acctCopy').textContent = copied ? '복사됨' : '복사';
+    if (q('inappCopy')) q('inappCopy').textContent = copied ? '복사됨' : '주소 복사';
+  }
+  function copyText(text) {
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(() => {}); } catch (e) { /* 복사가 막힌 환경: 글만 바뀐다 */ }
+    copied = true; render();
+    setTimeout(() => { copied = false; render(); }, 1200);
+  }
+  function acctAct(id) {
+    if (id === 'acctX') { setState({ scene: S.scene === 8 ? acctBack : S.scene === 10 ? 1 : 8 }); return; }
+    if (id === 'acctRename') { setState({ scene: 1 }); return; }
+    if (id === 'acctGoogle') { setState({ google: 'on' }); return; }   // 시안: 누르면 바로 「연결됨」 꼴(앱 안 브라우저라면 ⑪이 뜬다)
+    if (id === 'acctUnlink') { setState({ google: 'off' }); return; }
+    if (id === 'acctCode' || id === 'inappCode') { setState({ scene: 9 }); return; }
+    if (id === 'acctCopy') { copyText(CODE); return; }
+    if (id === 'inappCopy') { copyText(location.href); return; }
+    if (id === 'contGoogle') { setState({ scene: 3, wrong: 'off' }); return; }
+    if (id === 'contGo') {
+      const nick = cleanNick(el.acct.querySelector('#contNick').value);
+      const code = el.acct.querySelector('#contCode').value.trim().toUpperCase();
+      if ([...nick].length >= 2 && code === CODE) { S.myName = nick; setState({ scene: 3, wrong: 'off' }); } else setState({ wrong: 'on' });
+    }
+  }
+  function captionNow() {
+    let t = SCENE_NAMES[S.scene];
+    if (S.scene === 1) t += ' — 입력칸을 눌러 쳐 보고 「확인」';
+    if (S.scene === 2) t += ' — 「' + WHY_TEXT[S.why] + '」';
+    if (S.scene === 3 || S.scene === 4) t += S.result === 'next' ? ' — 오른쪽 키캡: 결과 ↔ 순위' : ' — 결과 화면 아래에 같이';
+    if (S.scene === 5) t += S.place === 'sheet' ? ' — 창 아래 왼쪽 = 내 줄 · 오른쪽 = 다음 쪽 · × 닫기' : ' — 오른쪽 키캡 = 다음 쪽 · 왼쪽 = 내 줄 · 왕관 버튼 = 닫기';
+    if (S.scene === 7) t += ' — 왼쪽 키캡(RE) = 다시';
+    if (S.scene === 8) t += ' — 순위표에서 내 줄을 누르면 뜸';
+    if (S.scene === 10) t += ' — 견본 코드 ' + CODE;
+    t += ' · 글꼴: ' + (fontState === 'ok' ? '갈무리11' : fontState === 'fallback' ? '못 불러옴(기기 글꼴)' : '불러오는 중');
+    return t;
+  }
+  const sheetOn = () => S.scene >= 5 && S.scene <= 7 && S.place === 'sheet';
+  function render() {
+    lastPlan = null;
+    use(TS);
+    if (S.scene <= 2) drawNickBack();
+    else if (S.scene <= 4 || sheetOn()) drawResult();   // 별도 창이 떠 있을 때 검은 화면에는 결과 화면이 그대로 남아 있다
+    else drawBoard();
+    blit(TS);
+    if (sheetOn()) { use(TH); drawBoard(); blit(TH); }
+    // 겹쳐 띄우는 것들
+    const nickOn = S.scene <= 2;
+    el.nick.classList.toggle('show', nickOn);
+    el.nick.classList.toggle('eng', S.font === 'eng');
+    el.nickGuide.textContent = S.font === 'han' ? '닉네임 2~8자' : '영문 · 숫자 2~8자';
+    el.nickMsg.textContent = S.scene === 2 ? WHY_TEXT[S.why] : '';
+    el.sheetWrap.classList.toggle('open', sheetOn());
+    const acctOn = S.scene >= 8;
+    el.acctWrap.classList.toggle('open', acctOn);
+    el.acctWrap.classList.toggle('eng', S.font === 'eng');
+    if (acctOn) buildAcct();
+    // 조작 줄
+    el.ctl.classList.toggle('fold', !ctlOpen);
+    el.ctlFold.textContent = ctlOpen ? '시안 조작 ▾' : '시안 조작 ▸';
+    el.ctl.querySelectorAll('.grp').forEach((grp) => {
+      const k = grp.getAttribute('data-k');
+      grp.querySelectorAll('button').forEach((b) => b.classList.toggle('on', String(S[k]) === b.getAttribute('data-v')));
+      const idle = (k === 'why' && S.scene !== 2) || (k === 'result' && S.scene !== 3 && S.scene !== 4)
+        || (k === 'place' && (S.scene < 5 || S.scene > 7)) || (k === 'period' && S.scene < 3) || (k === 'game' && S.scene < 3)
+        || (k === 'metric' && (S.game !== '3' || S.scene < 5 || S.scene > 7)) || (k === 'google' && S.scene !== 8) || (k === 'wrong' && S.scene !== 10);
+      grp.classList.toggle('off', idle);
+    });
+    el.cap.textContent = captionNow();
+    setGhost(el.crownLabel, S.scene >= 5 ? '순위표 닫기' : '순위표 열기');
+  }
+
+  /* ---------- 상태 바꾸기 ---------- */
+  function syncInput() {
+    if (S.scene === 2) el.nickInput.value = SAMPLE[S.why][fi()];
+    else if (S.scene === 1) el.nickInput.value = '';
+  }
+  function setState(patch, opt) {
+    opt = opt || {};
+    const before = Object.assign({}, S);
+    Object.keys(patch).forEach((k) => {
+      if (!(k in S)) return;
+      S[k] = (k === 'scene' || k === 'step' || k === 'page' || k === 'tick') ? Math.floor(Number(patch[k])) : String(patch[k]);
+    });
+    if (!(S.scene >= 1 && S.scene <= 11)) S.scene = before.scene;
+    if (!GAMES[S.game]) S.game = before.game;
+    const changed = (k) => S[k] !== before[k];
+    if (S.scene >= 8 && before.scene < 8) acctBack = before.scene >= 3 ? before.scene : 5; // 계정 창을 닫으면 돌아갈 곳
+    if (changed('metric') && !('page' in patch)) S.page = 0;
+    if (changed('scene') && S.scene !== 10 && !('wrong' in patch)) S.wrong = 'off';
+    if ((changed('scene') || changed('result')) && !('step' in patch)) S.step = S.result === 'next' ? 1 : 0;
+    if ((changed('scene') || changed('game') || changed('period') || changed('font') || changed('place')) && !('page' in patch)) S.page = 0;
+    if (changed('scene') && S.scene !== 6) retrying = false;
+    if (!opt.keepInput && (changed('scene') || changed('why') || changed('font'))) syncInput();
+    if (S.scene > 2 && document.activeElement === el.nickInput) el.nickInput.blur();
+    drawGameBtn(); drawCrownBtn();
+    render();
+  }
+  // 닉네임 판정(시안용): 너무 짧음 → 금지 단어 → 이미 있는 이름 순서로 본다
+  function judge(name) {
+    const chars = [...name];
+    if (chars.length < 2) return 'short';
+    const up = name.toUpperCase();
+    if (BANNED.some((w) => up.includes(w.toUpperCase()))) return 'bad';
+    if (HAN_POOL.concat(ENG_POOL).some((n) => n.toUpperCase() === up)) return 'taken';
+    return null;
+  }
+  function cleanNick(v) {
+    const ok = S.font === 'han' ? /[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]/ : /[A-Za-z0-9]/;
+    const s = [...v].filter((ch) => ok.test(ch)).slice(0, 8).join('');
+    return S.font === 'eng' ? s.toUpperCase() : s;
+  }
+  function submitNick() {
+    const v = cleanNick(el.nickInput.value);
+    el.nickInput.value = v;
+    const why = judge(v);
+    if (why) { setState({ scene: 2, why }, { keepInput: true }); return; }
+    S.myName = v;
+    setState({ scene: 3 });
+  }
+  function retry() {
+    retrying = true;
+    setState({ scene: 6 });
+    retrying = true;
+    setTimeout(() => { if (retrying && S.scene === 6) setState({ scene: 5 }); }, 1200);
+  }
+  function boardAct(id) {
+    if (id === 'tab-today' || id === 'tab-all') { setState({ period: id.slice(4) }); return; }
+    if (id === 'close') { setState({ scene: prevScene }); return; }
+    if (id === 'met-streak' || id === 'met-react') { setState({ metric: id.slice(4) }); return; }
+    if (id === 'acct') { setState({ scene: 8 }); return; }   // 내 줄을 누르면 내 계정 창
+    if (id === 'retry') { retry(); return; }
+    if (S.scene !== 5) return;
+    if (id === 'next') setState({ page: (S.page + 1) % board.pages });
+    if (id === 'me') setState({ page: Math.floor((meRank() - 1) / board.perPage) });
+  }
+  function toggleBoard() {
+    if (S.scene >= 5) { setState({ scene: prevScene }); return; }
+    prevScene = S.scene <= 2 ? 3 : S.scene;
+    setState({ scene: 5 });
+  }
+  // 키캡이 하는 일: 오른쪽(push) · 왼쪽(slide, RE)
+  function keyAct(name) {
+    if (S.scene === 3 || S.scene === 4) {
+      if (S.result === 'next') setState({ step: name === 'push' ? (S.step ? 0 : 1) : 0 });
+      return;
+    }
+    if (S.scene === 5 && S.place === 'screen') { boardAct(name === 'push' ? 'next' : 'me'); return; }
+    if (S.scene === 7 && name === 'slide') retry();
+  }
+
+  /* ---------- 위 띠의 작은 버튼 ---------- */
+  const cornerCell = () => Math.max(1, Math.round(1.5 * dpr()));
+  function sizeCorner(cv, cw, ch) {
+    const r = dpr();
+    if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
+    cv.style.width = (cw / r) + 'px'; cv.style.height = (ch / r) + 'px';
+  }
+  function drawOneBox(cv, paint) {
+    const ctx = cv.getContext('2d'), cc = cornerCell();
+    const cw = ONE_COLS * cc, ch = BTN_ROWS * cc;
+    sizeCorner(cv, cw, ch);
+    ctx.clearRect(0, 0, cw, ch);
+    pixelBlock(ctx, cw, ch, cc, INK);
+    pixelFrame(ctx, cw, ch, cc, BG);
+    paint(ctx, 3 * cc, Math.floor((BTN_ROWS - BOX_H) / 2) * cc, cc);
+  }
+  // 순위표 버튼(왕관): 순위표가 열려 있으면 뒤집힌 색
+  function drawCrownBtn() {
+    drawOneBox(el.crownCanvas, (ctx, bx, by, cc) => {
+      const open = S.scene >= 5;
+      if (open) { ctx.fillStyle = BG; ctx.fillRect(bx - cc, by, (BOX_W + 2) * cc, BOX_H * cc); }
+      stamp(ctx, GLYPHS['♛'], bx, by + cc, cc, open ? INK : BG);
+    });
+  }
+  function drawSoundBtn() {
+    drawOneBox(el.soundCanvas, (ctx, bx, by, cc) => stamp(ctx, GLYPHS['1'], bx + cc, by + cc, cc, BG));
+  }
+  function drawSkinBtn() {
+    drawOneBox(el.skinCanvas, (ctx, bx, by, cc) => {
+      ctx.fillStyle = BG; ctx.fillRect(bx, by, BOX_W * cc, BOX_H * cc);
+      ctx.fillStyle = SKINS[skin].body; ctx.fillRect(bx + cc, by + cc, (BOX_W - 2) * cc, (BOX_H - 2) * cc);
+    });
+    setGhost(el.skinLabel, '몸통 ' + SKINS[skin].name);
+  }
+  const GAME_IDS = ['1', '2', '3', '4', '5', '6'];
+  function gameCols() { return 3 + GAME_IDS.length * (GAME_BOX_W + 1) - 1 + 3; }
+  function drawGameBtn() {
+    const cv = el.gameCanvas, ctx = cv.getContext('2d'), cc = cornerCell();
+    const cw = gameCols() * cc, ch = BTN_ROWS * cc;
+    sizeCorner(cv, cw, ch);
+    ctx.clearRect(0, 0, cw, ch);
+    pixelBlock(ctx, cw, ch, cc, INK);
+    pixelFrame(ctx, cw, ch, cc, BG);
+    GAME_IDS.forEach((id, i) => {
+      const bx = (3 + i * (GAME_BOX_W + 1)) * cc, by = Math.floor((BTN_ROWS - GAME_BOX_H) / 2) * cc;
+      if (id === S.game) {
+        ctx.fillStyle = BG; ctx.fillRect(bx, by, GAME_BOX_W * cc, GAME_BOX_H * cc);
+        stamp(ctx, GLYPHS[id], bx + cc, by + cc, cc, INK);
+      } else {
+        stamp(ctx, GLYPHS[id], bx + cc, by + cc, cc, BG);
+      }
+    });
+    setGhost(el.gameLabel, '게임 ' + S.game + ' ' + GAMES[S.game].name);
+  }
+  function gameIndexAt(xCss) {
+    const cellsX = (xCss * dpr()) / cornerCell();
+    return Math.max(0, Math.min(GAME_IDS.length - 1, Math.floor((cellsX - 3 + 0.5) / (GAME_BOX_W + 1))));
+  }
+
+  /* ---------- 키캡 ---------- */
+  const keyDown = { push: false, slide: false };
+  let keyCell = 1;
+  function paintKey(cv, down, kind) {
+    const n = KEY_CELLS * keyCell;
+    if (cv.width !== n || cv.height !== n) { cv.width = n; cv.height = n; }
+    KeyArt.pixel(cv.getContext('2d'), n, down, kind);
+  }
+  function drawKeys() {
+    paintKey(el.keyPushCanvas, keyDown.push, 'gun');
+    paintKey(el.keySlideCanvas, keyDown.slide, 'RE');
+  }
+  function pressKey(name) {
+    if (keyDown.push || keyDown.slide) return;
+    keyDown[name] = true; drawKeys();
+    keyAct(name);
+  }
+  function releaseKeys() {
+    if (!keyDown.push && !keyDown.slide) return;
+    keyDown.push = false; keyDown.slide = false; drawKeys();
+  }
+
+  /* ---------- 몸통 · 띠 · 자리 맞추기(결투와 같은 셈) ---------- */
+  function bodyPath(w, h, rad, bevel, inset) {
+    const i = inset, R = Math.max(0, rad - i), B = Math.max(0, bevel - i * 0.41);
+    const x0 = i, y0 = i, x1 = w - i, y1 = h - i;
+    return 'M ' + x0 + ' ' + (y0 + R) + ' A ' + R + ' ' + R + ' 0 0 1 ' + (x0 + R) + ' ' + y0 + ' L ' + (x1 - R) + ' ' + y0 + ' A ' + R + ' ' + R + ' 0 0 1 ' + x1 + ' ' + (y0 + R) + ' '
+      + 'L ' + x1 + ' ' + (y1 - B) + ' L ' + (x1 - B) + ' ' + y1 + ' L ' + (x0 + B) + ' ' + y1 + ' L ' + x0 + ' ' + (y1 - B) + ' Z';
+  }
+  function drawBody(dw, dh, rad, bevel) {
+    const sk = SKINS[skin];
+    el.bodyArt.setAttribute('viewBox', '0 0 ' + dw + ' ' + dh);
+    el.bodyArt.setAttribute('width', dw); el.bodyArt.setAttribute('height', dh);
+    el.bodyFill.setAttribute('d', bodyPath(dw, dh, rad, bevel, 0));
+    el.bodyFill.setAttribute('fill', sk.body);
+    if (sk.line) {
+      el.bodyLine.setAttribute('d', bodyPath(dw, dh, rad, bevel, 1));
+      el.bodyLine.setAttribute('stroke', INK); el.bodyLine.setAttribute('stroke-width', '2');
+    } else {
+      el.bodyLine.removeAttribute('d');
+    }
+  }
+  function drawGrip(gw, gh) {
+    const cv = el.grip, r = dpr(), ctx = cv.getContext('2d'), sk = SKINS[skin];
+    const w = Math.max(1, Math.round(gw * r)), h = Math.max(1, Math.round(gh * r));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    cv.style.width = (w / r) + 'px'; cv.style.height = (h / r) + 'px';
+    ctx.clearRect(0, 0, w, h);
+    const rr = Math.min(h / 2, Math.round(h * 0.3));
+    ctx.beginPath();
+    ctx.moveTo(rr, 0); ctx.lineTo(w - rr, 0); ctx.arcTo(w, 0, w, rr, rr); ctx.lineTo(w, h - rr); ctx.arcTo(w, h, w - rr, h, rr);
+    ctx.lineTo(rr, h); ctx.arcTo(0, h, 0, h - rr, rr); ctx.lineTo(0, rr); ctx.arcTo(0, 0, rr, 0, rr); ctx.closePath();
+    ctx.fillStyle = sk.grip; ctx.fill();
+    ctx.save(); ctx.clip();
+    const p = Math.max(1, Math.round(2 * r));
+    ctx.fillStyle = sk.body;
+    for (let row = 0, y = 2 * p; y + p <= h - 2 * p; row += 1, y += 2 * p) {
+      for (let x = 2 * p + (row % 2 ? Math.round(1.5 * p) : 0); x + p <= w - 2 * p; x += 3 * p) ctx.fillRect(x, y, p, p);
+    }
+    ctx.restore();
+  }
+  function fitWidth(maxW, roomH, band, rows, keyShare) {
+    const r = dpr();
+    for (let w = maxW; w > 160; w -= 4) {
+      const cell = Math.max(1, Math.floor(w * 0.86 * r / 128));
+      if (band + (rows * cell) / r + Math.max(72, w * keyShare) + 4 * Math.round(w * 0.07) <= roomH) return w;
+    }
+    return Math.min(maxW, 160);
+  }
+  function fit() {
+    const r = dpr(), rows = ROWS, cc = cornerCell();
+    drawGameBtn(); drawCrownBtn(); drawSoundBtn(); drawSkinBtn();
+    const btnH = (BTN_ROWS * cc) / r;
+    const band = btnH + 2 * BAND_PAD;
+
+    const mb = el.main.getBoundingClientRect();
+    const limitH = mb.height - EDGE;
+    const dw = fitWidth(Math.max(120, Math.floor(Math.min(mb.width - EDGE, DEVICE_MAX))), limitH, band, rows, KEY_SHARE_TWO);
+    const gap = Math.round(dw * GAP_SHARE);
+    const gh = gap;
+
+    const want = dw * KEY_SHARE_TWO;
+    let kc = 0, nearest = Infinity;
+    for (let n = 1; KEY_CELLS * n / r <= KEY_MAX + 0.01; n += 1) {
+      const size = KEY_CELLS * n / r;
+      if (size >= KEY_MIN - 0.01 && Math.abs(size - want) < nearest) { kc = n; nearest = Math.abs(size - want); }
+    }
+    if (!kc) kc = Math.max(1, Math.ceil(KEY_MIN * r / KEY_CELLS));
+    const kcMin = Math.ceil((KEY_MIN - 0.01) * r / KEY_CELLS);
+
+    let cellPx = Math.max(1, Math.floor(dw * SCREEN_SHARE * r / W));
+    const total = (cp, k) => band + (rows * cp) / r + gap + (KEY_CELLS * k) / r + gap + gh + gap;
+    while (cellPx > 1 && total(cellPx, kc) > limitH) cellPx -= 1;
+    while (kc > kcMin && total(cellPx, kc) > limitH) kc -= 1;
+    const lift = Math.max(0, Math.floor((Math.min(limitH, Math.round(dw * BODY_TALL)) - total(cellPx, kc)) / 3));
+    keyCell = kc;
+    const ks = KEY_CELLS * kc / r;
+    const sw = (W * cellPx) / r, sh = (rows * cellPx) / r;
+
+    const keyTop = Math.round(band + sh + gap + lift);
+    const gripTop = Math.round(keyTop + ks + gap + lift);
+    const dh = Math.round(gripTop + gh + gap + lift);
+
+    const ds = el.deviceE.style, rad = Math.round(dw * CORNER_SHARE), bevel = Math.round(dw * CORNER_SHARE);
+    ds.width = dw + 'px'; ds.height = dh + 'px';
+    drawBody(dw, dh, rad, bevel);
+
+    // 위 띠: 왼쪽 끝 = 게임 버튼, 오른쪽 묶음(왼→오) = 순위표(왕관) → 소리 → 몸통 색
+    const oneW = (ONE_COLS * cc) / r, gameW = (gameCols() * cc) / r;
+    const spare = dw - gameW - (3 * oneW + 2 * BAND_GAP) - BAND_GAP;
+    let side = Math.round(dw * 0.08);
+    if (2 * side > spare) side = Math.max(2, Math.floor(spare / 2));
+    el.gameBtn.style.left = side + 'px'; el.gameBtn.style.top = BAND_PAD + 'px';
+    [el.skinBtn, el.soundBtn, el.crownBtn].forEach((b, i) => {
+      b.style.left = ''; b.style.right = (side + i * (oneW + BAND_GAP)) + 'px'; b.style.top = BAND_PAD + 'px';
+    });
+
+    // 검은 화면
+    const sLeft = Math.round((dw - sw) / 2), sTop = Math.round(band);
+    if (el.screen.width !== W * cellPx || el.screen.height !== rows * cellPx) { el.screen.width = W * cellPx; el.screen.height = rows * cellPx; }
+    el.screen.style.width = sw + 'px'; el.screen.style.height = sh + 'px';
+    el.screen.style.left = sLeft + 'px'; el.screen.style.top = sTop + 'px';
+
+    // 닉네임 입력칸: 검은 화면과 같은 자리 · 같은 칸 크기
+    const ns = el.nick.style;
+    ns.left = sLeft + 'px'; ns.top = sTop + 'px'; ns.width = sw + 'px'; ns.height = sh + 'px';
+    ns.setProperty('--u', (cellPx / r) + 'px');
+
+    // 계정 창: 아래 별도 창과 같은 자리 · 같은 칸 크기(크기는 아래에서 별도 창과 함께 맞춘다)
+    el.acctWrap.style.setProperty('--u', (cellPx / r) + 'px');
+
+    // 별도 창: 검은 화면 위 끝부터 오돌토돌한 띠 아래까지(검은 화면 · 키캡 · 띠를 덮는다), 같은 칸 크기
+    const sheetRows = Math.max(ROWS, Math.floor((gripTop + gh + gap / 2 - sTop) * r / cellPx));
+    sizeTarget(TH, sheetRows);
+    if (el.sheet.width !== W * cellPx || el.sheet.height !== sheetRows * cellPx) { el.sheet.width = W * cellPx; el.sheet.height = sheetRows * cellPx; }
+    el.sheet.style.width = sw + 'px'; el.sheet.style.height = ((sheetRows * cellPx) / r) + 'px';
+    const ws = el.sheetWrap.style;
+    ws.left = sLeft + 'px'; ws.top = sTop + 'px'; ws.width = sw + 'px'; ws.height = ((sheetRows * cellPx) / r) + 'px';
+    const as = el.acctWrap.style;
+    as.left = ws.left; as.top = ws.top; as.width = ws.width; as.height = ws.height;
+
+    // 키캡 두 개
+    const keyGap = gap, rowLeft = Math.round((dw - (2 * ks + keyGap)) / 2);
+    [[el.keySlide, el.keySlideCanvas, rowLeft], [el.keyPush, el.keyPushCanvas, Math.round(rowLeft + ks + keyGap)]].forEach(([b, cv, x]) => {
+      const n = KEY_CELLS * kc;
+      if (cv.width !== n || cv.height !== n) { cv.width = n; cv.height = n; }
+      cv.style.width = ks + 'px'; cv.style.height = ks + 'px';
+      b.style.left = x + 'px'; b.style.top = keyTop + 'px';
+      b.style.width = ks + 'px'; b.style.height = ks + 'px';
+    });
+
+    const gw = Math.round(dw * GRIP_SHARE);
+    drawGrip(gw, gh);
+    el.grip.style.left = Math.round((dw - gw) / 2) + 'px'; el.grip.style.top = gripTop + 'px';
+
+    drawKeys();
+    render();
+    liftForKeyboard();
+  }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(el.main);
+  window.addEventListener('resize', fit);
+
+  // 폰 자판이 올라와 입력칸을 가리면 기기를 그만큼 위로 올린다(자판이 내려가면 제자리)
+  function liftForKeyboard() {
+    const vv = window.visualViewport;
+    el.deviceE.style.transform = '';
+    const a = document.activeElement;
+    if (!vv || !a || a.tagName !== 'INPUT' || !el.deviceE.contains(a)) return;
+    // 닉네임 장면은 「확인」까지, 이어 가기 창은 치는 입력칸 + 그 아래 한 칸까지 보이게
+    const b = a === el.nickInput ? el.nick.getBoundingClientRect() : (() => { const q = a.getBoundingClientRect(); return { top: q.top, bottom: q.bottom + q.height }; })();
+    const over = b.bottom + 8 - (vv.offsetTop + vv.height);
+    const room = b.top - vv.offsetTop - 4;
+    const shift = Math.max(0, Math.min(over, room));
+    if (shift > 0) el.deviceE.style.transform = 'translateY(' + (-Math.round(shift)) + 'px)';
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', liftForKeyboard);
+    window.visualViewport.addEventListener('scroll', liftForKeyboard);
+  }
+  el.nickInput.addEventListener('focus', () => setTimeout(liftForKeyboard, 50));
+  el.nickInput.addEventListener('blur', () => setTimeout(liftForKeyboard, 50));
+  el.acct.addEventListener('focusin', () => setTimeout(liftForKeyboard, 50));
+  el.acct.addEventListener('focusout', () => setTimeout(liftForKeyboard, 50));
+  // 계정 창 안의 버튼들 · 닉네임 장면의 「이어 가기」
+  el.acct.addEventListener('click', (e) => {
+    const b = e.target.closest ? e.target.closest('button') : null;
+    if (b) acctAct(b.id);
+  });
+  el.nickCont.addEventListener('click', () => setState({ scene: 10 }));
+
+  /* ---------- 입력 ---------- */
+  const mainPointer = (e) => e.pointerType !== 'mouse' || e.button === 0;
+  // 조작 줄
+  el.ctl.addEventListener('click', (e) => {
+    const b = e.target.closest ? e.target.closest('button') : null;
+    if (!b) return;
+    if (b.id === 'ctlFold') { ctlOpen = !ctlOpen; render(); return; } // 접으면 받침대가 커져 기기 자리가 다시 맞춰진다
+    const k = b.parentNode.getAttribute('data-k'), patch = {};
+    patch[k] = b.getAttribute('data-v');
+    if (k === 'scene' && Number(patch.scene) >= 5 && S.scene < 5) prevScene = S.scene <= 2 ? 3 : S.scene;
+    setState(patch);
+  });
+  // 위 띠
+  el.gameBtn.addEventListener('pointerdown', (e) => {
+    if (!mainPointer(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    const b = e.currentTarget.getBoundingClientRect();
+    setState({ game: GAME_IDS[gameIndexAt(e.clientX - b.left)] });
+  });
+  el.crownBtn.addEventListener('pointerdown', (e) => { if (!mainPointer(e)) return; e.preventDefault(); e.stopPropagation(); toggleBoard(); });
+  el.skinBtn.addEventListener('pointerdown', (e) => { if (!mainPointer(e)) return; e.preventDefault(); e.stopPropagation(); skin = (skin + 1) % SKINS.length; fit(); });
+  el.soundBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); }); // 시안에는 소리가 없다
+  // 키캡
+  [['push', el.keyPush], ['slide', el.keySlide]].forEach(([name, node]) => {
+    node.addEventListener('pointerdown', (e) => {
+      if (!mainPointer(e)) return;
+      e.preventDefault(); e.stopPropagation();
+      releaseKeys();
+      pressKey(name);
+    });
+  });
+  ['pointerup', 'pointercancel'].forEach((type) => window.addEventListener(type, releaseKeys));
+  window.addEventListener('blur', releaseKeys);
+  // 검은 화면 · 별도 창을 직접 누름(탭 · 닫기 · 쪽 넘기기)
+  function cellHit(e, t) {
+    const b = t.out.getBoundingClientRect();
+    const x = Math.floor(((e.clientX - b.left) / b.width) * W), y = Math.floor(((e.clientY - b.top) / b.height) * t.h);
+    const h = t.hits.find((q) => x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h);
+    return h ? h.id : null;
+  }
+  [[el.screen, TS], [el.sheet, TH]].forEach(([node, t]) => {
+    node.addEventListener('pointerdown', (e) => {
+      if (!mainPointer(e)) return;
+      e.preventDefault();
+      const id = cellHit(e, t);
+      if (id) boardAct(id);
+    });
+  });
+  // 닉네임 입력칸
+  el.nickInput.addEventListener('input', (e) => {
+    if (e.isComposing) return; // 한글을 조합하는 중에는 건드리지 않는다(글자가 깨진다)
+    const v = cleanNick(el.nickInput.value);
+    if (v !== el.nickInput.value) el.nickInput.value = v;
+  });
+  el.nickInput.addEventListener('compositionend', () => {
+    const v = cleanNick(el.nickInput.value);
+    if (v !== el.nickInput.value) el.nickInput.value = v;
+  });
+  el.nick.addEventListener('submit', (e) => { e.preventDefault(); submitNick(); });
+  // 키보드: 스페이스 · 엔터 = 오른쪽 키캡, R = 왼쪽 키캡(입력칸에 글을 치는 중이면 아님)
+  window.addEventListener('keydown', (e) => {
+    if ((e.target && e.target.tagName === 'INPUT') || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); releaseKeys(); pressKey('push'); }
+    if (e.code === 'KeyR') { e.preventDefault(); releaseKeys(); pressKey('slide'); }
+  });
+  window.addEventListener('keyup', releaseKeys);
+  ['gesturestart', 'dblclick', 'contextmenu', 'dragstart'].forEach((name) => document.addEventListener(name, (e) => e.preventDefault()));
+
+  // 불러오는 중: 네모가 차례로 켜지게
+  setInterval(() => { if (S.scene === 6) { S.tick += 1; render(); } }, 350);
+
+  /* ---------- 한글 픽셀 글꼴 불러오기: 못 불러오면 기기 기본 글꼴로 떨어진다 ---------- */
+  function fontDone(ok) {
+    if (fontState === 'ok' || (fontState === 'fallback' && !ok)) return; // 늦게라도 불러오면 갈무리11로 바꾼다
+    fontState = ok ? 'ok' : 'fallback';
+    hanMetrics();
+    render();
+  }
+  hanMetrics();
+  fit();
+  try {
+    const timer = setTimeout(() => fontDone(false), 5000);
+    document.fonts.load('12px Galmuri11', '가A1').then((list) => {
+      clearTimeout(timer);
+      fontDone(!!list && list.length > 0 && list.every((f) => f.status === 'loaded'));
+    }, () => { clearTimeout(timer); fontDone(false); });
+  } catch (e) { fontDone(false); }
+
+  /* ---------- 검사용 손잡이 ---------- */
+  const rectOf = (node) => {
+    const b = node.getBoundingClientRect();
+    return { x: b.left, y: b.top, w: b.width, h: b.height };
+  };
+  function litOf(t) {
+    const d = t.c.getImageData(0, 0, W, t.h).data;
+    let n = 0;
+    for (let k = 0; k < d.length; k += 4) if (d[k] > 128) n += 1;
+    return n;
+  }
+  window.__MOCK__ = {
+    state() {
+      return {
+        scene: S.scene, game: S.game, font: S.font, place: S.place, period: S.period, result: S.result, step: S.step, why: S.why, page: S.page,
+        fontState, lineH: lineH(), hanH, hanBase, rowGap: rowGap(),
+        myName: myName(), meRank: meRank(), total: TOTAL[S.period], myScore: scoreAt(meRank()),
+        perPage: board.perPage, pages: board.pages, sheetRows: TH.h, rows: ROWS,
+        squeezed: squeezedNow, panelTop: panelTopNow,
+        plan: lastPlan,
+        marks: TS.marks, hits: TS.hits, sheetMarks: sheetOn() ? TH.marks : [], sheetHits: sheetOn() ? TH.hits : [],
+        lit: litOf(TS), sheetLit: sheetOn() ? litOf(TH) : 0,
+        sheetOpen: el.sheetWrap.classList.contains('open'), nickOn: el.nick.classList.contains('show'),
+        input: el.nickInput.value, msg: el.nickMsg.textContent, guide: el.nickGuide.textContent, caption: el.cap.textContent,
+        skin: SKINS[skin].name,
+        metric: S.metric, google: S.google, wrong: S.wrong, ctlOpen,
+        // 계정 창: 열렸는지 · 자리 · 안의 버튼과 입력칸 자리 · 내용이 창 밖으로 넘치는지
+        acct: {
+          open: el.acctWrap.classList.contains('open'), rect: rectOf(el.acctWrap), text: el.acct.textContent,
+          overflow: el.acct.scrollHeight > el.acct.clientHeight + 1 || el.acct.scrollWidth > el.acct.clientWidth + 1,
+          parts: [].slice.call(el.acct.querySelectorAll('button, input')).map((b) => ({ id: b.id, text: b.textContent, rect: rectOf(b) })),
+        },
+        rects: {
+          cont: rectOf(el.nickCont),
+          ctl: rectOf(el.ctl), main: rectOf(el.main), device: rectOf(el.deviceE), screen: rectOf(el.screen), sheet: rectOf(el.sheetWrap),
+          nick: rectOf(el.nick), input: rectOf(el.nickInput), ok: rectOf(el.nickOk),
+          push: rectOf(el.keyPush), slide: rectOf(el.keySlide), grip: rectOf(el.grip),
+          gameBtn: rectOf(el.gameBtn), crownBtn: rectOf(el.crownBtn), soundBtn: rectOf(el.soundBtn), skinBtn: rectOf(el.skinBtn),
+        },
+      };
+    },
+    set(patch) { setState(patch || {}); return true; },
+    key(name) { keyAct(name === 'slide' ? 'slide' : 'push'); return true; },   // 키캡을 누른 것과 같은 일(그림은 안 눌림)
+    act(id) { boardAct(String(id)); return true; },                            // 순위표의 탭 · 닫기 · 다음 쪽 · 내 줄
+    crown() { toggleBoard(); return S.scene; },
+    fold(open) { ctlOpen = !!open; render(); return ctlOpen; },   // 조작 줄 접기(false) · 펴기(true)
+    acctAct(id) { acctAct(String(id)); return S.scene; },         // 계정 창 버튼을 누른 것과 같은 일
+    submit() { submitNick(); return { scene: S.scene, why: S.why }; },
+    judge(name) { return judge(cleanNick(String(name))); },
+    // 이름 하나가 차지하는 폭(칸) — 계산 확인용
+    nameW(name) { return nameBmp(String(name)).w; },
+  };
+  window.__STREAK_TEST__ = window.__MOCK__; // 공용 검사 틀이 「준비됨」을 알아보는 이름
+}());
+</script>
+</body>
+</html>
