@@ -185,9 +185,13 @@
   const WAIT_MIN = 1500, WAIT_MAX = 4500; // 대결 시작 ~ 신호까지 무작위 시간
   const FIRST_WAIT_MIN = 1200, FIRST_WAIT_MAX = 3000; // 게임에 막 들어온 첫 판만: 3초 안에 신호(그냥 서 있는 시간이 길지 않게)
   const ME_MARK_MS = 1500; // 결투가 시작되면 내 머리 위 「나」 표시가 떠 있는 시간
-  // 상대 반응(11/16): 판마다 0.20~0.60초 사이에서 고르게 뽑는다. 연승과 상관없다(보스도 같은 방식). 비유: 판마다 주사위를 새로 굴림
+  // 상대 반응(11/16): 판마다 0.20~0.60초 사이에서 고르게 뽑는다. 첫 네 판 뒤로는 연승과 상관없다(보스도 같은 방식). 비유: 판마다 주사위를 새로 굴림
   const OPP_MIN = 200, OPP_MAX = 600;
-  const rollOpp = () => OPP_MIN + Math.floor(Math.random() * (OPP_MAX - OPP_MIN + 1));
+  // 11/16 형님: 첫 보스 전 네 판은 살짝 널널하게, 티 안 나게 — 1~4번째 상대(연승 0~3에서 붙는 판)만 가장 빠른 값을 0.28초로 올린다.
+  // 5번째 상대(첫 보스)부터는 0.20~0.60초 그대로. 비유: 주사위는 그대로 굴리되, 처음 네 판만 가장 매운 눈을 빼 둔 것
+  const EARLY_ROUNDS = 4, EARLY_OPP_MIN = 280;
+  // n = 지금 연승(= 몇 번째 상대 − 1)
+  const rollOpp = (n) => { const lo = n < EARLY_ROUNDS ? EARLY_OPP_MIN : OPP_MIN; return lo + Math.floor(Math.random() * (OPP_MAX - lo + 1)); };
   // 보스(11/16): 5번째 · 10번째 · 15번째 … 상대. n연승에서 붙는 상대는 n+1번째 → 보스면 몇 번째 보스인지(1부터), 아니면 0
   const BOSS_EVERY = 5;
   const bossNoFor = (n) => ((n + 1) % BOSS_EVERY === 0 ? (n + 1) / BOSS_EVERY : 0);
@@ -678,7 +682,7 @@
   let startT = 0;           // 이번 판 시작 시각
   let waitMs = null;        // 이번 판 신호까지 시간
   let signalT = 0;          // 「!」를 그린 시각
-  let duelOpp = rollOpp();  // 이번 상대 반응 시간(판이 시작될 때마다 새로 뽑는다)
+  let duelOpp = rollOpp(streak); // 이번 상대 반응 시간(판이 시작될 때마다 그때의 연승으로 새로 뽑는다)
   let duelBoss = bossNoFor(streak); // 이번 상대가 몇 번째 보스인지(보통 상대면 0)
   let fakes = [];           // 이번 판 가짜 신호 시간표 [{ at, ms }](판 시작부터 잰 시간). 보스 판에만 있다
   let myMs = null;          // 이번 판 내 반응 시간
@@ -749,7 +753,7 @@
     }
     firstDuel = false;
     windDir = Math.random() < 0.5 ? 1 : -1;
-    duelOpp = fixedOpp !== null ? fixedOpp : rollOpp();
+    duelOpp = fixedOpp !== null ? fixedOpp : rollOpp(streak);
     myMs = null; outcome = null; shotMs = null; autoLoseFrom = null; signalT = 0; endedStreak = 0;
     syncText(); render(); startLoop();
   }
@@ -1555,7 +1559,7 @@
     // 큰 점 글씨 한 줄의 글자 그림들(검사가 화면 점과 맞대어 본다): 'hint' = 시작 안내, 'foul' = 반칙 글, 'fake' = 「가짜에 속았다!」
     bigLine(which) { return ({ foul: FOUL_LINE, fake: FAKE_LINE }[which] || HINT).map((k) => BIG[k].slice()); },
     qmark() { return QMARK.slice(); },                 // 가짜 신호 그림 줄들
-    rollOpp() { return rollOpp(); },                   // 상대 반응 시간을 한 번 뽑아 본다(게임 상태는 안 바뀜)
+    rollOpp(n) { return rollOpp(n === undefined || n === null ? streak : toInt(n)); }, // n연승에서 붙는 상대의 반응 시간을 한 번 뽑아 본다(n을 안 주면 지금 연승 기준 · 게임 상태는 안 바뀜)
     bossNoFor(n) { return bossNoFor(toInt(n)); },      // n연승에서 붙는 상대가 몇 번째 보스인지(아니면 0)
     bossSchedule(no) { return bossSchedule(toInt(no)); }, // 보스 판 시간표를 한 번 뽑아 본다(게임 상태는 안 바뀜)
     // 앞으로의 대결에서 상대 반응 시간을 고정(null이면 다시 무작위)
