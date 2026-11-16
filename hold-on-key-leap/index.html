@@ -250,8 +250,16 @@
   ];
   const LM_AT = 64;         // 그 시각에 랜드마크 가운데가 놓이는 화면 가로 자리(칸). 64 = 화면 한가운데
   const LM_PAD = 6;         // 랜드마크와 배경이 바뀌는 자리 사이에 꼭 남기는 칸 수
-  const LM_CLEAR = 3;       // 랜드마크 둘레 이만큼 안에 걸리는 원래 물체(빌딩 · 배 · 피라미드 …)는 그 자리만 건너뛴다
-  const LM_LIFT = { desert: 1 }; // 땅에서 띄우는 칸 수(사막은 모래 언덕 줄 위에 — 피라미드와 같게)
+  /* ----- 먼 풍경 층(2026-11-16) -----
+     비유: 기차 창밖. 가까운 집 · 전봇대는 휙휙 지나가고, 멀리 있는 탑은 천천히 따라온다.
+     랜드마크를 앞 층(땅 · 길 · 집 · 나무 · 물결) 뒤의 먼 층으로 보낸다 */
+  const FAR_SPEED = 0.5;    // 먼 층이 흐르는 빠르기(앞 층의 몇 배). 0.5 = 절반
+  // 먼 지평선 높이: 랜드마크 바닥이 앞 땅 줄보다 몇 칸 위에 놓이는지(배경별). 탁 트인 바다 · 밤바다는 수평선이라 낮게
+  const FAR_LIFT = { stadium: 9, town: 6, city: 6, field: 5, sea: 4, desert: 5, snow: 5, night: 4 };
+  const FAR_SHORE = 12;     // 랜드마크 발밑 「먼 땅 선」이 양옆으로 뻗는 칸 수(점선)
+  const FAR_SHORE_IN = { field: 1, sea: 1, desert: 1, snow: 1, night: 1 }; // 먼 땅 선을 긋는 배경(트인 곳)
+  const SKY_LIFT = 20;      // 땅에서 이만큼 넘게 띄운 것(달)은 하늘에 뜬 것 — 앞 층으로 다시 찍지 않는다
+  const FAR_GAP = 3;        // 둘째 바퀴부터(랜드마크가 촘촘할 때) 먼 층에서 이웃끼리 꼭 띄우는 칸 수
 
   // 몸짓 순서: [날기 시작한 지 몇 초부터, 이름]
   // 앞의 셋(디딤 → 떠오름 → 다리 모음)은 진짜 멀리뛰기 연속 동작이고 1초 안에 지나간다.
@@ -2076,7 +2084,17 @@
   let ink = null; // 지금 붓 색(같은 색이면 다시 고르지 않아 빠르게)
   let clipL = 0, clipR = W; // 배경 구간을 나눠 그릴 때 쓰는 가로 울타리(이 안에만 찍힌다)
   let lmNow = [];           // 지금 화면에 걸친 랜드마크들(그릴 때마다 새로 정한다)
+  // 붓 종류(먼 층): 0 = 보통 · 1 = 검은 테만(찍을 점의 둘레 한 칸까지 검게 비움) · 2 = 그 위에 다시 찍기
+  let pen = 0;
+  // 울타리(clipL~clipR) 안에서만 검게 비운다
+  function blank(x, y, w, h) {
+    const a = Math.max(x, clipL), b = Math.min(x + w, clipR), t0 = Math.max(y, 0), t1 = Math.min(y + h, H);
+    if (b <= a || t1 <= t0) return;
+    c.fillStyle = BG; ink = BG;
+    c.fillRect(a, t0, b - a, t1 - t0);
+  }
   function dot(x, y, color = INK) {
+    if (pen === 1) { blank(x - 1, y - 1, 3, 3); return; }
     if (x < clipL || x >= clipR || y < 0 || y >= H) return;
     if (color !== ink) { c.fillStyle = color; ink = color; }
     c.fillRect(x, y, 1, 1);
@@ -2297,9 +2315,13 @@
       const w = rows[0].length;
       for (let x = mod(off - S, loopLen) - loopLen; x < clipR; x += loopLen) {
         const y = gy - rows.length - lift;
-        // 랜드마크 바로 뒤 · 옆에 걸리는 것은 그 자리만 건너뛴다(덩어리로 뭉개지지 않게)
-        if (lmNow.some((m) => x < m.x + m.w + LM_CLEAR && m.x - LM_CLEAR < x + w && y < m.y + m.h + LM_CLEAR && m.y - LM_CLEAR < y + rows.length)) continue;
-        if (x + w > clipL) sprite(x, y, rows);
+        // (먼 층) 랜드마크는 뒤 층이라 앞 물체를 건너뛰지 않는다 — 집 · 빌딩 · 나무가 랜드마크 밑동을 가린다.
+        // 하늘에 뜬 것(달)은 앞 층이 아니라서 다시 찍지 않는다(랜드마크 뒤에 남는다)
+        if (pen && lift >= SKY_LIFT) continue;
+        if (x + w <= clipL) continue;
+        if (pen === 1) { // 물체 줄마다 왼쪽 끝 ~ 오른쪽 끝을 통째로 비운다(빌딩 속으로 뒤의 탑이 비치지 않게)
+          rows.forEach((row, j) => { const a = row.indexOf('#'); if (a >= 0) blank(x + a - 1, y + j - 1, row.lastIndexOf('#') - a + 3, 3); });
+        } else sprite(x, y, rows);
       }
     });
   }
@@ -2312,6 +2334,7 @@
       // 관중석(난간 줄 · 빽빽한 사람 무늬 · 아래 벽)과 트랙 — 100m와 같은 모양
       const cw = CROWD[0].length;
       each((x, wx) => {
+        if (pen === 1) blank(x, gy - 13, 1, 15); // 관중석은 속이 찬 벽이라 통째로 가린다
         dot(x, gy - 12); dot(x, gy - 4); dot(x, gy);
         CROWD.forEach((row, j) => { if (row[mod(wx, cw)] === '#') dot(x, gy - 11 + j); });
         for (let y = gy + 11; y < H; y += 6) if (mod(wx, 8) < 4) dot(x, y); // 레인 점선
@@ -2341,7 +2364,7 @@
     } else if (kind === 'field') {
       // 들판: 먼 산 능선 · 나무 · 풀 · 흙 점
       each((x, wx) => {
-        dot(x, gy - 13 + RIDGE_H[mod(wx, RIDGE_H.length)]);
+        if (!pen) dot(x, gy - 13 + RIDGE_H[mod(wx, RIDGE_H.length)]); // 먼 능선은 랜드마크보다도 뒤
         dot(x, gy);
         for (let y = gy + 2; y < H; y += 1) if (GROUND_TEX[mod(y - gy, 8)][mod(wx, 16)] === '#') dot(x, y);
       });
@@ -2365,7 +2388,7 @@
       each((x, wx) => {
         const h1 = 14 - Math.abs(mod(wx, 46) - 23) * 0.8, h2 = 10 - Math.abs(mod(wx + 23, 46) - 23) * 0.7;
         const hgt = Math.round(Math.max(h1, h2, 0));
-        if (hgt > 0) { dot(x, gy - hgt); for (let y = gy - hgt + 1; y <= gy - 11; y += 1) dot(x, y); }
+        if (hgt > 0 && !pen) { dot(x, gy - hgt); for (let y = gy - hgt + 1; y <= gy - 11; y += 1) dot(x, y); }
         dot(x, gy);
         for (let y = gy + 2; y < H; y += 1) if (mod(wx * 5 + y * 9, 17) === 0) dot(x, y);
       });
@@ -2374,11 +2397,11 @@
       // 밤바다: 반짝이는 별 · 오로라 커튼 · 초승달 · 잔잔한 물결
       const twinkle = Math.floor(t / 500);
       each((x, wx) => {
-        for (let y = 1; y < gy - 18; y += 1) {
+        for (let y = 1; y < gy - 18 && !pen; y += 1) {
           const hv = hash(wx * 131 + y);
           if (hv % 97 === 0 && (hv + twinkle) % 5 !== 0) dot(x, y);
         }
-        if (mod(wx, 2) === 0 && Math.sin(wx / 37) > -0.3) {
+        if (!pen && mod(wx, 2) === 0 && Math.sin(wx / 37) > -0.3) {
           const top = gy - 36 + Math.round(3 * Math.sin(wx / 11) + 2 * Math.sin(wx / 4.3)), len = 5 + hash(wx) % 5;
           for (let j = 0; j < len; j += 1) if (j < 3 || j % 2 === 0) dot(x, top + j);
         }
@@ -2398,7 +2421,7 @@
   }
 
   /* ---------- 랜드마크 ----------
-     비유: 길가에 미리 세워 둔 큰 입간판들. 「풍경 속 몇 번째 칸」에 세워 두면 땅과 같은 빠르기로 흘러 지나간다 */
+     비유: 지평선 너머의 큰 탑들. 기차 창밖의 먼 산처럼 앞 땅의 절반 빠르기(FAR_SPEED)로 천천히 지나가고, 화면 가운데에 오는 시각은 정해 둔 대로 */
   // 그림마다 줄별로 흰 점이 있는 왼쪽 끝 · 오른쪽 끝(그 사이는 검게 비워 뒤 풍경이 비치지 않게 한다)
   const LM_SPAN = {};
   Object.keys(LM_ART).forEach((key) => { LM_SPAN[key] = LM_ART[key].map((row) => [row.indexOf('#'), row.lastIndexOf('#')]); });
@@ -2422,14 +2445,33 @@
     return lmCache.get(lap);
   }
   // 지금 화면에 걸친 랜드마크들: 화면 속 자리(칸)와 그림
+  // (먼 층) 그 바퀴에서 랜드마크마다 「가운데를 지나는 순간의 앞 층 흐름 칸 수」.
+  // 비유: 앞 유리판이 이만큼 흘렀을 때 뒤 유리판의 탑이 딱 화면 한가운데에 온다 — 원래 판과 같은 시각이 되게 거꾸로 계산한다.
+  // 둘째 바퀴부터는 2초쯤마다 하나씩 나와 먼 층에서 이웃끼리 붙을 수 있어, 겹치면 뒤엣것을 살짝(FAR_GAP칸 틈) 늦춘다
+  const farCache = new Map();
+  function lmFarMid(lap) {
+    if (!farCache.has(lap)) {
+      if (farCache.size > 40) farCache.clear();
+      const cells = lmCells(lap); let prev = -Infinity, prevW = 0;
+      farCache.set(lap, LANDMARKS.map(([key], i) => {
+        const w = LM_ART[key][0].length;
+        let mid = cells[i] + w / 2 - LM_AT; // 원래 판에서 가운데를 지나는 흐름 칸 수
+        if (lap > 0 && i > 0) mid = Math.max(mid, prev + ((prevW + w) / 2 + FAR_GAP) / FAR_SPEED);
+        prev = mid; prevW = w;
+        return mid;
+      }));
+    }
+    return farCache.get(lap);
+  }
   function landmarksOnScreen(S, gy, lapNow) {
     const out = [];
     for (let lap = Math.max(0, lapNow - 1); lap <= lapNow + 1; lap += 1) {
-      const cells = lmCells(lap);
+      const mids = lmFarMid(lap);
       LANDMARKS.forEach(([key, , si], i) => {
-        const rows = LM_ART[key], w = rows[0].length, h = rows.length, x = cells[i] - S;
-        if (x >= W || x + w <= 0) return;
-        out.push({ key, lap, x, y: gy - h - (LM_LIFT[SCENES[si][0]] || 0), w, h, rows });
+        const rows = LM_ART[key], w = rows[0].length, h = rows.length;
+        const x = Math.floor(LM_AT - w / 2 + FAR_SPEED * (mids[i] - S));
+        if (x >= W + FAR_SHORE || x + w <= -FAR_SHORE) return;
+        out.push({ key, lap, x, y: gy - h - (FAR_LIFT[SCENES[si][0]] || 0), w, h, rows, scene: SCENES[si][0] });
       });
     }
     return out;
@@ -2441,7 +2483,16 @@
     const span = LM_SPAN[m.key];
     span.forEach(([a, b], j) => { if (a >= 0) box(m.x + a - 1, m.y + j, b - a + 3, 1, BG); });
     const [a, b] = span[m.h - 1];
-    if (gy > m.y + m.h) box(m.x + a - 1, m.y + m.h, b - a + 3, gy - (m.y + m.h) + 1, BG); // 띄워 세운 것은 발밑 땅 줄까지 비운다
+    // (먼 층) 발밑 「먼 땅 선」: 그림 바닥 폭은 두 칸에 한 점, 양옆으로는 점점 성기게 — 탑이 허공에 뜨지 않고 먼 땅에 선 것으로 읽히게.
+    // 랜드마크보다 눈에 띄지 않도록 점선 한 줄뿐. 그 아래(앞 땅 줄 바로 위까지)는 비워서 능선 같은 것이 발밑으로 지나가지 않게 한다
+    const fy = m.y + m.h;
+    if (gy > fy) blank(m.x + a - 1, fy, b - a + 3, gy - fy);
+    if (FAR_SHORE_IN[m.scene]) { // 집 · 빌딩이 빽빽한 동네 · 도시 · 경기장은 어차피 가려져 점만 어지럽다 — 트인 곳에만 긋는다
+      // 착지 화면에서는 글자 둘레(avoid)에 드는 점만 건너뛴다
+      const shore = (x) => { if (!avoid || !avoid.some((r) => x >= r.x && x < r.x + r.w && fy >= r.y && fy < r.y + r.h)) dot(x, fy); };
+      for (let x = m.x + a; x <= m.x + b; x += 2) shore(x);
+      for (let d = 2; d <= FAR_SHORE; d += (d < 6 ? 2 : 3)) { shore(m.x + a - d); shore(m.x + b + d); }
+    }
     if (!avoid || !avoid.some((r) => m.x < r.x + r.w && r.x < m.x + m.w && m.y < r.y + r.h && r.y < m.y + m.h)) { sprite(m.x, m.y, m.rows); return 0; }
     let skipped = 0;
     m.rows.forEach((row, j) => {
@@ -2455,6 +2506,7 @@
   }
 
   function render() {
+    pen = 0; clipL = 0; clipR = W; // 지난 그림이 중간에 멈췄어도 붓 · 울타리는 늘 보통으로 시작
     const t = now(), v = view(t), oy = skyShift;
     const S = Math.floor(v.scroll);
     const gy = GROUND_Y + oy + v.drop; // 땅 줄(높이 올라가면 아래로 내려간다)
@@ -2502,15 +2554,25 @@
 
     // 땅 풍경: 오른쪽부터 지금 배경 → 그 앞 배경 순으로, 바뀌는 자리(edge)에서 잘라 그린다
     lmNow = landmarksOnScreen(S, gy, Math.floor(v.scene / NS));
-    let x1 = W;
-    for (let z = v.scene; z >= 0 && x1 > 0; z -= 1) {
-      const x0 = z > 0 ? Math.max(0, Math.min(x1, edgeOf(z) - S)) : 0;
-      if (x1 > x0) { clipL = x0; clipR = x1; drawScene(z, S, gy, t); }
-      x1 = x0;
-    }
-    clipL = 0; clipR = W;
-    // 랜드마크: 땅 풍경 위 · 사람 뒤
+    const groundLayer = (L, R) => { // 가로 L ~ R 구간의 땅 풍경
+      let x1 = W;
+      for (let z = v.scene; z >= 0 && x1 > 0; z -= 1) {
+        const x0 = z > 0 ? Math.max(0, Math.min(x1, edgeOf(z) - S)) : 0;
+        const a = Math.max(x0, L), b = Math.min(x1, R);
+        if (b > a) { clipL = a; clipR = b; drawScene(z, S, gy, t); }
+        x1 = x0;
+      }
+      clipL = 0; clipR = W;
+    };
+    groundLayer(0, W);
+    // 랜드마크(먼 층): 그 배경의 먼 것(능선 · 별) 위 · 앞 층 뒤 · 사람 뒤
     drawn.landmarks = lmNow.map((m) => ({ id: m.key, lap: m.lap, x: m.x, y: m.y, w: m.w, h: m.h, skipped: drawLandmark(m, gy, landed ? keep : null) }));
+    // 앞 층을 랜드마크 위에 다시: 먼저 둘레를 검게(테), 그다음 그림 — 겹치는 곳은 앞 층이 이긴다
+    lmNow.forEach((m) => {
+      const L = Math.max(0, m.x - FAR_SHORE - 1), R = Math.min(W, m.x + m.w + FAR_SHORE + 1);
+      if (R <= L) return;
+      pen = 1; groundLayer(L, R); pen = 2; groundLayer(L, R); pen = 0;
+    });
     // 모래판 자리(검사용): 맨 처음 경기장이 화면에 있을 때만
     drawn.pit = v.scene === 0 || edgeOf(1) - S > 0 ? { x: PIT_X - 1 - S, y: gy + 1, w: PIT_W + 2, h: 5 } : null;
 
@@ -2977,7 +3039,7 @@
     // 랜드마크 표(그 바퀴 기준, 기본 첫 바퀴): 이름 · 배경 · 크기 · 서 있는 자리(풍경 속 칸) ·
     // 화면 가운데를 지나는 때 · 화면에 들어오는 때 · 다 나가는 때 · 머무는 시간(모두 「날기 시작한 지 몇 초」) · 가운데를 지날 때의 거리(미터)
     landmarks(lap = 0) {
-      const L = Math.max(0, Math.floor(Number(lap) || 0)), cells = lmCells(L);
+      const L = Math.max(0, Math.floor(Number(lap) || 0)), cells = lmCells(L), mids = lmFarMid(L);
       const fAtU = (u) => { // 배경이 u칸 흘러가는 때(반씩 좁혀 찾는다)
         if (!(u > 0)) return 0;
         let lo = 0, hi = 1;
@@ -2987,8 +3049,9 @@
       };
       return LANDMARKS.map(([key, name, si, f0], i) => {
         const rows = LM_ART[key], w = rows[0].length, h = rows.length, cell = cells[i];
-        const midSec = fAtU(cell + w / 2 - LM_AT - RUNUP_PX), enterSec = fAtU(cell - W - RUNUP_PX), leaveSec = fAtU(cell + w - RUNUP_PX);
-        return { id: key, name, scene: SCENES[si][0], sceneIndex: si, lap: L, w, h, lift: LM_LIFT[SCENES[si][0]] || 0, cell,
+        // 먼 층: 가운데 = mids, 화면 오른쪽 끝에 닿는 때 = 그보다 (W - LM_AT + w/2) / 빠르기 칸 앞, 다 나가는 때 = (LM_AT + w/2) / 빠르기 칸 뒤
+        const midSec = fAtU(mids[i] - RUNUP_PX), enterSec = fAtU(mids[i] - (W - LM_AT + w / 2) / FAR_SPEED - RUNUP_PX), leaveSec = fAtU(mids[i] + (LM_AT + w / 2) / FAR_SPEED - RUNUP_PX);
+        return { id: key, name, scene: SCENES[si][0], sceneIndex: si, lap: L, w, h, lift: FAR_LIFT[SCENES[si][0]] || 0, cell, farSpeed: FAR_SPEED,
           sceneFrom: edgeOf(L * NS + si), sceneTo: edgeOf(L * NS + si + 1), planSec: L === 0 ? f0 : null,
           midSec, enterSec, leaveSec, staySec: leaveSec - enterSec, dist: distAtFlight(midSec) };
       });

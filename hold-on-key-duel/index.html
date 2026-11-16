@@ -185,8 +185,34 @@
   const WAIT_MIN = 1500, WAIT_MAX = 4500; // 대결 시작 ~ 신호까지 무작위 시간
   const FIRST_WAIT_MIN = 1200, FIRST_WAIT_MAX = 3000; // 게임에 막 들어온 첫 판만: 3초 안에 신호(그냥 서 있는 시간이 길지 않게)
   const ME_MARK_MS = 1500; // 결투가 시작되면 내 머리 위 「나」 표시가 떠 있는 시간
-  const OPP_FIRST = 600, OPP_STEP = 40, OPP_FLOOR = 160; // 상대 반응: 첫 상대 0.6초, 이길 때마다 0.04초 빨라짐, 0.16초 밑으로는 안 줄어듦
-  const oppFor = (n) => Math.max(OPP_FLOOR, OPP_FIRST - OPP_STEP * n);
+  // 상대 반응(11/16): 판마다 0.20~0.60초 사이에서 고르게 뽑는다. 연승과 상관없다(보스도 같은 방식). 비유: 판마다 주사위를 새로 굴림
+  const OPP_MIN = 200, OPP_MAX = 600;
+  const rollOpp = () => OPP_MIN + Math.floor(Math.random() * (OPP_MAX - OPP_MIN + 1));
+  // 보스(11/16): 5번째 · 10번째 · 15번째 … 상대. n연승에서 붙는 상대는 n+1번째 → 보스면 몇 번째 보스인지(1부터), 아니면 0
+  const BOSS_EVERY = 5;
+  const bossNoFor = (n) => ((n + 1) % BOSS_EVERY === 0 ? (n + 1) / BOSS_EVERY : 0);
+  // 보스의 가짜 신호 「?」: 진짜 「!」와 같은 자리에 잠깐 떴다 사라진다. 떠 있을 때 쏘면 진다
+  const FAKE_SHOW_MIN = 350, FAKE_SHOW_MAX = 500; // 「?」 하나가 떠 있는 시간
+  const FAKE_LEAD_MIN = 900, FAKE_LEAD_MAX = 1800; // 판 시작(또는 앞 「?」가 사라진 때) ~ 다음 「?」가 뜰 때까지
+  const FAKE_TAIL_MIN = 700, FAKE_TAIL_MAX = 1800; // 마지막 「?」가 사라진 때 ~ 진짜 「!」
+  // 「?」가 사라진 뒤에도 이만큼은 「속은 것」으로 친다(11/16 형님 A안): 「?」를 보고 누른 손은 0.2~0.3초 늦게 닿는다 — 그때 이미 사라졌어도 「가짜에 속았다!」.
+  // 가짜 사이 간격(FAKE_LEAD_MIN) · 진짜 신호까지 간격(FAKE_TAIL_MIN)은 이 값보다 길어야 한다(여유 시간 안에 다음 「?」나 진짜 「!」가 뜨지 않게)
+  const FAKE_GRACE_MS = 300;
+  const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  // 가짜 신호 횟수: 첫 보스 1번, 둘째 보스 1~2번, 셋째부터 2~3번
+  const fakeCountFor = (no) => (no <= 0 ? 0 : no === 1 ? 1 : no === 2 ? randInt(1, 2) : randInt(2, 3));
+  // 보스 판 시간표: 「?」들을 차례로 놓고 그 뒤에 진짜 신호. { fakes: [{ at 뜨는 때, ms 떠 있는 시간 }], wait: 진짜 신호까지 }(판 시작부터 잰 1/1000초)
+  function bossSchedule(no) {
+    const fakes = [];
+    let t = 0;
+    for (let k = fakeCountFor(no); k > 0; k -= 1) {
+      t += randInt(FAKE_LEAD_MIN, FAKE_LEAD_MAX);
+      const ms = randInt(FAKE_SHOW_MIN, FAKE_SHOW_MAX);
+      fakes.push({ at: t, ms });
+      t += ms;
+    }
+    return { fakes, wait: t + randInt(FAKE_TAIL_MIN, FAKE_TAIL_MAX) };
+  }
   const IGNORE_AFTER = 400; // 결과가 나온 직후 이만큼은 누름을 무시(늦게 누른 것이 다음 판 반칙이 되지 않게)
   const FALL_START = 100, FALL_MS = 300; // 맞은 사람: 0.1초까지 서 있음 → 0.3초까지 넘어가는 중 → 누움
   const CROWN_BLINK_MS = 300; // 방금 끝난 연승이 최고 기록이면 왕관이 이 간격으로 켜졌다 꺼졌다 한다
@@ -332,6 +358,87 @@
     down: POSES.down,
   };
 
+  // 보스(5번째 · 10번째 … 상대): 보통 상대보다 키가 세 칸 크다(몸 두 칸 + 모자 한 칸). 챙 넓은 검은 모자(테두리만 흰 점) + 등 뒤로 늘어진 망토
+  // (망토는 흰 점으로 꽉 채운 덩어리 — 테두리만 그리면 작은 화면에서 망토로 안 읽혀서. 아랫단은 들쭉날쭉). 그림은 나와 같이 오른쪽을 보는 모습으로 짜고, 찍을 때 좌우를 뒤집는다
+  const BOSS_STAND = [
+    '.....#####.....',
+    '.....#...#.....',
+    '.....#...#.....',
+    '.#############.',
+    '......###......',
+    '......###......',
+    '.......#.......',
+    '....#######....',
+    '...#####..#....',
+    '...#####..#....',
+    '..######...#...',
+    '..######...#...',
+    '..######..##...',
+    '.######.#......',
+    '.######.#......',
+    '.#.#.#...#.....',
+    '.....#...#.....',
+    '....#.....#....',
+    '....#.....#....',
+    '...#.......#...',
+    '..##.......##..',
+  ];
+  const BOSS_SHOOT = [
+    '.....#####.........',
+    '.....#...#.........',
+    '.....#...#.........',
+    '.#############.....',
+    '......###..........',
+    '......###..........',
+    '.......#...........',
+    '....##############.',
+    '...#####.......#...',
+    '...#####...........',
+    '..######...........',
+    '..######...........',
+    '..######...........',
+    '.######.#..........',
+    '.######.#..........',
+    '.#.#.#...#.........',
+    '.....#...#.........',
+    '....#.....#........',
+    '....#.....#........',
+    '...#.......#.......',
+    '..##.......##......',
+  ];
+  const BOSS_FALL = [ // 넘어가는 중: 앞으로 기울고 망토가 뒤로 날린다(모자는 벗겨져 따로)
+    '...........###....',
+    '...........###....',
+    '.########..###....',
+    '.##########.......',
+    '..########.#......',
+    '...######...#.....',
+    '....####.....#....',
+    '.......#..........',
+    '.......#..........',
+    '.......##.........',
+    '.......#.#........',
+    '......#..#........',
+    '......#..#........',
+    '.....#...#........',
+    '...##....##.......',
+  ];
+  const BOSS_DOWN = [ // 누움: 앞으로 엎어지고 등 위에 망토가 덮인다
+    '.....######.....###.',
+    '#...########.#..###.',
+    '###################.',
+  ];
+  const BOSS_HAT = ['....#####....', '....#...#....', '....#...#....', '#############']; // 벗겨져 공중에 뜬 챙 넓은 모자
+  const BOSS_HAT_SIDE = ['#....', '#....', '####.', '#..#.', '####.', '#....', '#....'];    // 땅에 떨어져 옆으로 선 모자(챙이 세로 줄, 모자 머리는 오른쪽)
+  const BOSS_FLASH = [[19, 7], [20, 6], [20, 8], [21, 7], [22, 5], [22, 9], [23, 7]];     // 보스 총구 불꽃(보스 쏨 그림 기준 열 · 줄)
+  // hat = 벗겨진 모자를 놓는 법: back = 몸 한가운데에서 등 쪽으로 모자 끝까지(칸), up = 땅 줄에서 모자 위 끝까지(칸)
+  const BOSS_POSES = {
+    stand: { rows: BOSS_STAND, ax: 7 },
+    shoot: { rows: BOSS_SHOOT, ax: 7, flash: BOSS_FLASH },
+    fall: { rows: BOSS_FALL, ax: 7, hat: { rows: BOSS_HAT, back: 8, up: 21 } },
+    down: { rows: BOSS_DOWN, ax: 2, hat: { rows: BOSS_HAT_SIDE, back: 8, up: 7 } },
+  };
+
   // 굴러가는 마른 풀 덩어리(텀블위드): 둥근 테두리 + 안쪽 잔가지 세 갈래가 굴러간 거리만큼 돈다
   const TUMBLE_R = 3;            // 반지름(칸)
   const TUMBLE_ROLL_MS = 2600;   // 화면 한쪽 끝에서 반대쪽 끝까지 굴러가는 시간
@@ -390,6 +497,11 @@
     '.###.', '#####', '#####', '#####', '#####', '#####', '.###.', '.###.', '.###.', '.###.',
     '.###.', '..#..', '..#..', '..#..', '.....', '.....', '.###.', '#####', '#####', '.###.',
   ];
+  // 가짜 신호: 큰 물음표(느낌표와 같은 20칸 높이, 같은 자리 가운데). 보스 판에서만 잠깐 떴다 사라진다
+  const QMARK = [
+    '..#####..', '.#######.', '###...###', '###...###', '###...###', '......###', '.....####', '....####.', '...####..', '...###...',
+    '...###...', '...###...', '...###...', '...###...', '.........', '.........', '...###...', '..#####..', '..#####..', '...###...',
+  ];
   // 해골: 진 화면(맞아서 짐 · 반칙 둘 다) 한가운데 위쪽에 뜨는 「졌다」 표시. 비유: 묘비에 새기는 그림.
   // 둥근 머리 · 검게 뚫린 두 눈(3×3칸) · 세모 코 구멍 · 아래 이빨 줄. 그림만 갈아 끼워도 되게,
   // 그리는 쪽은 이 배열의 폭 · 높이를 읽어서 자리를 잡는다(줄 길이는 모두 같게 둘 것)
@@ -414,6 +526,8 @@
   // 큰 점 글씨로 쓰는 두 줄(글자 그림은 아래 BIG). 「신호」 = 신호 느낌표를 작게 줄인 그림. 문장 끝에는 느낌표를 붙이지 않는다(맨 앞 신호 그림과 겹쳐 보여서 뺌)
   const HINT = ['신호', ' ', '뜨', '면', ' ', '쏴'];                                    // 시작 안내 「! 뜨면 쏴」
   const FOUL_LINE = ['신호', ' ', '전', '에', ' ', '쏘', '면', ' ', '반', '칙'];        // 반칙 화면 「! 전에 쏘면 반칙」
+  // 보스 판 글(11/16). 「느낌」 = 문장 끝 느낌표(신호 그림과 헷갈리지 않게 획 한 칸짜리 가는 것). 보스 대기 화면에는 안내 글이 없다(형님: 「보스판인데 너무 친절한 설명」)
+  const FAKE_LINE = ['가', '짜', '에', ' ', '속', '았', '다', '느낌'];                  // 가짜에 쏴서 진 화면 「가짜에 속았다!」(반칙 글 자리)
   const FOUL_GAP = 1;             // 해골 아래 끝과 반칙 글 사이 틈(칸). 반칙 글과 「최고 N연승」 줄 사이도 같다(더 띄우면 「최고」 줄이 사람 머리 높이 아래로 내려간다)
   const HINT_GAP = 3;             // 신호 「!」가 뜨는 자리 아래 끝과 시작 안내 사이 틈(칸)
 
@@ -471,6 +585,13 @@
     '에': ['.......#.#', '.###...#.#', '#...#..#.#', '#...#.##.#', '#...#..#.#', '.###...#.#', '.......#.#', '.......#.#', '.......#.#', '.......#.#', '.......#.#'],
     '쏘': ['..#...#...', '..#...#...', '..#...#...', '.#.#.#.#..', '#..#.#..#.', '..........', '....#.....', '....#.....', '....#.....', '#########.', '..........'],
     '반': ['#...#..#..', '#...#..#..', '#####..###', '#...#..#..', '#####..#..', '.......#..', '..........', '.#........', '.#........', '.#........', '.########.'],
+    // 11/16 보스 판 글자(같은 글씨체: 높이 11칸, 획 한 칸)
+    '느낌': ['#', '#', '#', '#', '#', '#', '#', '#', '.', '.', '#'],
+    '가': ['.......#..', '#####..#..', '....#..#..', '....#..#..', '....#..###', '...#...#..', '...#...#..', '..#....#..', '.#.....#..', '#......#..', '.......#..'],
+    '짜': ['........#.', '###.###.#.', '.#...#..#.', '.#...#..#.', '.#...#..##', '#.#.#.#.#.', '#.#.#.#.#.', '........#.', '........#.', '........#.', '........#.'],
+    '속': ['....#.....', '...#.#....', '..#...#...', '.#.....#..', '....#.....', '#########.', '..........', '.########.', '........#.', '........#.', '........#.'],
+    '았': ['.###...#..', '#...#..#..', '#...#..###', '#...#..#..', '.###...#..', '.......#..', '..........', '..#...#...', '..#...#...', '.#.#.#.#..', '#...#...#.'],
+    '다': ['.......#..', '#####..#..', '#......#..', '#......#..', '#......###', '#......#..', '#......#..', '#####..#..', '.......#..', '.......#..', '.......#..'],
     '칙': ['..#.....#.', '#####...#.', '..#.....#.', '.#.#....#.', '#...#...#.', '........#.', '..........', '.########.', '........#.', '........#.', '........#.'],
   };
   // 작은 점 글씨(높이 5칸): 왼쪽 위 「왕관 + 최고 연승」 줄과 그 아래 「번개 + 최고 반응 속도」 줄에만 쓴다. 비유: 점수판 구석의 작은 「최고 기록」 딱지
@@ -557,14 +678,18 @@
   let startT = 0;           // 이번 판 시작 시각
   let waitMs = null;        // 이번 판 신호까지 시간
   let signalT = 0;          // 「!」를 그린 시각
-  let duelOpp = oppFor(streak); // 이번 상대 반응 시간
+  let duelOpp = rollOpp();  // 이번 상대 반응 시간(판이 시작될 때마다 새로 뽑는다)
+  let duelBoss = bossNoFor(streak); // 이번 상대가 몇 번째 보스인지(보통 상대면 0)
+  let fakes = [];           // 이번 판 가짜 신호 시간표 [{ at, ms }](판 시작부터 잰 시간). 보스 판에만 있다
   let myMs = null;          // 이번 판 내 반응 시간
-  let outcome = null;       // null · 'win' · 'lose' · 'foul'
+  let outcome = null;       // null · 'win' · 'lose' · 'foul'(! 전에 쏨) · 'fake'(가짜 「?」에 속음)
   let shotMs = null;        // 화면 한가운데 위쪽에 그릴, 쏜 쪽의 반응 시간(반칙이면 null)
   let resultT = 0;          // 결과가 난 시각
   let autoLoseFrom = null;  // 상대가 저절로 쏴서 진 판이면 그 전 연승(늦게 도착한 누름을 되살릴 때 씀)
   let endedStreak = 0;      // 지거나 반칙한 판에서, 그 직전까지 쌓았던 연승(최고 기록과 같으면 왕관이 깜빡인다)
-  let fixedWait = null;     // 검사용: 신호까지 시간 고정(null = 무작위)
+  let fixedWait = null;     // 검사용: 신호까지 시간 고정(null = 무작위). 고정한 동안 보스 판의 가짜 신호는 fixedFakes로 준 것만 나온다
+  let fixedOpp = null;      // 검사용: 상대 반응 시간 고정(null = 무작위)
+  let fixedFakes = null;    // 검사용: 보스 판 가짜 신호 시간표 고정(null = 무작위)
 
   function saveRecords() {
     saveRaw(KEYS.streak, streak);
@@ -581,8 +706,14 @@
   }
   // 시작 안내 「! 뜨면 쏴」가 보이는 때: 지금 연승이 0인 판에서 신호를 기다리는 동안(시작 전 화면 포함). 신호가 뜨면 사라진다
   const hintNow = () => streak === 0 && (phase === 'wait' || phase === 'ready');
-  // 한가운데 위쪽 표시: 신호 '!' · 맞아서 짐 'skull'(해골) · 반칙 'skull-foul'(해골 + 그 아래 「! 전에 쏘면 반칙」)
+  // 그 시각에 떠 있는 가짜 신호(없으면 null). 「?」는 뜨는 때부터 떠 있는 시간만큼만 보인다
+  const fakeAt = (t) => (phase === 'wait' ? fakes.find((f) => t >= startT + f.at && t < startT + f.at + f.ms) || null : null);
+  // 그 시각에 누르면 「속은 것」인지: 「?」가 떠 있는 동안 + 사라진 뒤 FAKE_GRACE_MS까지
+  const fooledAt = (t) => phase === 'wait' && fakes.some((f) => t >= startT + f.at && t < startT + f.at + f.ms + FAKE_GRACE_MS);
+  // 한가운데 위쪽 표시: 신호 '!' · 가짜 신호 '?' · 맞아서 짐 'skull'(해골) · 반칙 'skull-foul'(해골 + 「! 전에 쏘면 반칙」) · 가짜에 쏨 'skull-fake'(해골 + 「가짜에 속았다!」)
   const markNow = () => (phase === 'signal' ? '!'
+    : fakeAt(now()) ? '?'
+    : phase === 'result' && outcome === 'fake' ? 'skull-fake'
     : phase === 'result' && outcome === 'foul' ? 'skull-foul'
     : phase === 'result' && outcome === 'lose' ? 'skull' : null);
   // 한가운데 위쪽 숫자: 이겼을 때 내 반응 시간만(졌을 때 상대 시간은 그리지 않는다 — 그 자리는 해골)
@@ -592,7 +723,7 @@
   // 「최고 N연승」 줄: 지거나 반칙한 결과 화면에서만(이긴 적이 한 번도 없으면 없음).
   // record = 방금 끝난 연승이 곧 최고 기록, on = 왕관이 지금 켜져 있는지(record일 때만 깜빡인다)
   function bestLineNow() {
-    if (phase !== 'result' || (outcome !== 'lose' && outcome !== 'foul') || best <= 0) return null;
+    if (phase !== 'result' || (outcome !== 'lose' && outcome !== 'foul' && outcome !== 'fake') || best <= 0) return null;
     const record = endedStreak > 0 && streak === 0 && endedStreak === best;
     const on = !record || Math.floor((now() - resultT) / CROWN_BLINK_MS) % 2 === 0;
     return { best, record, on };
@@ -604,10 +735,21 @@
     autoDuel = false;
     startT = t;
     const [lo, hi] = firstDuel ? [FIRST_WAIT_MIN, FIRST_WAIT_MAX] : [WAIT_MIN, WAIT_MAX];
-    waitMs = fixedWait !== null ? fixedWait : lo + Math.floor(Math.random() * (hi - lo + 1));
+    duelBoss = bossNoFor(streak);
+    if (duelBoss && fixedFakes !== null) { // 검사용으로 준 시간표: 진짜 신호는 마지막 「?」가 사라진 뒤로 민다
+      fakes = fixedFakes.map((f) => ({ at: f.at, ms: f.ms }));
+      const end = fakes.reduce((m, f) => Math.max(m, f.at + f.ms), 0);
+      waitMs = Math.max(fixedWait !== null ? fixedWait : end + FAKE_TAIL_MIN, end + FAKE_GRACE_MS + 1);
+    } else if (duelBoss && fixedWait === null) { // 보스 판: 「?」들을 먼저 놓고 그 뒤에 진짜 신호
+      const plan = bossSchedule(duelBoss);
+      fakes = plan.fakes; waitMs = plan.wait;
+    } else {
+      fakes = [];
+      waitMs = fixedWait !== null ? fixedWait : lo + Math.floor(Math.random() * (hi - lo + 1));
+    }
     firstDuel = false;
     windDir = Math.random() < 0.5 ? 1 : -1;
-    duelOpp = oppFor(streak);
+    duelOpp = fixedOpp !== null ? fixedOpp : rollOpp();
     myMs = null; outcome = null; shotMs = null; autoLoseFrom = null; signalT = 0; endedStreak = 0;
     syncText(); render(); startLoop();
   }
@@ -617,10 +759,10 @@
     saveRecords();
     syncText(); render(); startLoop();
   }
-  // 신호 전에 누름: 반칙패
+  // 신호 전에 누름: 반칙패. 가짜 신호 「?」가 떠 있을 때(와 사라진 뒤 0.3초 안에) 누른 것이면 'fake'(「가짜에 속았다!」), 아니면 'foul'(「! 전에 쏘면 반칙」)
   function foul(t) {
     endedStreak = streak;
-    outcome = 'foul'; streak = 0; shotMs = null; myMs = null; autoLoseFrom = null;
+    outcome = fooledAt(t) ? 'fake' : 'foul'; streak = 0; shotMs = null; myMs = null; autoLoseFrom = null;
     endDuel(t);
   }
   // 신호 뒤 내가 쏨: 내 시간이 상대 시간보다 같거나 빠르면 이김
@@ -678,7 +820,7 @@
   function cancelDuel() {
     if (phase !== 'wait' && phase !== 'signal') return;
     phase = 'ready'; waitMs = null; myMs = null; outcome = null; shotMs = null; autoLoseFrom = null;
-    duelOpp = oppFor(streak);
+    duelBoss = bossNoFor(streak); fakes = [];
     render();
   }
   /* ---------- 실제 시간: 화면이 보이는 동안 매 장면마다 신호 · 상대 · 쓰러짐 · 왕관 깜빡임을 챙긴다 ---------- */
@@ -818,8 +960,9 @@
   // 읽어 주는 기능용 글(화면 이름표)
   function syncText() {
     // 진 화면이면 왜 졌는지도 읽어 준다(화면의 해골 · 반칙 글과 같은 뜻)
-    const lost = phase !== 'result' ? '' : outcome === 'lose' ? ', 졌다' : outcome === 'foul' ? ', 반칙 — 「!」가 뜨기 전에 쐈다' : '';
-    const aria = `서부 결투, 연승 ${streak}${lost}`;
+    const lost = phase !== 'result' ? '' : outcome === 'lose' ? ', 졌다' : outcome === 'foul' ? ', 반칙 — 「!」가 뜨기 전에 쐈다'
+      : outcome === 'fake' ? ', 가짜 신호 「?」에 속았다' : '';
+    const aria = `서부 결투, 연승 ${streak}${duelBoss ? ', 보스' : ''}${lost}`;
     if (el.screen.getAttribute('aria-label') !== aria) el.screen.setAttribute('aria-label', aria);
   }
 
@@ -910,11 +1053,11 @@
   // 맞아서 짐 = 해골 하나를 가운데, 반칙 = 같은 자리의 해골 + 그 아래 한 줄 「! 전에 쏘면 반칙」(가운데)
   function markBoxNow() {
     const mark = markNow();
-    if (mark !== 'skull' && mark !== 'skull-foul') return null;
+    if (mark !== 'skull' && mark !== 'skull-foul' && mark !== 'skull-fake') return null;
     const top = MARK_Y + skyShift, sw = SKULL[0].length, sh = SKULL.length;
     const skull = { x: Math.floor((W - sw) / 2), y: top, w: sw, h: sh };
     if (mark === 'skull') return { skull, word: null, k: 0 };
-    const m = measure(FOUL_LINE, BIG);
+    const m = measure(mark === 'skull-fake' ? FAKE_LINE : FOUL_LINE, BIG);
     return { skull, word: { x: Math.floor((W - m.w) / 2), y: top + sh + FOUL_GAP, w: m.w, h: m.h }, k: 1 };
   }
   // 시작 안내 「! 뜨면 쏴」가 차지하는 자리(칸): 신호 「!」가 뜨는 자리 바로 아래 가운데(안 보일 때는 null)
@@ -939,16 +1082,18 @@
 
   // 총잡이 한 명: anchor = 몸 한가운데 열, right = 오른쪽을 보는지(나), gy = 땅 줄.
   // 둘레를 한 칸 검게 비워 능선 위에 겹쳐도 몸이 또렷하게 보이게 한다. 상대(right = false)는 검은 모자
-  function drawPerson(anchor, right, pose, gy) {
-    const { rows, ax } = (right ? POSES : OPP_POSES)[pose];
+  function drawPerson(anchor, right, pose, gy, boss = false) {
+    const { rows, ax, flash = FLASH, hat: bossHat } = (right ? POSES : boss ? BOSS_POSES : OPP_POSES)[pose];
     const hat = right ? HAT : OPP_HAT;
     const top = gy - rows.length;
     const sx = (i) => (right ? anchor - ax + i : anchor + ax - i);
     const cells = [];
     rows.forEach((row, j) => { for (let i = 0; i < row.length; i += 1) if (row[i] === '#') cells.push([sx(i), top + j]); });
-    if (pose === 'shoot') FLASH.forEach(([i, j]) => cells.push([sx(i), top + j]));
+    if (pose === 'shoot') flash.forEach(([i, j]) => cells.push([sx(i), top + j]));
     cells.forEach(([x, y]) => { for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) dot(x + dx, y + dy, BG); });
     cells.forEach(([x, y]) => dot(x, y, INK));
+    // 보스 모자: 넘어가는 중 = 머리 뒤 위쪽 공중에, 누움 = 발 뒤 땅에 옆으로 선 채
+    if (bossHat) { sprite(anchor + bossHat.back - (bossHat.rows[0].length - 1), gy - bossHat.up, bossHat.rows); return; }
     // 넘어가는 중 = 모자가 공중에, 누움 = 모자가 등 뒤 땅에
     if (pose === 'fall' || pose === 'down') {
       const hx = right ? anchor - 9 : anchor + 9 - (hat[0].length - 1);
@@ -1018,12 +1163,15 @@
     // 두 사람(나 = 왼쪽 끝, 상대 = 오른쪽 끝)
     const p = poses();
     drawPerson(ME_X, true, p.me, gy);
-    drawPerson(OPP_X, false, p.opp, gy);
+    drawPerson(OPP_X, false, p.opp, gy, duelBoss > 0);
     // 평평한 땅 줄(사람 둘레 비움에 지워지지 않게 사람 다음에)
     box(0, gy, W, 1, INK);
 
     // 신호: 화면 한가운데 위쪽
-    if (markNow() === '!') sprite(Math.floor((W - BANG[0].length) / 2), MARK_Y + oy, BANG);
+    const mk = markNow();
+    if (mk === '!') sprite(Math.floor((W - BANG[0].length) / 2), MARK_Y + oy, BANG);
+    // 가짜 신호(보스 판): 같은 자리에 큰 물음표
+    if (mk === '?') sprite(Math.floor((W - QMARK[0].length) / 2), MARK_Y + oy, QMARK);
     // 시작 안내(연승 0인 판에서 신호를 기다리는 동안): 신호 자리 바로 아래에 「! 뜨면 쏴」
     const hb = hintBoxNow();
     if (hb) boardText(HINT, hb.x, hb.y, 1, BIG);
@@ -1031,7 +1179,7 @@
     const mb = markBoxNow();
     if (mb) {
       sprite(mb.skull.x, mb.skull.y, SKULL);
-      if (mb.word) boardText(FOUL_LINE, mb.word.x, mb.word.y, 1, BIG);
+      if (mb.word) boardText(mk === 'skull-fake' ? FAKE_LINE : FOUL_LINE, mb.word.x, mb.word.y, 1, BIG);
     }
     // 이긴 화면: 내 반응 시간을 신호가 있던 한가운데 위쪽에 크게
     const tt = timeTextNow();
@@ -1363,7 +1511,16 @@
     state() {
       return {
         phase, streak, best, bestMs,
-        oppMs: phase === 'ready' ? oppFor(streak) : duelOpp,
+        oppMs: phase === 'ready' ? null : duelOpp,     // 이번 상대 반응 시간(판이 시작돼야 정해진다)
+        boss: duelBoss > 0, bossNo: duelBoss,          // 이번 상대가 보스인지 · 몇 번째 보스인지
+        fakes: fakes.map((f) => ({ at: f.at, ms: f.ms })), // 이번 판 가짜 신호 시간표
+        fakeOn: !!fakeAt(now()),                       // 지금 「?」가 떠 있는지
+        graceMs: FAKE_GRACE_MS,                        // 「?」가 사라진 뒤에도 속은 것으로 치는 시간
+        qBox: { x: Math.floor((W - QMARK[0].length) / 2), y: MARK_Y + skyShift, w: QMARK[0].length, h: QMARK.length }, // 「?」가 뜨는 자리
+        oppBox: (() => { // 지금 상대 그림이 차지하는 자리(총구 불꽃 · 벗겨진 모자 빼고)
+          const q = (duelBoss ? BOSS_POSES : OPP_POSES)[poses().opp], w = Math.max(...q.rows.map((r) => r.length));
+          return { x: OPP_X + q.ax - (w - 1), y: GROUND_Y + skyShift - q.rows.length, w, h: q.rows.length };
+        })(),
         waitMs: phase === 'ready' ? null : waitMs,
         myMs, outcome, pose: poses(), mark: markNow(), timeText: timeTextNow(),
         label: LABEL,
@@ -1395,8 +1552,16 @@
       };
     },
     skull() { return SKULL.slice(); },                 // 해골 그림 줄들(그림을 갈아 끼워도 검사가 따라가게)
-    // 큰 점 글씨 한 줄의 글자 그림들(검사가 화면 점과 맞대어 본다): 'hint' = 시작 안내, 'foul' = 반칙 글
-    bigLine(which) { return (which === 'foul' ? FOUL_LINE : HINT).map((k) => BIG[k].slice()); },
+    // 큰 점 글씨 한 줄의 글자 그림들(검사가 화면 점과 맞대어 본다): 'hint' = 시작 안내, 'foul' = 반칙 글, 'fake' = 「가짜에 속았다!」
+    bigLine(which) { return ({ foul: FOUL_LINE, fake: FAKE_LINE }[which] || HINT).map((k) => BIG[k].slice()); },
+    qmark() { return QMARK.slice(); },                 // 가짜 신호 그림 줄들
+    rollOpp() { return rollOpp(); },                   // 상대 반응 시간을 한 번 뽑아 본다(게임 상태는 안 바뀜)
+    bossNoFor(n) { return bossNoFor(toInt(n)); },      // n연승에서 붙는 상대가 몇 번째 보스인지(아니면 0)
+    bossSchedule(no) { return bossSchedule(toInt(no)); }, // 보스 판 시간표를 한 번 뽑아 본다(게임 상태는 안 바뀜)
+    // 앞으로의 대결에서 상대 반응 시간을 고정(null이면 다시 무작위)
+    setOpp(ms) { fixedOpp = ms === null || ms === undefined ? null : toInt(ms); return this.state(); },
+    // 앞으로의 보스 판 가짜 신호 시간표를 고정([{ at, ms }], null이면 다시 무작위)
+    setFakes(list) { fixedFakes = Array.isArray(list) ? list.map((f) => ({ at: toInt(f.at), ms: Math.max(1, toInt(f.ms)) })).sort((a, b) => a.at - b.at) : null; return this.state(); },
     press() { pressAt(now()); return this.state(); },
     keyPress() { return holdKey('push', 'test', now()); }, // 이미 눌려 있으면 false(쏘지 않음)
     keyRelease() { return releaseKey('push'); },
@@ -1415,14 +1580,14 @@
     setStreak(n) {
       streak = toInt(n);
       if (streak > best) best = streak;
-      if (phase !== 'result') duelOpp = oppFor(streak);
+      if (phase !== 'result') { duelBoss = bossNoFor(streak); if (!duelBoss) fakes = []; }
       saveRecords(); syncText(); render();
       return this.state();
     },
     reset() {
       streak = 0; best = 0; bestMs = null; endedStreak = 0;
       phase = 'ready'; waitMs = null; myMs = null; outcome = null; shotMs = null; autoLoseFrom = null;
-      duelOpp = oppFor(0);
+      duelBoss = 0; fakes = [];
       Object.values(KEYS).forEach(clearKey);
       syncText(); render();
       return this.state();
