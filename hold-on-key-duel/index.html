@@ -220,17 +220,35 @@
     for (let k = 1; k < n; k += 1) burst[k] = no === 2 ? true : Math.random() < 0.5;
     if (no >= 3 && n >= 2 && !burst.includes(true)) burst[randInt(1, n - 1)] = true;
     let t = 0, prev = null;
+    const feintAt = no >= BOSS_FEINT_FROM && Math.random() < BOSS_FEINT_RATE ? randInt(0, n - 1) : -1; // 몇 번째 가짜를 움찔로 바꿀지(-1 = 없음)
     for (let k = 0; k < n; k += 1) {
       t += burst[k] ? randInt(FAKE_BURST_MIN, FAKE_BURST_MAX) : randInt(FAKE_LEAD_MIN, FAKE_LEAD_MAX);
-      const ms = randInt(FAKE_SHOW_MIN, FAKE_SHOW_MAX);
+      const ms = k === feintAt ? randInt(FEINT_MS_MIN, FEINT_MS_MAX) : randInt(FAKE_SHOW_MIN, FAKE_SHOW_MAX);
       // 기호: 첫 보스는 「?」만. 둘째 보스부터 여덟 가지 중 무작위(연달아 나올 때는 바로 앞 것과 다른 기호 — 같은 그림이 깜빡인 것처럼 보이지 않게)
       let sym = '?';
       if (no >= 2) do { sym = FAKE_SYM_KEYS[randInt(0, FAKE_SYM_KEYS.length - 1)]; } while (burst[k] && sym === prev);
+      if (k === feintAt) sym = 'feint'; // 기호 없이 몸으로만 속인다
       fakes.push({ at: t, ms, sym });
       t += ms; prev = sym;
     }
     const tail = randInt(prev === '!!' ? FAKE_TAIL_MIN_DOUBLE : FAKE_TAIL_MIN, FAKE_TAIL_MAX);
     return { fakes, wait: t + tail };
+  }
+  // 11/16 형님: 움찔 크게 · 2a · 3a — 몸 속임(움찔): 상대가 기호 없이 몸을 숙이며 총을 반쯤 뽑다 만다. 움찔하는 동안과 끝난 뒤 FAKE_GRACE_MS 안에 쏘면 「가짜에 속았다!」
+  const FEINT_MS_MIN = 250, FEINT_MS_MAX = 350; // 움찔하는 시간
+  const BOSS_FEINT_FROM = 3, BOSS_FEINT_RATE = 0.5;     // 보스: 셋째 보스부터, 판의 절반에서 가짜 하나가 움찔로 바뀐다(한 판에 0~1번)
+  const NORMAL_FEINT_FROM = 5, NORMAL_FEINT_RATE = 0.2; // 보통 판 움찔(2a): 연승 5부터(= 6번째 상대부터, 첫 보스를 넘은 뒤) 보스가 아닌 판 다섯에 하나
+  const NORMAL_FAKE_FROM = 15, NORMAL_FAKE_RATE = 0.2;  // 보통 판 기호 가짜(3a): 연승 15부터(= 16번째 상대부터) 보스가 아닌 판 다섯에 하나 — 움찔이 걸린 판은 빼고 뽑는다(한 판에 둘 다는 없다)
+  // 보통 판(보스가 아닌 판) 시간표: 움찔 한 번이나 기호 가짜 하나가 걸리면 { fakes, wait }, 안 걸리면 null. n = 지금 연승
+  // 간격은 보스 판과 같은 규칙: 판 시작 0.9~1.8초 뒤에 나오고, 사라진 뒤 진짜 「!」까지 0.7~1.8초(「!!」면 0.9초 이상)
+  function normalSchedule(n) {
+    if (n < NORMAL_FEINT_FROM) return null;
+    let one = null;
+    if (Math.random() < NORMAL_FEINT_RATE) one = { ms: randInt(FEINT_MS_MIN, FEINT_MS_MAX), sym: 'feint' };
+    else if (n >= NORMAL_FAKE_FROM && Math.random() < NORMAL_FAKE_RATE) one = { ms: randInt(FAKE_SHOW_MIN, FAKE_SHOW_MAX), sym: FAKE_SYM_KEYS[randInt(0, FAKE_SYM_KEYS.length - 1)] };
+    if (!one) return null;
+    one.at = randInt(FAKE_LEAD_MIN, FAKE_LEAD_MAX);
+    return { fakes: [one], wait: one.at + one.ms + randInt(one.sym === '!!' ? FAKE_TAIL_MIN_DOUBLE : FAKE_TAIL_MIN, FAKE_TAIL_MAX) };
   }
   const IGNORE_AFTER = 400; // 지거나 반칙한 결과가 나온 직후 이만큼은 누름을 무시(늦게 누른 것이 곧바로 다음 판을 시작하지 않게)
   // 11/16 형님: 해 보고 초를 맞춤 — 이긴 뒤에는 버튼을 안 눌러도 다음 판이 저절로 시작된다(설명 없이 연타하다 초반에 반칙으로 죽지 않게).
@@ -377,7 +395,30 @@
   const OPP_HAT_ROWS = ['...#####...', '...#...#...', '.#########.']; // 서 있을 때 · 쏠 때 그림의 맨 위 세 줄을 이것으로 바꾼다
   const OPP_HAT = ['.#####.', '.#...#.', '#######']; // 벗겨진 검은 모자
   const withOppHat = (rows) => rows.map((row, j) => (j < OPP_HAT_ROWS.length ? OPP_HAT_ROWS[j] + '.'.repeat(row.length - OPP_HAT_ROWS[j].length) : row));
+  // 움찔(몸 속임, 11/16): 한 칸 낮게 웅크리고 머리와 모자가 두 칸 앞으로, 뒷팔은 뒤로 뻗고, 앞손은 허리춤에서 총을 반쯤 뽑다 만다(총구 끝이 비스듬히 보임), 무릎 굽힘.
+  // 쏘는 자세와 다른 점: 팔을 어깨 높이로 뻗지 않고 손이 허리에 머문다 · 총구 불꽃이 없다
+  const OPP_FEINT = [
+    '.............',
+    '......#####..',
+    '......#...#..',
+    '....#########',
+    '.......###...',
+    '.......###...',
+    '......#......',
+    '....####.....',
+    '...#.#..#....',
+    '..#..#..#..#.',
+    '.#...#..###..',
+    '.....#..##...',
+    '....#.#......',
+    '...#...#.....',
+    '...#....#....',
+    '..#.....#....',
+    '..#......#...',
+    '.##......##..',
+  ];
   const OPP_POSES = {
+    feint: { rows: OPP_FEINT, ax: 5 },
     stand: { rows: withOppHat(STAND), ax: 5 },
     shoot: { rows: withOppHat(SHOOT), ax: 5 },
     fall: POSES.fall,
@@ -458,7 +499,32 @@
   const BOSS_HAT_SIDE = ['#....', '#....', '####.', '#..#.', '####.', '#....', '#....'];    // 땅에 떨어져 옆으로 선 모자(챙이 세로 줄, 모자 머리는 오른쪽)
   const BOSS_FLASH = [[19, 7], [20, 6], [20, 8], [21, 7], [22, 5], [22, 9], [23, 7]];     // 보스 총구 불꽃(보스 쏨 그림 기준 열 · 줄)
   // hat = 벗겨진 모자를 놓는 법: back = 몸 한가운데에서 등 쪽으로 모자 끝까지(칸), up = 땅 줄에서 모자 위 끝까지(칸)
+  // 보스 움찔: 한 칸 낮게, 머리와 모자가 두 칸 앞으로, 망토가 뒤로 부풀고, 총을 반쯤 뽑다 만다
+  const BOSS_FEINT = [
+    '.................',
+    '.......#####.....',
+    '.......#...#.....',
+    '.......#...#.....',
+    '...#############.',
+    '........###......',
+    '........###......',
+    '.......##........',
+    '....######.......',
+    '..######..#......',
+    '.#######..#..#...',
+    '.#######..###....',
+    '########..##.....',
+    '.######.#........',
+    '.######.#........',
+    '.#.#.#...#.......',
+    '.....#...#.......',
+    '....#.....#......',
+    '....#......#.....',
+    '...#.......#.....',
+    '..##.......##....',
+  ];
   const BOSS_POSES = {
+    feint: { rows: BOSS_FEINT, ax: 7 },
     stand: { rows: BOSS_STAND, ax: 7 },
     shoot: { rows: BOSS_SHOOT, ax: 7, flash: BOSS_FLASH },
     fall: { rows: BOSS_FALL, ax: 7, hat: { rows: BOSS_HAT, back: 8, up: 21 } },
@@ -726,7 +792,7 @@
   let signalT = 0;          // 「!」를 그린 시각
   let duelOpp = rollOpp(streak); // 이번 상대 반응 시간(판이 시작될 때마다 그때의 연승으로 새로 뽑는다)
   let duelBoss = bossNoFor(streak); // 이번 상대가 몇 번째 보스인지(보통 상대면 0)
-  let fakes = [];           // 이번 판 가짜 신호 시간표 [{ at, ms, sym }](판 시작부터 잰 시간 · sym = 기호 이름). 보스 판에만 있다
+  let fakes = [];           // 이번 판 가짜 신호 시간표 [{ at, ms, sym }](판 시작부터 잰 시간 · sym = 기호 이름 · 'feint'는 몸 속임). 보스 판, 그리고 6번째 상대부터 일부 보통 판에 있다
   let myMs = null;          // 이번 판 내 반응 시간
   let outcome = null;       // null · 'win' · 'lose' · 'foul'(! 전에 쏨) · 'fake'(가짜 「?」에 속음)
   let shotMs = null;        // 화면 한가운데 위쪽에 그릴, 쏜 쪽의 반응 시간(반칙이면 null)
@@ -736,6 +802,7 @@
   let nextHeld = false;     // 이긴 결과 화면에서 화면이 가려졌었는지(가려진 사이에는 다음 판으로 안 넘어가고, 돌아왔을 때 AUTO_NEXT_MS가 이미 지났으면 그 즉시 새 판을 시작한다)
   let fixedWait = null;     // 검사용: 신호까지 시간 고정(null = 무작위). 고정한 동안 보스 판의 가짜 신호는 fixedFakes로 준 것만 나온다
   let fixedOpp = null;      // 검사용: 상대 반응 시간 고정(null = 무작위)
+  let fixedNormalFakes = null; // 검사용: 보통 판(연승 5 이상)의 움찔 · 가짜 시간표 고정(null = 무작위, [] = 없음)
   let fixedFakes = null;    // 검사용: 보스 판 가짜 신호 시간표 고정(null = 무작위)
 
   function saveRecords() {
@@ -746,7 +813,7 @@
 
   // 지금 두 사람의 자세
   function poses() {
-    if (phase !== 'result') return { me: 'stand', opp: 'stand' };
+    if (phase !== 'result') return { me: 'stand', opp: feintNow() ? 'feint' : 'stand' }; // 움찔하는 동안 상대는 움찔 자세
     const dt = now() - resultT;
     const hit = dt < FALL_START ? 'stand' : dt < FALL_MS ? 'fall' : 'down';
     return outcome === 'win' ? { me: 'shoot', opp: hit } : { me: hit, opp: 'shoot' };
@@ -755,12 +822,14 @@
   const hintNow = () => streak === 0 && (phase === 'wait' || phase === 'ready');
   // 그 시각에 떠 있는 가짜 신호(없으면 null). 「?」는 뜨는 때부터 떠 있는 시간만큼만 보인다
   const fakeAt = (t) => (phase === 'wait' ? fakes.find((f) => t >= startT + f.at && t < startT + f.at + f.ms) || null : null);
+  // 지금 상대가 움찔하는 중인지(가짜 시간표에서 기호 이름이 'feint'인 것 — 기호는 안 뜨고 몸만 움직인다)
+  const feintNow = () => { const f = fakeAt(now()); return !!f && f.sym === 'feint'; };
   // 그 시각에 누르면 「속은 것」인지: 「?」가 떠 있는 동안 + 사라진 뒤 FAKE_GRACE_MS까지
   const fooledAt = (t) => phase === 'wait' && fakes.some((f) => t >= startT + f.at && t < startT + f.at + f.ms + FAKE_GRACE_MS);
   // 한가운데 위쪽 표시: 신호 '!' · 가짜 신호 '?' · 맞아서 짐 'skull'(해골) · 반칙 'skull-foul'(해골 + 「! 전에 쏘면 반칙」) · 가짜에 쏨 'skull-fake'(해골 + 「가짜에 속았다!」)
   const markNow = () => (phase === 'signal' ? '!'
     : phase === 'warn' ? 'warn'
-    : fakeAt(now()) ? '?'
+    : fakeAt(now()) && !feintNow() ? '?'
     : phase === 'result' && outcome === 'fake' ? 'skull-fake'
     : phase === 'result' && outcome === 'foul' ? 'skull-foul'
     : phase === 'result' && outcome === 'lose' ? 'skull' : null);
@@ -791,9 +860,15 @@
     } else if (duelBoss && fixedWait === null) { // 보스 판: 「?」들을 먼저 놓고 그 뒤에 진짜 신호
       const plan = bossSchedule(duelBoss);
       fakes = plan.fakes; waitMs = plan.wait;
+    } else if (!duelBoss && fixedNormalFakes !== null && fixedNormalFakes.length && streak >= NORMAL_FEINT_FROM) { // 검사용으로 준 보통 판 시간표
+      fakes = fixedNormalFakes.map((f) => ({ at: f.at, ms: f.ms, sym: f.sym }));
+      const end = fakes.reduce((m, f) => Math.max(m, f.at + f.ms), 0);
+      waitMs = Math.max(fixedWait !== null ? fixedWait : end + FAKE_TAIL_MIN, end + FAKE_GRACE_MS + 1);
     } else {
-      fakes = [];
-      waitMs = fixedWait !== null ? fixedWait : lo + Math.floor(Math.random() * (hi - lo + 1));
+      // 보통 판: 가끔 움찔 한 번이나 기호 가짜 하나(normalSchedule). 들어오자마자 시작한 첫 판(3초 안에 신호)과 검사용 고정값이 있을 때는 넣지 않는다
+      const plan = !duelBoss && !firstDuel && fixedWait === null && fixedNormalFakes === null ? normalSchedule(streak) : null;
+      fakes = plan ? plan.fakes : [];
+      waitMs = plan ? plan.wait : fixedWait !== null ? fixedWait : lo + Math.floor(Math.random() * (hi - lo + 1));
     }
     firstDuel = false;
     windDir = Math.random() < 0.5 ? 1 : -1;
@@ -1597,7 +1672,8 @@
         boss: duelBoss > 0, bossNo: duelBoss,          // 이번 상대가 보스인지 · 몇 번째 보스인지
         fakes: fakes.map((f) => ({ at: f.at, ms: f.ms, sym: f.sym || '?' })), // 이번 판 가짜 신호 시간표(sym = 기호 이름)
         fakeSym: (() => { const f = fakeAt(now()); return f ? f.sym || '?' : null; })(), // 지금 떠 있는 가짜 기호 이름(없으면 null)
-        fakeOn: !!fakeAt(now()),                       // 지금 「?」가 떠 있는지
+        feint: feintNow(),                             // 지금 상대가 움찔하는 중인지
+        fakeOn: !!fakeAt(now()),                       // 지금 가짜 구간인지(기호가 떠 있거나 몸 속임 중)
         warn: phase === 'warn', warnBox: warnBoxNow(), warns, foulWarnMs: FOUL_WARN_MS, foulWarnMax: FOUL_WARN_MAX, // 경고 글이 떠 있는지 · 자리 · 이번 판 경고 횟수 · 떠 있는 시간
         autoNextMs: AUTO_NEXT_MS, startGraceMs: START_GRACE_MS, // 이긴 뒤 다음 판까지 · 새 판 처음 누름을 봐주는 시간
         graceMs: FAKE_GRACE_MS,                        // 「?」가 사라진 뒤에도 속은 것으로 치는 시간
@@ -1648,7 +1724,10 @@
     // 앞으로의 대결에서 상대 반응 시간을 고정(null이면 다시 무작위)
     setOpp(ms) { fixedOpp = ms === null || ms === undefined ? null : toInt(ms); return this.state(); },
     // 앞으로의 보스 판 가짜 신호 시간표를 고정([{ at, ms }], null이면 다시 무작위)
-    setFakes(list) { fixedFakes = Array.isArray(list) ? list.map((f) => ({ at: toInt(f.at), ms: Math.max(1, toInt(f.ms)), sym: FAKE_SYMS[f.sym] ? f.sym : '?' })).sort((a, b) => a.at - b.at) : null; return this.state(); },
+    setFakes(list) { fixedFakes = Array.isArray(list) ? list.map((f) => ({ at: toInt(f.at), ms: Math.max(1, toInt(f.ms)), sym: FAKE_SYMS[f.sym] || f.sym === 'feint' ? f.sym : '?' })).sort((a, b) => a.at - b.at) : null; return this.state(); },
+    // 앞으로의 보통 판(연승 5 이상)의 움찔 · 가짜 시간표를 고정([{ at, ms, sym }] — sym 'feint' = 움찔, [] = 없음, null이면 다시 무작위)
+    setNormalFakes(list) { fixedNormalFakes = Array.isArray(list) ? list.map((f) => ({ at: toInt(f.at), ms: Math.max(1, toInt(f.ms)), sym: FAKE_SYMS[f.sym] || f.sym === 'feint' ? f.sym : '?' })).sort((a, b) => a.at - b.at) : null; return this.state(); },
+    normalSchedule(n) { return normalSchedule(toInt(n)); }, // n연승 보통 판의 시간표를 한 번 뽑아 본다(안 걸리면 null · 게임 상태는 안 바뀜)
     press() { pressAt(now()); return this.state(); },
     keyPress() { return holdKey('push', 'test', now()); }, // 이미 눌려 있으면 false(쏘지 않음)
     keyRelease() { return releaseKey('push'); },
