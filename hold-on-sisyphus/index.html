@@ -236,7 +236,7 @@
     '...............####.',
     '.............####...',
     '...........####.###.',
-    '..........#####.####',
+    '..........#####.###.',
     '.........#####..###.',
     '........#####.......',
     '.......#####........',
@@ -295,6 +295,36 @@
     ],
   ];
   const MAN = MAN_LEGS.map((legs) => MAN_TOP.concat(legs));
+  // 가만히 있을 때: 미는 몸을 그대로 일으켜 세운 자세(머리 3×3칸 · 몸통 가로 4칸 · 팔다리 2칸 — 미는 자세와 같은 치수). 두 팔로 바위에 기댐
+  const MAN_IDLE = {
+    dx: -1, dy: -2, // 처음 걸음 그림 자리(MAN_X, MAN_Y)에서 얼마나 옮겨 찍는지
+    rows: [
+      '...........###......',
+      '...........###......',
+      '...........###......',
+      '................####',
+      '..........##########',
+      '..........######....',
+      '.........####.......',
+      '.........####.......',
+      '........####........',
+      '........####........',
+      '.......####.........',
+      '.......####.........',
+      '......#####.........',
+      '.....###.##.........',
+      '.....##..##.........',
+      '....###...##........',
+      '....##....##........',
+      '...###....##........',
+      '...##.....##........',
+      '..###.....##........',
+      '..##......##........',
+      '.###......##........',
+      '.##.......##........',
+      '##........###.......',
+    ],
+  };
 
   // 바위: 기준 화면 높이의 절반쯤 되는 울퉁불퉁한 덩어리. 테두리(#) 안쪽(-)은 굴러가는 무늬로 채운다
   const BOULDER = [
@@ -452,6 +482,17 @@
   let count = loadNum(KEYS.count);
   let skin = loadChoice(SKIN_KEY, SKINS.length - 1, FIRST_SKIN);
   const stepOf = (n) => n % MAN.length;
+  /* 서기 규칙(비유: 숨 고르기). 누르면 곧바로 미는 자세가 되고, 손을 떼도 바로 일어서지 않는다.
+     마지막으로 뗀 뒤 STAND_AFTER_MS 동안 아무것도 안 누르면 그때 서서 기댄다. 연타 중에는 계속 미는 자세라 화면이 덜 어지럽다. */
+  const STAND_AFTER_MS = 500;
+  let standing = true;  // 처음 열었을 때는 서 있다
+  let standTimer = 0;
+  const isPushing = () => !standing;
+  function startPush() { standing = false; clearTimeout(standTimer); }
+  function restSoon() {
+    clearTimeout(standTimer);
+    standTimer = setTimeout(() => { if (keyHold.push !== null) return; standing = true; render(); }, STAND_AFTER_MS);
+  }
 
   /* ---------- 누르기: 여기서 모든 일이 한 번에 일어난다 ---------- */
   // 한 걸음 세기(모든 누르는 길이 결국 여기로 온다)
@@ -463,6 +504,7 @@
   }
   // 「한 번 눌렀다 뗀 것」(검사용): 키캡이 잠깐 눌린 그림이 된다
   function press() {
+    startPush();
     pushOnce();
     flashPushKey();
   }
@@ -547,7 +589,7 @@
     if (keyHold[name] !== null) return false; // 이미 눌려 있음: 떼기 전엔 다시 세지 않는다
     keyHold[name] = who;
     if (who !== 'test') { KeySound.unlock(); KeySound.down(); } // 받아들여진 누름에만 「딸깍」(검사 손잡이는 조용히)
-    pushFlash = false; pushOnce();
+    pushFlash = false; startPush(); pushOnce();
     drawKeys();
     return true;
   }
@@ -559,6 +601,7 @@
     keyHold[name] = null;
     if (held !== 'test') KeySound.up(); // 키가 올라오는 소리
     drawKeys();
+    restSoon(); // 뗀 뒤 한동안 안 누르면 선다
     return true;
   }
   function releaseAllKeys() { releaseKey('push'); }
@@ -566,7 +609,7 @@
     if (keyHold.push !== null) return;
     pushFlash = true; drawKeys();
     clearTimeout(pushFlashTimer);
-    pushFlashTimer = setTimeout(() => { pushFlash = false; drawKeys(); }, 90);
+    pushFlashTimer = setTimeout(() => { pushFlash = false; drawKeys(); restSoon(); }, 90);
   }
 
   // 키캡 하나 그리기(20×20칸). 그림은 여섯 게임 공용 도트 키캡(KeyArt.pixel)에 맡긴다:
@@ -725,7 +768,9 @@
     });
 
     // 미는 사람: 한 걸음마다 다음 그림
-    spriteWithHalo(MAN_X, MAN_Y + oy, MAN[stepOf(s)]);
+    // 두 자세: 미는 중이면 처음 걸음(누를 때마다 다음 장), 쉬는 중이면 서서 기댄 자세
+    if (isPushing()) spriteWithHalo(MAN_X, MAN_Y + oy, MAN[stepOf(s)]);
+    else spriteWithHalo(MAN_X + MAN_IDLE.dx, MAN_Y + MAN_IDLE.dy + oy, MAN_IDLE.rows);
 
     // 왼쪽 위 큰 숫자(누른 횟수): 칸 두 배 크기. 너무 길어 화면을 넘으면 한 배로
     // (바위는 숫자보다 아래에 있어서 숫자가 길어져도 바위를 덮지 않는다)
@@ -1044,6 +1089,7 @@
         skin, skinName: SKINS[skin].name, skins: SKINS.map((s) => s.name),
         sound: KeySound.index,
         keyDown: keyHold.push !== null,
+        pose: isPushing() ? 'push' : 'idle', standAfterMs: STAND_AFTER_MS,
         keyRects: { push: rectOf(el.keyPush) },
         rects: {
           device: rectOf(el.deviceE), screen: rectOf(el.screen), key: rectOf(el.keyPush), grip: rectOf(el.grip),
@@ -1056,7 +1102,7 @@
     keyPress() { return holdKey('push', 'test'); }, // 이미 눌려 있으면 false(세지 않음)
     keyRelease() { return releaseKey('push'); },
     reset() {
-      count = 0;
+      count = 0; standing = true; clearTimeout(standTimer); clearTimeout(pushFlashTimer); pushFlash = false;
       Object.values(KEYS).forEach(clearKey);
       drawKeys(); syncText(); render();
     },
