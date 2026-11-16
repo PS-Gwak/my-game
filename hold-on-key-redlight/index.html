@@ -477,6 +477,9 @@
   // 남는 것 = 무릎 들고 만세 · 발레 · 쉿 · 요가 나무
   const FREEZE_NEAR_M = 95;
   const FREEZE_NEAR_SKIP = ['iceB', 'ice2', 'ice3', 'ice4', 'ice5', 'ice7', 'ice9', 'ice10'];
+  // 11/16 형님 2-A: 슈퍼맨 · 인사는 92m부터 안 뽑음. 둘은 몸을 앞으로 깊이 숙여서, 92m부터 돌아본 술래 팔꿈치에 머리 끝이 닿는다(실제로 그려서 잼)
+  const FREEZE_MID_M = 92;
+  const FREEZE_MID_SKIP = ['ice5', 'ice10'];
   // 글자 열 개의 자리: 화면 위쪽 가운데, 두 줄(무궁화꽃이 / 피었습니다). 자리는 고정이고 찍힌 글자만 보인다
   const LETTER_GAP = 2, LETTER_ROWS_Y = [3, 18], LETTER_PER_ROW = 5;
   const LETTER_X0 = Math.floor((W - (LETTER_PER_ROW * LETTER_W + (LETTER_PER_ROW - 1) * LETTER_GAP)) / 2);
@@ -613,10 +616,11 @@
     return true;
   }
   // 얼음 자세 뽑기: 바로 앞 자세만 빼고 나머지 중 하나(같은 자세가 연달아 나오지 않게). 주사위는 글자 줄과 같은 것을 한 번 굴린다.
-  // 술래 바로 뒤(95m부터)에서는 술래와 겹치는 자세도 후보에서 뺀다
+  // 술래 바로 뒤(95m부터)에서는 술래와 겹치는 자세도 후보에서 뺀다(슈퍼맨 · 인사는 그보다 앞인 92m부터)
   function pickFreeze() {
-    const near = dist >= FREEZE_NEAR_M;
-    const others = FREEZES.filter((name) => name !== freeze && !(near && FREEZE_NEAR_SKIP.includes(name)));
+    const near = dist >= FREEZE_NEAR_M, mid = dist >= FREEZE_MID_M;
+    const others = FREEZES.filter((name) => name !== freeze
+      && !(near && FREEZE_NEAR_SKIP.includes(name)) && !(mid && FREEZE_MID_SKIP.includes(name)));
     const r = Number(rng());
     freeze = others[clamp(Math.floor((r >= 0 ? r : 0) * others.length), 0, others.length - 1)];
   }
@@ -1394,6 +1398,7 @@
         mePose: drawn.mePose, itPose: drawn.itPose,         // 지금 그려진 몸짓 이름(나 · 술래)
         freeze, freezes: FREEZES.slice(),                   // 마지막으로 뽑힌 얼음 자세 · 얼음 자세 이름 열두 개
         freezeNear: { from: FREEZE_NEAR_M, skip: FREEZE_NEAR_SKIP.slice() }, // 이 거리(m)부터는 skip의 자세를 뽑지 않는다
+        freezeMid: { from: FREEZE_MID_M, skip: FREEZE_MID_SKIP.slice() },   // 슈퍼맨 · 인사는 이 거리(m)부터 안 뽑는다
         crown: drawn.crown,                                 // 끝난 화면의 왕관이 지금 보이는가(신기록이면 깜빡인다)
         hint: !!drawn.hint,                                 // 「꾹 누르고 있기!」가 보이는지(준비 화면에만)
         aria: el.screen.getAttribute('aria-label'),         // 화면 읽어 주는 숨은 글
