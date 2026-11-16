@@ -217,7 +217,10 @@
     }
     return { fakes, wait: t + randInt(FAKE_TAIL_MIN, FAKE_TAIL_MAX) };
   }
-  const IGNORE_AFTER = 400; // 결과가 나온 직후 이만큼은 누름을 무시(늦게 누른 것이 다음 판 반칙이 되지 않게)
+  const IGNORE_AFTER = 400; // 지거나 반칙한 결과가 나온 직후 이만큼은 누름을 무시(늦게 누른 것이 곧바로 다음 판을 시작하지 않게)
+  // 11/16 형님: 해 보고 초를 맞춤 — 이긴 뒤에는 버튼을 안 눌러도 다음 판이 저절로 시작된다(설명 없이 연타하다 초반에 반칙으로 죽지 않게).
+  const AUTO_NEXT_MS = 1500;   // 이긴 결과 화면을 보여 주는 시간. 이만큼 지나면 다음 판이 저절로 시작(그동안의 누름은 아무 일도 안 한다)
+  const START_GRACE_MS = 600;  // 새 판이 시작되고 이만큼은 눌러도 반칙이 아니다(무시). 신호까지 가장 짧은 시간(1.2초) · 보스 첫 「?」(0.9초)보다 짧아야 한다
   const FALL_START = 100, FALL_MS = 300; // 맞은 사람: 0.1초까지 서 있음 → 0.3초까지 넘어가는 중 → 누움
   const CROWN_BLINK_MS = 300; // 방금 끝난 연승이 최고 기록이면 왕관이 이 간격으로 켜졌다 꺼졌다 한다
 
@@ -691,6 +694,7 @@
   let resultT = 0;          // 결과가 난 시각
   let autoLoseFrom = null;  // 상대가 저절로 쏴서 진 판이면 그 전 연승(늦게 도착한 누름을 되살릴 때 씀)
   let endedStreak = 0;      // 지거나 반칙한 판에서, 그 직전까지 쌓았던 연승(최고 기록과 같으면 왕관이 깜빡인다)
+  let nextHeld = false;     // 이긴 결과 화면에서 화면이 가려졌었는지(가려진 사이에는 다음 판으로 안 넘어가고, 돌아왔을 때 1.5초가 이미 지났으면 그 즉시 새 판을 시작한다)
   let fixedWait = null;     // 검사용: 신호까지 시간 고정(null = 무작위). 고정한 동안 보스 판의 가짜 신호는 fixedFakes로 준 것만 나온다
   let fixedOpp = null;      // 검사용: 상대 반응 시간 고정(null = 무작위)
   let fixedFakes = null;    // 검사용: 보스 판 가짜 신호 시간표 고정(null = 무작위)
@@ -754,7 +758,7 @@
     firstDuel = false;
     windDir = Math.random() < 0.5 ? 1 : -1;
     duelOpp = fixedOpp !== null ? fixedOpp : rollOpp(streak);
-    myMs = null; outcome = null; shotMs = null; autoLoseFrom = null; signalT = 0; endedStreak = 0;
+    myMs = null; outcome = null; shotMs = null; autoLoseFrom = null; signalT = 0; endedStreak = 0; nextHeld = false;
     syncText(); render(); startLoop();
   }
   function endDuel(t) {
@@ -791,8 +795,12 @@
     outcome = 'lose'; if (!spared) streak = 0; shotMs = duelOpp; myMs = null;
     endDuel(at);
   }
-  // 정해진 시각이 지난 일을 차례로 처리: 신호 뜨기 → 상대가 쏘기
+  // 정해진 시각이 지난 일을 차례로 처리: (이긴 결과 화면이면) 다음 판 저절로 시작 → 신호 뜨기 → 상대가 쏘기
   function advanceTo(t) {
+    // 이긴 뒤 AUTO_NEXT_MS가 지나면 다음 판을 저절로 시작한다(버튼으로 시작할 때와 같은 startDuel). 화면이 가려져 있는 동안에는 넘어가지 않는다.
+    // 시작 시각: 손으로 돌리는 시계에서는 정해진 그 시각, 실제 시계이거나 가려졌다 돌아온 경우는 지금
+    // 이 판은 버튼으로 시작한 판과 똑같다 — 안 누르고 져도 연승은 0(들어오자마자 시작한 첫 판처럼 봐주면, 느려서 진 것까지 연승이 안 깎이게 된다)
+    if (phase === 'result' && outcome === 'win' && !document.hidden && t >= resultT + AUTO_NEXT_MS) startDuel(manual !== null && !nextHeld ? resultT + AUTO_NEXT_MS : t);
     if (phase === 'wait' && t >= startT + waitMs) {
       phase = 'signal';
       render();
@@ -804,7 +812,10 @@
   // 키캡(쏘기)을 한 번 누름(t = 누른 시각)
   function fire(t) {
     if (phase === 'ready') { startDuel(t); return; }
-    if (phase === 'wait') { foul(t); return; }
+    if (phase === 'wait') {
+      if (t - startT < START_GRACE_MS) return; // 새 판 처음 0.6초: 앞 판에서 이어진 연타는 반칙으로 치지 않는다
+      foul(t); return;
+    }
     if (phase === 'signal') {
       if (t < signalT) foul(t); // 「!」가 그려지기 전에 누른 것
       else shoot(t);
@@ -817,6 +828,7 @@
       shoot(t);
       return;
     }
+    if (outcome === 'win') return; // 이긴 결과 화면: 눌러도 아무 일 없다(다음 판은 AUTO_NEXT_MS 뒤 저절로 — 앞당기지 않는다)
     if (t - resultT < IGNORE_AFTER) return;
     startDuel(t);
   }
@@ -831,7 +843,7 @@
   let rafId = 0;
   const crownBlinks = () => { const b = bestLineNow(); return !!(b && b.record); };
   const needsLoop = () => manual === null && !document.hidden &&
-    (phase === 'wait' || phase === 'signal' || (phase === 'result' && (now() - resultT < FALL_MS || crownBlinks())));
+    (phase === 'wait' || phase === 'signal' || (phase === 'result' && (outcome === 'win' || now() - resultT < FALL_MS || crownBlinks())));
   function loop() {
     rafId = 0;
     if (manual !== null || document.hidden) return;
@@ -844,7 +856,7 @@
     rafId = requestAnimationFrame(loop);
   }
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { releaseAllKeys(); cancelDuel(); return; }
+    if (document.hidden) { releaseAllKeys(); cancelDuel(); if (phase === 'result' && outcome === 'win') nextHeld = true; return; }
     // 뒤쪽 탭으로 열려서 아직 첫 판을 못 했으면, 화면이 보이는 순간 첫 판을 시작한다
     if (firstDuel && phase === 'ready' && manual === null) { startDuel(now()); autoDuel = true; return; }
     render(); startLoop();
@@ -965,7 +977,7 @@
   function syncText() {
     // 진 화면이면 왜 졌는지도 읽어 준다(화면의 해골 · 반칙 글과 같은 뜻)
     const lost = phase !== 'result' ? '' : outcome === 'lose' ? ', 졌다' : outcome === 'foul' ? ', 반칙 — 「!」가 뜨기 전에 쐈다'
-      : outcome === 'fake' ? ', 가짜 신호 「?」에 속았다' : '';
+      : outcome === 'fake' ? ', 가짜 신호 「?」에 속았다' : outcome === 'win' ? ', 이겼다 — 잠시 뒤 다음 상대' : '';
     const aria = `서부 결투, 연승 ${streak}${duelBoss ? ', 보스' : ''}${lost}`;
     if (el.screen.getAttribute('aria-label') !== aria) el.screen.setAttribute('aria-label', aria);
   }
@@ -1519,6 +1531,7 @@
         boss: duelBoss > 0, bossNo: duelBoss,          // 이번 상대가 보스인지 · 몇 번째 보스인지
         fakes: fakes.map((f) => ({ at: f.at, ms: f.ms })), // 이번 판 가짜 신호 시간표
         fakeOn: !!fakeAt(now()),                       // 지금 「?」가 떠 있는지
+        autoNextMs: AUTO_NEXT_MS, startGraceMs: START_GRACE_MS, // 이긴 뒤 다음 판까지 · 새 판 처음 누름을 봐주는 시간
         graceMs: FAKE_GRACE_MS,                        // 「?」가 사라진 뒤에도 속은 것으로 치는 시간
         qBox: { x: Math.floor((W - QMARK[0].length) / 2), y: MARK_Y + skyShift, w: QMARK[0].length, h: QMARK.length }, // 「?」가 뜨는 자리
         oppBox: (() => { // 지금 상대 그림이 차지하는 자리(총구 불꽃 · 벗겨진 모자 빼고)
