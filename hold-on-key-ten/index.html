@@ -43,7 +43,7 @@
 <main id="main">
   <div class="device-e" id="deviceE">
     <canvas class="body" id="bodyCanvas" aria-hidden="true"></canvas>
-    <button class="corner-btn game-btn" id="gameBtn" type="button" tabindex="-1"><canvas id="gameCanvas"></canvas><span class="ghost" id="gameLabel">게임 2 10.00000</span></button>
+    <button class="corner-btn game-btn" id="gameBtn" type="button" tabindex="-1"><canvas id="gameCanvas"></canvas><span class="ghost" id="gameLabel">게임 2/8 10.00000</span></button>
     <button class="corner-btn sound-btn" id="soundBtn" type="button" tabindex="-1"><canvas id="soundCanvas"></canvas><span class="ghost" id="soundLabel">소리 1</span></button>
     <button class="corner-btn skin-btn" id="skinBtn" type="button" tabindex="-1"><canvas id="skinCanvas"></canvas><span class="ghost" id="skinLabel">몸통 gray</span></button>
     <canvas class="screen" id="screen" aria-label="10초 맞추기 시계"></canvas>
@@ -160,6 +160,343 @@
     },
   };
 // === KEY-SHARED 여기까지 ===
+// === KEY-PICKER 여기부터 ===
+  /* ---------- 게임 상자 + 게임 고르는 화면 (여덟 게임 공용 — 원본은 tools/key-game-picker.js, 여기서 고치지 말 것) ----------
+     비유: 예전에는 TV 리모컨 숫자 버튼 여덟 개였다. 지금은 「목록」 버튼 하나 — 누르면 앨범 뒷면의 곡 목록처럼 여덟 게임이 한 줄씩 펼쳐진다.
+     · 게임 상자 = 위 띠 왼쪽의 「목록 그림 + 3/8」 상자(#gameBtn). 누르면 창 전체에 「게임 고르는 화면」이 뜬다.
+     · 줄을 누르면 그 게임으로 넘어간다. 지금 게임 줄 · × · Esc는 닫기. 열려 있는 동안 키보드 · 키캡 누름은 게임에 들어가지 않는다.
+     · 게임 순서는 앨범 트랙처럼 점점 고조된다. 번호와 이름만 바뀌었고 폴더 이름(주소)은 그대로다.
+     · 이 컴퓨터의 폴더 이름(local)과 인터넷 전시장의 폴더 이름(web)이 달라서 둘 다 적어 두고, 지금 열린 폴더가 어느 쪽인지 보고 같은 쪽 이름으로 간다.
+     · 키보드 바로 가기는 두지 않는다(100m의 F · J 사이 G처럼, 달리다 스치면 판이 날아가서).
+     게임마다 다른 것은 KeyPicker.setup({ here, cell, canOpen, onOpen, onClose })로 받는다. */
+  const KeyPicker = (() => {
+    const GAMES = [
+      { id: '1', name: '시지프스의 형벌', local: 'streak-sisyphus', web: 'hold-on-sisyphus' },
+      { id: '2', name: '10.00000', local: 'key-ten', web: 'hold-on-key-ten' },
+      { id: '3', name: '서부 결투', local: 'key-duel', web: 'hold-on-key-duel' },
+      { id: '4', name: '100m', local: 'key-100m', web: 'hold-on-key-100m' },
+      { id: '5', name: '아주 멀리뛰기', local: 'key-leap', web: 'hold-on-key-leap' },
+      { id: '6', name: '무궁화꽃', local: 'key-redlight', web: 'hold-on-key-redlight' },
+      { id: '7', name: '퍼덕', local: 'key-flap', web: 'hold-on-key-flap' },
+      { id: '8', name: '100연승', local: 'key-streak', web: 'hold-on-key-streak' },
+    ];
+    /* 여덟 게임의 작은 그림(첫 화면): 각 게임의 검은 화면(128 × 96칸)을 「게임 점 하나 = 그림 점 하나」로 찍어 글자(data URL)로 넣어 둔 것.
+       게임 첫 화면 그림이 바뀌면 다시 찍는다: node tools/shoot-game-thumbs.mjs (아래 두 표시 줄 사이를 도구가 통째로 바꿔 쓴다 — 손으로 고치지 않는다) */
+    /* GAME-THUMBS 여기부터 */
+    const GAME_THUMBS = {
+      'streak-sisyphus': 'data:image/png;base64,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',
+      'key-ten': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAABgCAYAAADVenpJAAAERUlEQVR4AeyZDWrdMBCEHz1A7n/OXKDtBx4QyvrZ8rOJVjvQYbW/lmanoSV/Xq/XX6MuBwjg//79pyoDFkDVzW/vtgA2IqoaC6Dq5rd3WwAbEVWNBVB189u7LYCNiGpG77UAxERRawEUXbyebQGIiaLWAii6eD3bAhATRa0FUHTxerYFICaKWgug2OL751oAPSPFfAug2ML751oAPSPFfAug2ML751oAPSPFfAug2ML751oAPSPFfAugyML3nmkB7DFTJG4BFFn03jMtgD1misQtgCKL3numBbDHTJG4BVBk0XvPtAD2mCkStwAWX/TR8yyAI4YWz1sAiy/46HkWwBFDi+ctgMUXfPQ8C+CIocXzFsDiCz563mUBfH9/vyIcfZB81EeM3Cjoi3BmTtRHbNXe6F2XBRANc2weBs7exAI4y9SidUMC4Mej8PX19YqgPLblDF+I+ogpj217+zN5gb4IymPbfnwh6iOmPDZ7b3v/6DwkgGiAY7kZsABy7+/j21sAH1OYe4AFkHt/H9/eAviYwtwDLIDc+/tx+9GABTDK2GL1FsBiCx19jgUwythi9RbAYgsdfY4FMMrYYvUWwGILHX2OBTDK2GL1FsAiC736jCEB8KtSgV+VRlAe214KX4j6iCmPVS9xQTHygnK9VR6rPiy+0PfIVx5Lj4AvqLa3ymPVh8UX+h75ymPpEfAF1fZWeaz6ztghAZwZ6JpcDFgAufZ1+20vC4AfNRHO3DDqIxb1EheO8qrDRrV9jLoIfV3kR33Eoto+Rl2Evi7yoz5iUe2Z2GUBnBnumvkZsADm39GjN7QAHqV3/uFTCYD/2vSUERP6nHzyOo9Y9cn2vcR7tDXkWl/no/heXv0j9tPaaQQQkUKMf+AI+HowZ4GYzlj8FsSENn7mrG9j39VrPpY6rIA/K6YRwBHBPYHUC+R0xuILLIGYgK/cVcsM0PZrPpY4VsCfFdMI4CpBLAKisSMzRuvb2XwPtDGdmUsOq9jMNrUAIBmyIRiLz/kMqD9Tx0zhqJ46zcXi04MFnGdDWgFAKCS3hOITj2LEATVt/t2Z2h5H9W2eXnws4Dwb0gpgj9AoTky4cwHM1DzEtQfVzGjTCqAlE+Jb/84zs99B30IMAjGdsfizYgkBPE0uS4xw9bvMutqrvrtsSgH0fyMhI4oR/w3MtOCj908jABbIZWU5QyS+gK8453eg7i7o+729Op85V3vv7ptGAO0y20fuxduaq2dm0yvLuQe5d+jr3/nMIS/L+bcxjQB+m4iq37cAqm5+e7cFsBFR1VgAVTe/vdsC2IjIYu6+pwVwN6PJ5lkAyRZ293UtgLsZTTbPAki2sLuvawHczWiyeRZAsoXdfV0L4G5Gk82zAJIs7KlrWgBPMZtkrgWQZFFPXdMCeIrZJHMtgCSLeuqaFsBTzCaZawEkWdRT17QAnmI2yVwLYPJFPX29fwAAAP//ox5RTQAAAAZJREFUAwB14xpuWwDjvQAAAABJRU5ErkJggg==',
+      'key-duel': 'data:image/png;base64,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',
+      'key-100m': 'data:image/png;base64,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',
+      'key-leap': 'data:image/png;base64,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',
+      'key-redlight': 'data:image/png;base64,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',
+      'key-flap': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAABgCAYAAADVenpJAAAFVElEQVR4AeyaCW7kOgxEGzlA7n/OXOD/vAHKUDNS25blRVIBUyBVpBaSNZ0A6a/X6/WfMW8PEMDv/P1v1g4sAvj5+Vl68MknBpZkO113YBEAVcTBxjU539/fGGOQDrwJgJo0dFk4Y9wO/BHAuKW6slwHdgvAnwy5NvbLLQLgZ3sJKi+Ni7PtswN69SIAEbZzdeBNAHy8C3O1Yd5qFwEw+PQjnvW8bZmn8kUAackeftqNsf0/AmD4fBKMXbarUwfeBODhqy3z2DcB+H/+PINXpYsAGD6fAAJrJdmO04FYySIAAgxdYG2M34E3AYxfriuMHbAAYkcuXOvHbbQXPuFlAVzZ7d+70mH/LrP/tuRkN1aQFkBF045s2fo71ta8I29hrwVAF26ABlyyVz3JAriq0w+9xwJ46GBaP6t0ngVQ6swkvAUwyaBLZVoApc5MwlsAkwy6VKYFUOrMJLwFMMmgS2VaAKXOTMJbAIMPeq08C2CtQ4PHLYDBB7xWngWw1qHB4xbA4ANeK68bAaRfksBfK8zxbR14vAAYNojlwIHIe72vA48XAF+YKJX0KVbaY/69A48XAM9l0DkQM/Id2Mp2IYCtxThvfwceIwD9PJfdX4p31HTgMQLg8R4+XbgWjxBAHHxcX9uSuW67XQBx2PyyxwgiD2e078AtAvg03DSW+u1L94l04BYBcDHDBfgl6NOgFDd/vAO3CCA32Bx3vLz5Tthb8S0CiI9k+GufBnGP1206cJsAGLpKyA0/jSvPtn0HbhMAQy8NucS3L98n3iKAdPgadrQezTUduEUAGjYlIgasENfibc/pwC0CSEtBDAAOC/CNazpwuwCuKdO3lDpgAZQ60xlf+1wLoLZzg+yzAAYZZG0ZFkBt5wbZZwEMMsjaMiyA2s4Nss8CGGSQtWVYALWdG2SfBdD5II8+3wI42sHO91sAnQ/w6PMtgKMd7Hz/6QLgz7ug8z5VP5/aQfUBJ2/cJYC9hZDPn3cBfqtaOAu0Om/rOXvvJJ/aAf7We9byOAus5W2JbxIAl4E9hShfj9BeeHElSw7IxeE5C+Dnclpz3AP23Kl8vUV74cWVLDkgF4fnLICfy9nD/REAhwIdgs9lAA4LB1hHwAPyYgwOEI8x1vCAHIAPiAF8eHyADwdYf8KWHPaTB/ABPvcA1lg4wDoCHpAXY3CAeIyxhgfkAHxADODD4wN8OMD6E0o5iwBIABwK8AF+PBgOEAeK48MDcTlLnFygOD48EIcPiAF8xWThAHFxqYUHysFP4/LhAXkAH+ArRxYOEAfi8eGBuJwlTi5QHB8eiMMHxAC+YrJwgLi41MID5eCn8S8IQAJQEB9onbPEAfsBfi4vx5EL2Afwc3lwxAB+CcQ5B5CDBfAADgvgI+ABeQAf4JdAHOgs/FJu5MkFW/aSB+IZ6Zq4zoKXDw/gsEAx7BcEIKEW7Ac1+9kHavbGPZwDKAwLYg5r+Aj4Wuismv1H9sb7dNae+pcfAfGwntc0ouf3H337nvqHFMDRBs603wKYadqZWi2ATFNmoiyAmaadqdUCyDTlyVTrt1kArTva2XkWQGcDa/1cC6B1Rzs7zwLobGCtn2sBtO5oZ+dZAJ0NrPVzLYDWHe3sPAugk4Gd9UwL4KzOdnKuBdDJoM56pgVwVmc7OdcC6GRQZz2zWgB87YhHyeKfCd0je/ZdZ9+j82XPrCc9W/fJVguArx1xCDa94Cyfe664jztUQ+qLa2Wvqie+N967fCuYYveCw/fuOZJ/xX3ckeLIe9f2cs9azhnx9N5/nwCoIoKklItrxbbyW/NK5866v9SPvXypf/8DAAD//wIzSOoAAAAGSURBVAMARaBIjWh5pJEAAAAASUVORK5CYII=',
+      'key-streak': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAABgCAYAAADVenpJAAADzElEQVR4AeyYAW7DIAxFqx2g9z9nL7A1k/4UXBgkNQ2GJy1zDMYx34+uy9ftdvvmWleDDYBn//lZVYEEgMfj8afDf/fb3Hb9BXMTVoEEgG0XtrHW32Lu9/tmuCZQ4AWAbU9quuw2xjWnAi8A6HRbO+f22dULADr11u6l0tx+jPuYCiQAbKe+dGl7+3mNYeMpoIoTADSIXUcBAFin19mdAkBWlnUGAWCdXmd3GgqA7b+Ps1d29wzeQgFAv/wVAAB/TUNlBIBQ7Xq/WJsBAKwii/nDApD7srd/C3n0PpdvsV5ntzssANlqGXRXAADcJY2VEABi9cu9WgBwlzRWwikB4AtfO4RTAtC+/XUiSzsFgJIyi4wDwCKNLm0TAErKLDIeHoDcF77cW8JF+nl4m+EBOLxjFiQKAEAix3oOAKzX82THAJDIMZ9T21EoAPjCV2vn8flQABzf3rkVAk2r5ctq3NravI0fwQeAEbpwYQ0AsBNfJ1jvEay/C01ubZz8JGhQBwAGbcynygoFgE7m3noKpbw6wda3z7Jxmq+tU9wINhQAIwg2Ww0AkOmoTrCmrK9xWX0SWKv5K2zrMwGgValJ4wBg11id4N1Qcms/CayfBD+d2vwz5PKfYQGQeHurBp2x+zy6v1z9AQoYFoABtKmWIBAFlLWarya6MAAALhR/hEcDQKYLOrklqyU68aU4zSt+RAsAI3blgzWFAkAn6oxt0bQ1r81VWmfjPuEffUYoAI5ujvi6AgBQ12jqCACYur31zQFAXaOpIwBg6vbWNwcAdY2mjgCAqdtb3xwA1DX6jdDbvl/nn1+Ks7a0xMbJt/Eal7XzpXEbZ30AsIos5gNApeGtJ0txpbeCmtfj5LfGa521No+dr/kAUFNo8nkAqDRYJ7QSVpzWCS0GmIlSvOqQNctOuwBwWro5FgJApz7qJLee2N7xpW0CQEmZRcYBwLnRvU+yzf9u+QDwroLB1wOAcwNb/+brsUfjtU5WnwiyGm+1ANCq1KRxAFBprD1Z1tdynWTNW6v5s/HKZ/Mo31kLAGeVm2QdAFQaqRNnbWmZjZP/bnwpj8ZlS88pjQNASZlFxgEgaKO9ygYALyWD5gGAoI3zKhsAvJQMmgcAgjbOq2wA8FIyaB4ACNo4r7IBwEvJoHkAIFjjvMsFAG9Fg+UDgGAN8y4XALwVDZYPAII1zLtcAPBWNFg+AAjWMO9yAcBb0WD5ACBIw3qVCQC9lA2SFwCCNKpXmQDQS9kgeQEgSKN6lQkAvZQNkhcAgjSqV5kA0EvZIHkBYPBG9S7vBwAA//9naz2PAAAABklEQVQDAAjqt1+H82LtAAAAAElFTkSuQmCC',
+    };
+    /* GAME-THUMBS 여기까지 */
+    /* ★ 게임 상자의 아이콘: 아래 GAME_ICON 한 줄만 바꾸면 다른 그림으로 바뀐다(상자 폭도 그림 폭에 맞춰 따라간다) ★
+       고를 수 있는 이름: 'list' 목록(세 줄) · 'window' 창문 · 'pack' 게임 팩 · 'cards' 겹친 카드 · 'pad' 게임패드(9칸 폭) · 'down' 숫자 뒤 ▼ · 'none' 아이콘 없음
+       after: true 인 그림은 숫자 뒤에 붙는다 */
+    const GAME_ICON = 'list';
+    const GAME_ICONS = {
+      list: { rows: ['.......', '#######', '.......', '#######', '.......', '#######', '.......'] },
+      window: { rows: ['###.###', '###.###', '###.###', '.......', '###.###', '###.###', '###.###'] },
+      pack: { rows: ['#####..', '#....#.', '#.###.#', '#.###.#', '#.###.#', '#.....#', '#.#.#.#'] },
+      cards: { rows: ['..#####', '..#...#', '#####.#', '#...#.#', '#...###', '#...#..', '#####..'] },
+      pad: { rows: ['.........', '.#######.', '##.###.##', '#...#.#.#', '##.###.##', '.##...##.', '.........'] },
+      down: { rows: ['.......', '.......', '#######', '.#####.', '..###..', '...#...', '.......'], after: true },
+      none: null,
+    };
+    let iconName = GAME_ICON;   // 지금 쓰는 아이콘 이름(검사 손잡이만 바꾼다)
+    const GAME_SLASH = ['....#', '....#', '...#.', '..#..', '.#...', '#....', '#....'];   // 「3/8」의 빗금
+    // 점 숫자 1~8(5 × 7칸): 게임 화면의 점 글씨(GLYPHS)와 같은 모양. 게임마다 글씨 표가 조금씩 달라서 여기 따로 한 벌 둔다
+    const DIGITS = {
+      1: ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '.###.'],
+      2: ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'],
+      3: ['#####', '...#.', '..#..', '...#.', '....#', '#...#', '.###.'],
+      4: ['...#.', '..##.', '.#.#.', '#..#.', '#####', '...#.', '...#.'],
+      5: ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'],
+      6: ['..##.', '.#...', '#....', '####.', '#...#', '#...#', '.###.'],
+      7: ['#####', '....#', '...#.', '..#..', '.#...', '.#...', '.#...'],
+      8: ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'],
+    };
+    const PAD = 4, ICON_GAP = 2, BTN_ROWS = 17;   // 상자 안 좌우 여백(칸) · 아이콘과 숫자 사이(칸) · 상자 높이(칸)
+    const BLACK = '#000000', WHITE = '#f2f2f2';
+    const HEAD_H = 60, FOOT_H = 12, ROW_MIN = 44, ROW_MAX = 106;   // 머리 줄 높이 · 아래 여백 · 줄 높이 범위(화면 점). 106 = 그림이 원래 크기(96) + 위아래 5
+    const dpr = () => window.devicePixelRatio || 1;
+
+    /* 모양(CSS): 게임 파일의 <style>을 건드리지 않게 여기서 한 덩어리로 끼워 넣는다.
+       --rh = 줄 하나 높이(스크립트가 창 높이에 맞춰 정한다. 44보다 작아지지 않고, 창이 낮으면 목록이 굴러간다) */
+    const CSS = `
+  /* 글꼴: 순위표 시뮬레이션 7판과 같은 점 글꼴 「갈무리」. 게임 고르는 화면을 처음 열 때만 인터넷에서 받아 오고, 못 받으면 기기 글꼴로 보인다(게임은 그대로 된다) */
+  @font-face {
+    font-family: 'Galmuri11';
+    src: url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri11.woff2') format('woff2');
+    font-display: swap;
+  }
+  /* 게임 상자의 누를 자리: 보이는 상자는 그대로 두고, 손가락이 닿는 자리만 폭 44 · 높이 44 넘게 넓힌다.
+     위로 12 · 아래로 8(띠 여유만큼 — 아래는 검은 화면에 닿지 않게 덜 넓힌다) */
+  .game-btn::before { content: ''; position: absolute; left: 0; top: -12px; bottom: -8px; width: 100%; min-width: 44px; }
+  .gp-page {
+    --rh: 71px;
+    position: fixed; left: 0; top: 0; width: 100%; height: 100%; z-index: 10; display: none;
+    background: #000000; color: #f2f2f2; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+    touch-action: pan-y; -webkit-overflow-scrolling: touch;
+    font-family: 'Galmuri11', "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    font-size: 16px; line-height: 1.25; word-break: keep-all; -webkit-font-smoothing: none; font-smooth: never;
+  }
+  .gp-page.open { display: block; }
+  .gp-in { max-width: 420px; margin: 0 auto; padding: 0 8px 12px; }
+  .gp-head {
+    position: sticky; top: 0; z-index: 1; height: 60px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between;
+    background: #000000; font-size: 14px;
+  }
+  .gp-page button {
+    font: inherit; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; cursor: pointer; touch-action: manipulation;
+  }
+  /* 닫기 ×: 보이는 글자는 작아도 누를 자리는 44 × 44 넘게 */
+  .gp-page .gp-x { position: relative; flex: none; width: 44px; height: 44px; text-align: right; font-size: 14px; }
+  .gp-x::before { content: ''; position: absolute; left: 0; right: -8px; top: -8px; bottom: -8px; }
+  .gp-page .gp-row {
+    display: flex; align-items: center; width: 100%; height: var(--rh); padding: 0 8px 0 12px; text-align: left;
+    border-bottom: 2px solid #000000; background-clip: padding-box;
+  }
+  .gp-page .gp-row.on { background-color: #f2f2f2; color: #000000; }
+  .gp-num { flex: none; width: 10px; line-height: 0; }
+  .gp-num svg { display: block; width: calc(2px * var(--iw)); height: calc(2px * var(--ih)); }
+  .gp-thumb {
+    flex: none; display: block; height: calc(var(--rh) - 10px); width: auto; aspect-ratio: 4 / 3; margin: 0 14px;
+    outline: 1px solid currentColor; image-rendering: pixelated; background: #000000;
+  }
+  .gp-page.soft .gp-thumb { image-rendering: auto; }   /* 그림을 원래(128 × 96)보다 작게 보일 때만 부드럽게 줄인다(가는 선이 빠지지 않게) */
+  .gp-name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; }
+`;
+    const styleEl = document.createElement('style');
+    styleEl.id = 'keyPickerStyle'; styleEl.textContent = CSS;
+    document.head.appendChild(styleEl);
+    // 화면 틀: 창 전체를 덮는 층 하나(평소에는 안 보임). 화면 낭독기에는 「창 밖은 못 만짐」(aria-modal)을 알린다
+    const page = document.createElement('div');
+    page.className = 'gp-page'; page.id = 'gpPage';
+    page.setAttribute('role', 'dialog'); page.setAttribute('aria-modal', 'true'); page.setAttribute('aria-label', '게임 고르기');
+    document.body.appendChild(page);
+    const btn = document.getElementById('gameBtn'), canvas = document.getElementById('gameCanvas'), label = document.getElementById('gameLabel');
+
+    // 게임이 알려 주는 것(setup): here = 자기 번호 · cell = 작은 버튼 한 칸 크기 · canOpen = 지금 열어도 되나(게임별 문) · onOpen / onClose = 열릴 때 · 닫힐 때 게임이 할 일
+    const cfg = { here: '1', cell: () => Math.max(1, Math.round(1.5 * dpr())), canOpen: () => true, onOpen: () => {}, onClose: () => {} };
+    let isOpen = false, built = false;
+    const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    // 글자 그림 줄을 점 그림(svg)으로
+    function dotSvg(rows) {
+      let d = '';
+      rows.forEach((row, y) => { for (let x = 0; x < row.length; x += 1) if (row[x] === '#') d += 'M' + x + ' ' + y + 'h1v1h-1z'; });
+      return '<svg viewBox="0 0 ' + rows[0].length + ' ' + rows.length + '" shape-rendering="crispEdges" aria-hidden="true" style="--iw:' + rows[0].length + ';--ih:' + rows.length + '"><path fill="currentColor" d="' + d + '"/></svg>';
+    }
+
+    /* ----- 게임 상자(닫힌 모습) ----- */
+    // 상자에 찍을 조각들(왼쪽부터): 아이콘(있으면) · 지금 번호 · 빗금 · 게임 수. 숫자끼리는 한 칸, 아이콘과 숫자 사이는 두 칸 띄운다
+    function parts() {
+      const icon = GAME_ICONS[iconName] || null, nums = [];
+      Array.from(cfg.here).forEach((ch) => nums.push({ rows: DIGITS[ch], gap: 1 }));
+      nums.push({ rows: GAME_SLASH, gap: 1 });
+      Array.from(String(GAMES.length)).forEach((ch) => nums.push({ rows: DIGITS[ch], gap: 1 }));
+      nums[nums.length - 1].gap = 0;
+      if (!icon) return nums;
+      if (icon.after) { nums[nums.length - 1].gap = ICON_GAP; return nums.concat([{ rows: icon.rows, gap: 0 }]); }
+      return [{ rows: icon.rows, gap: ICON_GAP }].concat(nums);
+    }
+    // 상자 폭(칸): 여백 4 + 조각들 + 여백 4 — 아이콘 폭이 달라지면 상자도 따라 넓어지거나 좁아진다
+    function cols() { return PAD + parts().reduce((w, p) => w + p.rows[0].length + p.gap, 0) + PAD; }
+    // 그림: 모서리를 한 칸씩 깎은 테두리 상자 안에 아이콘 + 「3/8」. 평소 = 흰 바탕 · 검은 글, 화면이 열려 있는 동안 = 뒤집힌 색(검은 바탕 · 흰 글)
+    function draw() {
+      const ctx = canvas.getContext('2d'), cc = cfg.cell(), r = dpr();
+      const w = cols() * cc, h = BTN_ROWS * cc;
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      canvas.style.width = `${w / r}px`; canvas.style.height = `${h / r}px`;
+      ctx.clearRect(0, 0, w, h);
+      // 바탕(모서리 깎은 네모)
+      ctx.fillStyle = isOpen ? BLACK : WHITE;
+      ctx.fillRect(2 * cc, 0, w - 4 * cc, h); ctx.fillRect(cc, cc, w - 2 * cc, h - 2 * cc); ctx.fillRect(0, 2 * cc, w, h - 4 * cc);
+      // 테두리(늘 검정)
+      ctx.fillStyle = BLACK;
+      ctx.fillRect(2 * cc, 0, w - 4 * cc, cc); ctx.fillRect(2 * cc, h - cc, w - 4 * cc, cc);
+      ctx.fillRect(0, 2 * cc, cc, h - 4 * cc); ctx.fillRect(w - cc, 2 * cc, cc, h - 4 * cc);
+      ctx.fillRect(cc, cc, cc, cc); ctx.fillRect(w - 2 * cc, cc, cc, cc); ctx.fillRect(cc, h - 2 * cc, cc, cc); ctx.fillRect(w - 2 * cc, h - 2 * cc, cc, cc);
+      // 아이콘 + 숫자
+      ctx.fillStyle = isOpen ? WHITE : BLACK;
+      let x = PAD;
+      parts().forEach((p) => {
+        const y = Math.floor((BTN_ROWS - p.rows.length) / 2);
+        p.rows.forEach((row, j) => { for (let i = 0; i < row.length; i += 1) if (row[i] === '#') ctx.fillRect((x + i) * cc, (y + j) * cc, cc, cc); });
+        x += p.rows[0].length + p.gap;
+      });
+      // 숨은 글(화면 낭독기 · 검사기용): 「게임 3/8 서부 결투」 + 화면이 열려 있는지
+      const text = `게임 ${cfg.here}/${GAMES.length} ${GAMES.find((g) => g.id === cfg.here).name}`;
+      if (label.textContent !== text) label.textContent = text;
+      btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
+    /* ----- 주소 · 넘어가기 ----- */
+    // path = 지금 주소의 길(안 주면 진짜 지금 주소 — 검사 때만 다른 길을 넣어 본다)
+    function url(id, path) {
+      const target = GAMES.find((g) => g.id === String(id));
+      if (!target) return null;
+      // 지금 폴더 이름: …/hold-on-key-ten/ → hold-on-key-ten, …/key-ten/index.html → key-ten
+      const segs = String(path === undefined ? location.pathname : path).split('/').filter(Boolean);
+      if (segs.length && /\.html?$/i.test(segs[segs.length - 1])) segs.pop();
+      const here = decodeURIComponent(segs[segs.length - 1] || '');
+      const onWeb = GAMES.some((g) => g.web === here);
+      return onWeb ? `../${target.web}/` : `../${target.local}/index.html`;
+    }
+    let navHold = false; const navLog = [];   // 검사용: navHold가 켜져 있으면 넘어가지 않고 갈 주소만 적어 둔다
+    // navGoing = 이미 다른 게임으로 떠나는 중. 느린 회선에서 다음 장이 뜨기 전에 다른 줄을 또 눌러도 처음 고른 게임으로만 간다
+    let navGoing = false;
+    window.addEventListener('pageshow', (e) => { if (e.persisted) { navGoing = false; sync(); } });   // 뒤로 가기로 이 장이 되살아나면 다시 고를 수 있게(줄 색도 지금 게임으로)
+    // 넘어간 게임마다 뒤로 가기 기록이 쌓이지 않게 지금 칸을 바꿔 끼운다(location.replace). 지금 게임 번호면 아무 일 없음
+    function go(id) {
+      if (navGoing) return false;
+      if (String(id) === cfg.here) return false;
+      const to = url(id);
+      if (!to) return false;
+      if (navHold) { navLog.push(to); return true; }
+      navGoing = true;
+      // 4초가 지나도 다음 장이 안 뜨면(연결이 끊겼을 때 등) 다시 고를 수 있게 풀고 줄 색도 되돌린다
+      setTimeout(() => { navGoing = false; sync(); }, 4000);
+      // 누른 줄을 바로 뒤집힌 색으로 바꿔 「눌렸다」를 보여 준다(다음 장이 뜰 때까지)
+      if (built) GAMES.forEach((g) => { const row = page.querySelector('#gpRow-' + g.id); if (row) row.classList.toggle('on', g.id === String(id)); });
+      location.replace(to);
+      return true;
+    }
+
+    /* ----- 게임 고르는 화면(열린 모습) ----- */
+    function html() {
+      let h = '<div class="gp-in"><div class="gp-head"><span class="gp-title" id="gpTitle">게임</span><button type="button" class="gp-x" id="gpX" aria-label="닫기">×</button></div><div class="gp-list" id="gpList">';
+      GAMES.forEach((g) => {
+        h += '<button type="button" class="gp-row" id="gpRow-' + g.id + '" data-game="' + g.id + '"><span class="gp-num">' + dotSvg(DIGITS[g.id]) + '</span>'
+          + (GAME_THUMBS[g.local]
+            ? '<img class="gp-thumb" alt="" width="128" height="96" draggable="false" src="' + GAME_THUMBS[g.local] + '">'
+            : '<span class="gp-thumb"></span>')   // 작은 그림이 없으면 빈 칸(빈 주소로 그림을 부르면 이 장을 한 번 더 받아 온다)
+          + '<span class="gp-name">' + esc(g.name) + '</span></button>';
+      });
+      return h + '</div></div>';
+    }
+    // 줄 높이를 창 높이에 맞춘다: 여덟 줄이 창에 딱 차게, 44보다 작아지지 않게(그러면 목록이 굴러간다), 그림이 원래 크기보다 커지지 않게
+    function fit() {
+      if (!isOpen) return;
+      const rh = Math.max(ROW_MIN, Math.min(ROW_MAX, Math.floor(((page.clientHeight || window.innerHeight) - HEAD_H - FOOT_H) / GAMES.length)));
+      page.style.setProperty('--rh', rh + 'px');
+      page.classList.toggle('soft', (rh - 10) * dpr() < 96);   // 그림이 원래보다 작아질 때만 부드럽게 줄인다
+    }
+    // 화면을 지금 상태(열림 · 닫힘)에 맞춘다
+    function sync() {
+      if (isOpen && !built) { page.innerHTML = html(); built = true; }
+      page.classList.toggle('open', isOpen);
+      if (built) GAMES.forEach((g) => {
+        const row = page.querySelector('#gpRow-' + g.id), on = g.id === cfg.here;
+        row.classList.toggle('on', on);
+        if (on) row.setAttribute('aria-current', 'true'); else row.removeAttribute('aria-current');
+      });
+      fit();
+      draw();
+    }
+    // 게임 상자를 누름 → 화면을 연다(이미 열려 있으면 닫는다). e = 누른 신호(게임별 문 canOpen이 시각을 읽을 때 쓴다)
+    function open(e) {
+      if (isOpen) { close(); return false; }
+      if (!cfg.canOpen(e)) return false;
+      cfg.onOpen();
+      isOpen = true;
+      sync();
+      page.scrollTop = 0;
+      return true;
+    }
+    function close() {
+      if (!isOpen) return false;
+      isOpen = false;
+      sync();
+      cfg.onClose();
+      return true;
+    }
+    // 화면 안에서 누른 것: × = 닫기, 지금 게임 줄 = 닫기, 다른 줄 = 그 게임으로
+    function act(id) {
+      if (!isOpen) return false;
+      if (id === 'gpX') { close(); return true; }
+      const m = /^gpRow-(\d+)$/.exec(id || '');
+      if (!m) return false;
+      if (m[1] === cfg.here) { close(); return true; }
+      return go(m[1]);
+    }
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(page);   // 창 크기가 바뀌면 줄 높이를 다시 맞춘다
+    page.addEventListener('click', (e) => {
+      const b = e.target.closest ? e.target.closest('button') : null;
+      if (b && page.contains(b)) act(b.id);
+    });
+    // 이 화면 안의 터치 · 누름은 게임 쪽으로 퍼지지 않게 여기서 멈춘다
+    // (게임은 연타 때 확대 · 끌림을 막으려고 문서 전체의 터치를 막아 두는데, 그러면 이 화면의 줄이 안 눌리고 목록이 안 굴러간다)
+    ['touchstart', 'touchmove', 'touchend', 'touchcancel', 'pointerdown', 'pointerup', 'pointermove', 'pointerout', 'mousedown', 'mouseup', 'dblclick', 'contextmenu', 'selectstart', 'dragstart', 'gesturestart']
+      .forEach((name) => page.addEventListener(name, (e) => e.stopPropagation()));
+    // 게임 상자: 누르는 순간 화면이 열린다. 게임 누름으로 세지 않는다(아래로 퍼지지 않게 막음), 키캡 소리도 없다
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation();
+      open(e);
+    });
+    // 열려 있는 동안의 키보드: Esc = 닫기. 다른 키는 게임에 들어가지 않게 맨 앞(capture)에서 멈춘다 — 스페이스를 쳐도 판이 시작되지 않고 S를 쳐도 소리가 안 바뀐다
+    window.addEventListener('keydown', (e) => {
+      if (!isOpen) return;
+      e.stopImmediatePropagation();
+      if (e.code === 'Escape') { e.preventDefault(); close(); }
+    }, true);
+
+    // 검사용: 게임 상자와 게임 고르는 화면의 지금 상태
+    function state() {
+      const rect = (node) => { if (!node) return null; const b = node.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; };
+      const cc = cfg.cell(), colsN = canvas.width / cc, rowsN = canvas.height / cc;
+      // 상자 그림을 칸으로 읽는다(# = 검은 칸, . = 흰 칸, 빈 글자 = 비어 있는 모서리)
+      const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data, cells = [];
+      for (let j = 0; j < rowsN; j += 1) {
+        let line = '';
+        for (let i = 0; i < colsN; i += 1) { const k = ((j * cc + (cc >> 1)) * canvas.width + i * cc + (cc >> 1)) * 4; line += data[k + 3] < 128 ? ' ' : data[k] < 128 ? '#' : '.'; }
+        cells.push(line);
+      }
+      const hit = getComputedStyle(btn, '::before'), q = (sel) => page.querySelector(sel);
+      const clip = (n) => n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1;
+      return {
+        open: isOpen, shown: getComputedStyle(page).display !== 'none', here: cfg.here, icon: iconName, iconDefault: GAME_ICON, going: navGoing,
+        label: label.textContent, expanded: btn.getAttribute('aria-expanded'), modal: page.getAttribute('aria-modal'),
+        btn: rect(btn), cols: colsN, rowsN, cell: cc / dpr(), cells, hit: [parseFloat(hit.width), parseFloat(hit.height)], hitUp: -parseFloat(hit.top), hitDown: -parseFloat(hit.bottom),
+        pageRect: rect(page), wide: page.scrollWidth > page.clientWidth + 1, scrolls: page.scrollHeight > page.clientHeight + 1, scrollTop: page.scrollTop,
+        soft: page.classList.contains('soft'), rh: parseFloat(getComputedStyle(page).getPropertyValue('--rh')),
+        title: q('#gpTitle') ? { text: q('#gpTitle').textContent, rect: rect(q('#gpTitle')) } : null,
+        x: q('#gpX') ? { text: q('#gpX').textContent, rect: rect(q('#gpX')), hit: (() => { const c = getComputedStyle(q('#gpX'), '::before'); return [parseFloat(c.width), parseFloat(c.height)]; })() } : null,
+        rows: Array.prototype.map.call(page.querySelectorAll('.gp-row'), (r) => {
+          const im = r.querySelector('img'), nm = r.querySelector('.gp-name'), nu = r.querySelector('.gp-num svg'), range = document.createRange();
+          range.selectNodeContents(nm);
+          return {
+            id: r.getAttribute('data-game'), name: nm.textContent, on: r.classList.contains('on'), rect: rect(r),
+            bg: getComputedStyle(r).backgroundColor, color: getComputedStyle(r).color, fontPx: parseFloat(getComputedStyle(nm).fontSize),
+            num: rect(nu), numPath: nu.querySelector('path').getAttribute('d'), thumb: rect(im), nat: im ? [im.naturalWidth, im.naturalHeight] : null, done: !!im && im.complete, src: im ? im.src.length : 0,
+            nameRect: rect(nm), textRect: rect(range), clip: clip(nm),
+          };
+        }),
+      };
+    }
+    const api = {
+      // 게임이 처음 한 번 부른다
+      setup(o) { Object.assign(cfg, o || {}); cfg.here = String(cfg.here); return api; },
+      here: () => cfg.here,
+      list: () => GAMES.map((g) => Object.assign({}, g)),
+      cols, draw, fit, open, close, act, url, go, state,
+      isOpen: () => isOpen,
+      // 아래는 검사용 손잡이
+      holdNav(on) { navHold = !!on; navLog.length = 0; return navHold; },
+      navLog: () => navLog.slice(),
+      setIcon(name) { iconName = name === undefined || name === null ? GAME_ICON : String(name); return iconName; },   // 부른 뒤 게임의 fit()을 다시 불러야 자리가 맞는다
+      icons: () => Object.keys(GAME_ICONS).reduce((o, k) => { o[k] = GAME_ICONS[k] ? { rows: GAME_ICONS[k].rows.slice(), after: !!GAME_ICONS[k].after } : null; return o; }, {}),
+      digit: (ch) => DIGITS[ch].slice(),
+    };
+    window.__KEY_PICKER__ = api;   // 검사기가 게임마다 같은 이름으로 부를 수 있게
+    return api;
+  })();
+// === KEY-PICKER 여기까지 ===
 
   const W = 128;          // 그림판 가로 칸 수
   const ROWS = 96;        // 그림판 세로 칸 수(4:3 화면 하나뿐 — 예전 배치 F)
@@ -736,82 +1073,23 @@
     refresh();
   }
 
-  /* ---------- 게임 버튼: 위 띠 왼쪽 끝, 누른 숫자 칸의 게임으로 바로 간다 ----------
-     비유: TV 리모컨 숫자 버튼. 1 시지프스 · 2 10.00000 · 3 결투 · 4 100m · 5 퍼덕 · 6 멀리뛰기 · 7 100연승 · 8 무궁화꽃 중 누른 번호로 바로.
-     여덟 게임은 같은 전시장의 옆 폴더라서 「한 칸 위 폴더 → 옆 폴더」 주소로 옮겨 간다.
-     이 컴퓨터의 폴더 이름(local)과 인터넷 전시장의 폴더 이름(web)이 달라서 둘 다 적어 두고,
-     지금 열린 폴더 이름이 어느 쪽인지 보고 같은 쪽 이름으로 간다.
-     키보드 바로 가기는 두지 않는다(100m의 F · J 사이 G처럼, 달리다 스치면 판이 날아가서).
-     (fit()이 처음 불리는 때보다 앞서 쓰일 수 있어서 값은 const 대신 함수로 돌려준다) */
+  /* ---------- 게임 상자: 위 띠 왼쪽 끝, 누르면 「게임 고르는 화면」이 열린다 ----------
+     비유: 예전의 TV 리모컨 숫자 버튼 여덟 개 대신 「목록」 버튼 하나 — 누르면 앨범 뒷면 곡 목록처럼 여덟 게임이 펼쳐진다.
+     상자 그림 · 게임 목록(순서 · 이름 · 주소) · 고르는 화면 · 넘어가기는 여덟 게임 공용 덩어리 KeyPicker가 맡는다
+     (이 파일 위쪽 「KEY-PICKER」 표시 줄 사이, 원본은 tools/key-game-picker.js — 거기서 고치고 tools/paste-key-picker.py로 붙인다).
+     여기에는 이 게임만의 것만 남긴다: 자기 번호 · 화면이 열릴 때 할 일(화면이 가려졌을 때와 같게: 누르고 있던 키를 뗀다).
+     화면이 열려 있는 동안 키보드 · 키캡 누름은 게임에 들어오지 않는다(KeyPicker가 맨 앞에서 막는다) */
   function gameHere() { return '2'; }
-  function gameList() {
-    return [
-      { id: '1', name: '시지프스', local: 'streak-sisyphus', web: 'hold-on-sisyphus' },
-      { id: '2', name: '10.00000', local: 'key-ten', web: 'hold-on-key-ten' },
-      { id: '3', name: '결투', local: 'key-duel', web: 'hold-on-key-duel' },
-      { id: '4', name: '100m', local: 'key-100m', web: 'hold-on-key-100m' },
-      { id: '5', name: '퍼덕', local: 'key-flap', web: 'hold-on-key-flap' },
-      { id: '6', name: '멀리뛰기', local: 'key-leap', web: 'hold-on-key-leap' },
-      { id: '7', name: '100연승', local: 'key-streak', web: 'hold-on-key-streak' },
-      { id: '8', name: '무궁화꽃', local: 'key-redlight', web: 'hold-on-key-redlight' },
-    ];
-  }
-  function gameUrl(id) {
-    const list = gameList(), target = list.find((x) => x.id === id);
-    if (!target) return null;
-    // 지금 폴더 이름: …/hold-on-key-ten/ → hold-on-key-ten, …/key-ten/index.html → key-ten
-    const parts = location.pathname.split('/').filter(Boolean);
-    if (parts.length && /\.html?$/i.test(parts[parts.length - 1])) parts.pop();
-    const here = decodeURIComponent(parts[parts.length - 1] || '');
-    const onWeb = list.some((x) => x.web === here);
-    return onWeb ? `../${target.web}/` : `../${target.local}/index.html`;
-  }
-  // 그 번호 게임으로. 지금 게임 번호면 아무 일 없음. 넘어간 게임마다 뒤로 가기 기록이 쌓이지 않게 지금 칸을 바꿔 끼운다
-  function goGame(id) {
-    if (id === gameHere()) return false;
-    const url = gameUrl(id);
-    if (!url) return false;
-    location.replace(url);
-    return true;
-  }
-  // 버튼 안 가로 위치(화면 x) → 숫자 칸. 칸 경계는 그림의 글자 상자 경계, 상자 사이 틈은 가운데에서 갈라 가까운 칸으로
-  function gameIdAt(clientX) {
-    const list = gameList(), b = el.gameBtn.getBoundingClientRect();
-    const cellX = ((clientX - b.left) * dpr()) / cornerCell();
-    const i = Math.max(0, Math.min(list.length - 1, Math.floor((cellX - 3 + 0.5) / (BOX_W + 1))));
-    return list[i].id;
-  }
-  // 그림: 흰 바탕 · 테두리 안에 1~8, 지금 게임 숫자만 검게 칠한 칸에 흰 글씨
-  function drawGameBtn() {
-    const cv = el.gameCanvas, ctx = cv.getContext('2d'), cc = cornerCell(), list = gameList();
-    const cols = 3 + list.length * (BOX_W + 1) - 1 + 3;
-    const cw = cols * cc, ch = CORNER_ROWS * cc;
-    sizeCorner(cv, cw, ch);
-    ctx.clearRect(0, 0, cw, ch);
-    pixelBlock(ctx, cw, ch, cc, INK);
-    pixelFrame(ctx, cw, ch, cc, BG);
-    list.forEach((x, i) => {
-      const bx = (3 + i * (BOX_W + 1)) * cc, by = Math.floor((CORNER_ROWS - BOX_H) / 2) * cc;
-      if (x.id === gameHere()) {
-        ctx.fillStyle = BG; ctx.fillRect(bx, by, BOX_W * cc, BOX_H * cc);
-        drawText(ctx, [x.id], bx + cc, by + cc, cc, INK);
-      } else {
-        drawText(ctx, [x.id], bx + cc, by + cc, cc, BG);
-      }
-    });
-  }
-
+  KeyPicker.setup({ here: gameHere(), cell: () => cornerCell(), onOpen: () => { releaseAllKeys(); } });
+  function gameCols() { return KeyPicker.cols(); }   // 게임 상자 폭(칸): 아이콘 폭에 따라 달라진다
+  function drawGameBtn() { KeyPicker.draw(); }       // 상자 그림 + 숨은 글 「게임 2/8 10.00000」
   if (window.ResizeObserver) new ResizeObserver(fit).observe(el.main);
   window.addEventListener('resize', fit);
 
   /* ---------- 입력: 손가락이 닿는 순간 ---------- */
   const mainPointer = (e) => e.pointerType !== 'mouse' || e.button === 0;
   // 작은 버튼 셋(게임 · 소리 · 몸통 색): 게임 누름으로 세지 않는다(아래로 퍼지지 않게 막음). 키캡 효과음도 안 낸다(소리 버튼은 고른 소리를 들려줄 뿐)
-  el.gameBtn.addEventListener('pointerdown', (e) => {
-    if (!mainPointer(e)) return;
-    e.preventDefault(); e.stopPropagation();
-    goGame(gameIdAt(e.clientX));
-  });
+  // (게임 상자의 누름은 공용 덩어리 KeyPicker가 받는다 — 누르면 게임 고르는 화면이 열린다)
   el.soundBtn.addEventListener('pointerdown', (e) => {
     if (!mainPointer(e)) return;
     e.preventDefault(); e.stopPropagation();
@@ -939,9 +1217,8 @@
     setSound(i) { return setSound(i); },   // 소리 0(끔)~6. 소리는 내지 않고 값만 바꾼다
     setSkin(i) { return setSkin(i); },
     nextSkin() { nextSkin(); return skin; },
-    games() { return gameList(); },
-    gameUrl(id) { return gameUrl(String(id)); },
-    gameIdAt(clientX) { return gameIdAt(Number(clientX)); },
+    games() { return KeyPicker.list(); },
+    gameUrl(id) { return KeyPicker.url(String(id)); },   // 그 번호 게임으로 갈 주소(가지는 않음)
   };
 })();
 </script>
