@@ -182,7 +182,8 @@
      · 게임 순서는 앨범 트랙처럼 점점 고조된다. 번호와 이름만 바뀌었고 폴더 이름(주소)은 그대로다.
      · 이 컴퓨터의 폴더 이름(local)과 인터넷 전시장의 폴더 이름(web)이 달라서 둘 다 적어 두고, 지금 열린 폴더가 어느 쪽인지 보고 같은 쪽 이름으로 간다.
      · 키보드 바로 가기는 두지 않는다(100m의 F · J 사이 G처럼, 달리다 스치면 판이 날아가서).
-     게임마다 다른 것은 KeyPicker.setup({ here, cell, canOpen, onOpen, onClose })로 받는다. */
+     게임마다 다른 것은 KeyPicker.setup({ here, cell, canOpen, onOpen, onClose })로 받는다.
+     · (11/17 추가) 위 띠 오른쪽 끝의 소리 버튼(#soundBtn — 스피커 그림 + 소리 번호)도 여기서 그리고, 몸통 색 버튼(#skinBtn)을 보일지 말지도 여기 스위치 하나로 정한다. */
   const KeyPicker = (() => {
     const GAMES = [
       { id: '1', name: '시지프스의 형벌', local: 'streak-sisyphus', web: 'hold-on-sisyphus' },
@@ -234,6 +235,32 @@
       7: ['#####', '....#', '...#.', '..#..', '.#...', '.#...', '.#...'],
       8: ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'],
     };
+    /* ★ 소리 버튼의 아이콘: 아래 SOUND_ICON 한 줄만 바꾸면 다른 그림으로 바뀐다(상자 폭도 그림 폭에 맞춰 따라간다) ★
+       고를 수 있는 이름: 'A' 스피커 + 숫자 · 'B' 스피커 + 물결 두 겹(숫자 없음) · 'C' 음표 + 숫자 · 'D' 스피커 + 물결 한 겹 + 숫자 · 'E' 키캡 + 소리 금 + 숫자
+       (형님 결정 2026-11-17 = D. 시안 · 점 그림 원본: docs/2026-11-17-sound-icon/) 끔일 때는 어느 것이든 그림 + × */
+    const SOUND_ICON = 'D';
+    /* ★ 몸통 색 버튼 스위치: false = 버튼을 숨기고 몸통은 기본 색(회색)으로 고정 · true = 버튼이 다시 보이고 예전에 고른 색이 살아난다 ★
+       (형님 결정 2026-11-17 「스킨 선택은 우선 제외」. 꺼져 있는 동안 저장 칸의 색 번호는 읽지도 지우지도 덮어쓰지도 않는다) */
+    const SKIN_BTN_ON = false;
+    // 소리 버튼 점 그림(# = 검은 점): 시안의 sound-icon-glyphs.mjs를 그대로 옮김
+    const SOUND_ART = {
+      speaker: ['...#', '..##', '####', '####', '####', '..##', '...#'],   // 스피커: 왼쪽 네모 몸통 + 오른쪽으로 벌어지는 나팔
+      wave1: ['..', '#.', '.#', '.#', '.#', '#.', '..'],                    // 소리 물결 한 겹
+      wave2: ['..#.', '#..#', '.#.#', '.#.#', '.#.#', '#..#', '..#.'],      // 소리 물결 두 겹
+      note: ['..#..', '..##.', '..#.#', '..#.#', '.##..', '###..', '##...'], // 음표
+      keycap: ['#..#..#', '.#.#.#.', '.......', '.#####.', '#.....#', '#.....#', '#.....#', '#######', '.#####.'],   // 키캡 + 위로 튀는 소리 금 셋
+      x: ['.....', '#...#', '.#.#.', '..#..', '.#.#.', '#...#', '.....'],   // 끔 표시 ×
+    };
+    // 후보별로 늘어놓는 순서: [그림 이름, 그 뒤 빈 칸 수]. 'num' = 지금 소리 번호(1~6)
+    const SOUND_ICONS = {
+      A: { on: [['speaker', 2], ['num', 0]], off: [['speaker', 2], ['x', 0]] },
+      B: { on: [['speaker', 1], ['wave2', 0]], off: [['speaker', 1], ['x', 0]] },
+      C: { on: [['note', 2], ['num', 0]], off: [['note', 2], ['x', 0]] },
+      D: { on: [['speaker', 1], ['wave1', 2], ['num', 0]], off: [['speaker', 2], ['x', 0]] },
+      E: { on: [['keycap', 2], ['num', 0]], off: [['keycap', 2], ['x', 0]] },
+    };
+    let soundIconName = SOUND_ICON;   // 지금 쓰는 소리 아이콘 이름(검사 손잡이만 바꾼다)
+    const HIT_MIN = 44;               // 손가락이 닿는 자리의 가장 작은 폭(화면 점)
     const PAD = 4, ICON_GAP = 2, BTN_ROWS = 17;   // 상자 안 좌우 여백(칸) · 아이콘과 숫자 사이(칸) · 상자 높이(칸)
     const BLACK = '#000000', WHITE = '#f2f2f2';
     const HEAD_H = 60, FOOT_H = 12, ROW_MIN = 44, ROW_MAX = 106;   // 머리 줄 높이 · 아래 여백 · 줄 높이 범위(화면 점). 106 = 그림이 원래 크기(96) + 위아래 5
@@ -251,6 +278,8 @@
   /* 게임 상자의 누를 자리: 보이는 상자는 그대로 두고, 손가락이 닿는 자리만 폭 44 · 높이 44 넘게 넓힌다.
      위로 12 · 아래로 8(띠 여유만큼 — 아래는 검은 화면에 닿지 않게 덜 넓힌다) */
   .game-btn::before { content: ''; position: absolute; left: 0; top: -12px; bottom: -8px; width: 100%; min-width: 44px; }
+  /* 소리 버튼의 누를 자리: 같은 방식. 상자가 오른쪽 끝에 서므로 왼쪽으로만 넓힌다(폭 44 이상) */
+  #soundBtn::before { content: ''; position: absolute; right: 0; top: -12px; bottom: -8px; width: 100%; min-width: 44px; }
   .gp-page {
     --rh: 71px;
     position: fixed; left: 0; top: 0; width: 100%; height: 100%; z-index: 10; display: none;
@@ -294,6 +323,10 @@
     page.setAttribute('role', 'dialog'); page.setAttribute('aria-modal', 'true'); page.setAttribute('aria-label', '게임 고르기');
     document.body.appendChild(page);
     const btn = document.getElementById('gameBtn'), canvas = document.getElementById('gameCanvas'), label = document.getElementById('gameLabel');
+    const sndBtn = document.getElementById('soundBtn'), sndCanvas = document.getElementById('soundCanvas'), sndLabel = document.getElementById('soundLabel');
+    const skinBtn = document.getElementById('skinBtn');
+    // 몸통 색 버튼이 꺼져 있으면: 자리째 없앤다 — 안 보이고, 눌리지 않고, 화면 낭독기도 읽지 않는다
+    if (!SKIN_BTN_ON && skinBtn) { skinBtn.hidden = true; skinBtn.style.display = 'none'; skinBtn.setAttribute('aria-hidden', 'true'); }
 
     // 게임이 알려 주는 것(setup): here = 자기 번호 · cell = 작은 버튼 한 칸 크기 · canOpen = 지금 열어도 되나(게임별 문) · onOpen / onClose = 열릴 때 · 닫힐 때 게임이 할 일
     const cfg = { here: '1', cell: () => Math.max(1, Math.round(1.5 * dpr())), canOpen: () => true, onOpen: () => {}, onClose: () => {} };
@@ -321,32 +354,76 @@
     // 상자 폭(칸): 여백 4 + 조각들 + 여백 4 — 아이콘 폭이 달라지면 상자도 따라 넓어지거나 좁아진다
     function cols() { return PAD + parts().reduce((w, p) => w + p.rows[0].length + p.gap, 0) + PAD; }
     // 그림: 모서리를 한 칸씩 깎은 테두리 상자 안에 아이콘 + 「3/8」. 평소 = 흰 바탕 · 검은 글, 화면이 열려 있는 동안 = 뒤집힌 색(검은 바탕 · 흰 글)
-    function draw() {
-      const ctx = canvas.getContext('2d'), cc = cfg.cell(), r = dpr();
-      const w = cols() * cc, h = BTN_ROWS * cc;
-      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-      canvas.style.width = `${w / r}px`; canvas.style.height = `${h / r}px`;
+    // 상자 바탕(게임 상자 · 소리 버튼이 같이 쓴다): 폭 n칸 · 높이 17칸, 모서리를 한 칸씩 깎은 네모 + 검은 테두리. inv = 뒤집힌 색(검은 바탕)
+    function paintBox(cv, n, inv) {
+      const ctx = cv.getContext('2d'), cc = cfg.cell(), r = dpr();
+      const w = n * cc, h = BTN_ROWS * cc;
+      if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+      cv.style.width = `${w / r}px`; cv.style.height = `${h / r}px`;
       ctx.clearRect(0, 0, w, h);
       // 바탕(모서리 깎은 네모)
-      ctx.fillStyle = isOpen ? BLACK : WHITE;
+      ctx.fillStyle = inv ? BLACK : WHITE;
       ctx.fillRect(2 * cc, 0, w - 4 * cc, h); ctx.fillRect(cc, cc, w - 2 * cc, h - 2 * cc); ctx.fillRect(0, 2 * cc, w, h - 4 * cc);
       // 테두리(늘 검정)
       ctx.fillStyle = BLACK;
       ctx.fillRect(2 * cc, 0, w - 4 * cc, cc); ctx.fillRect(2 * cc, h - cc, w - 4 * cc, cc);
       ctx.fillRect(0, 2 * cc, cc, h - 4 * cc); ctx.fillRect(w - cc, 2 * cc, cc, h - 4 * cc);
       ctx.fillRect(cc, cc, cc, cc); ctx.fillRect(w - 2 * cc, cc, cc, cc); ctx.fillRect(cc, h - 2 * cc, cc, cc); ctx.fillRect(w - 2 * cc, h - 2 * cc, cc, cc);
-      // 아이콘 + 숫자
-      ctx.fillStyle = isOpen ? WHITE : BLACK;
-      let x = PAD;
-      parts().forEach((p) => {
+      ctx.fillStyle = inv ? WHITE : BLACK;   // 이어서 찍을 그림 · 글자 색
+      return { ctx, cc };
+    }
+    // 조각들을 x칸부터 왼쪽에서 오른쪽으로 찍는다(세로는 가운데)
+    function paintParts(ctx, cc, list, x) {
+      list.forEach((p) => {
         const y = Math.floor((BTN_ROWS - p.rows.length) / 2);
         p.rows.forEach((row, j) => { for (let i = 0; i < row.length; i += 1) if (row[i] === '#') ctx.fillRect((x + i) * cc, (y + j) * cc, cc, cc); });
         x += p.rows[0].length + p.gap;
       });
+    }
+    function draw() {
+      const { ctx, cc } = paintBox(canvas, cols(), isOpen);
+      // 아이콘 + 숫자
+      paintParts(ctx, cc, parts(), PAD);
       // 숨은 글(화면 낭독기 · 검사기용): 「게임 3/8 서부 결투」 + 화면이 열려 있는지
       const text = `게임 ${cfg.here}/${GAMES.length} ${GAMES.find((g) => g.id === cfg.here).name}`;
       if (label.textContent !== text) label.textContent = text;
       btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
+    /* ----- 소리 버튼(위 띠 오른쪽 끝) · 몸통 색 버튼 스위치 -----
+       비유: 예전에는 숫자만 적힌 딱지라 무슨 버튼인지 알 수 없었다. 지금은 스피커 그림을 앞에 붙였다 — 「스피커 + 3」 = 3번 소리, 「스피커 + ×」 = 소리 끔.
+       게임이 하는 일은 그대로다(누를 때마다 1 → … → 6 → 끔 → 1, 저장도 그대로). 여기서는 그림과 자리만 맡는다. */
+    // 소리 번호 i(0 = 끔)일 때 찍을 조각들
+    function soundParts(i) {
+      const icon = SOUND_ICONS[soundIconName] || SOUND_ICONS[SOUND_ICON];
+      return (i ? icon.on : icon.off).map(([k, gap]) => ({ rows: k === 'num' ? DIGITS[i] || DIGITS[1] : SOUND_ART[k], gap }));
+    }
+    const spanOf = (list) => list.reduce((w, p) => w + p.rows[0].length + p.gap, 0);
+    // 그림 폭(칸): 켬 · 끔 중 넓은 쪽 — 누를 때마다 상자 크기가 흔들리지 않게 넓은 쪽에 맞추고, 좁은 쪽은 가운데에 둔다
+    function soundSpan() { return Math.max(spanOf(soundParts(1)), spanOf(soundParts(0))); }
+    // 상자 폭(칸): 여백 4 + 그림 + 여백 4 — 아이콘을 바꾸면 상자도 따라 넓어지거나 좁아진다
+    function soundCols() { return PAD + soundSpan() + PAD; }
+    // 그림 + 숨은 글(화면 낭독기 · 검사기용 「소리 3」 · 「소리 끔」). i = 지금 소리 번호(0 = 끔, 1~6)
+    function drawSound(i) {
+      i = Math.max(0, Math.floor(Number(i)) || 0);
+      const list = soundParts(i), { ctx, cc } = paintBox(sndCanvas, soundCols(), false);
+      paintParts(ctx, cc, list, PAD + Math.floor((soundSpan() - spanOf(list)) / 2));
+      const text = i ? `소리 ${i}` : '소리 끔';
+      if (sndLabel.textContent !== text) sndLabel.textContent = text;
+    }
+    // 몸통 색 버튼이 켜져 있나
+    function skinOn() { return SKIN_BTN_ON; }
+    // 몸통 색 고르기: 버튼이 꺼져 있으면 저장된 색(saved)이 무엇이든 기본 색(first)을 쓴다
+    function skinPick(saved, first) { return SKIN_BTN_ON ? saved : first; }
+    /* 위 띠 오른쪽 묶음(오른쪽 끝부터: 몸통 색 버튼(켜져 있을 때만) → 소리 버튼)
+       oneW = 몸통 색 버튼 폭(화면 점) · gap = 버튼 사이(화면 점). 소리 버튼은 누를 자리(44 이상)까지 쳐서 잰다 */
+    function soundW() { return (soundCols() * cfg.cell()) / dpr(); }
+    function rightWidth(oneW, gap) { return (SKIN_BTN_ON ? oneW + gap : 0) + Math.max(HIT_MIN, soundW()); }
+    // 자리 놓기: side = 몸통 오른쪽 끝에서 들여놓는 폭 · top = 띠 위에서 내려오는 높이(둘 다 화면 점)
+    function placeRight(side, top, oneW, gap) {
+      let x = side;
+      if (SKIN_BTN_ON && skinBtn) { skinBtn.style.left = ''; skinBtn.style.right = `${x}px`; skinBtn.style.top = `${top}px`; x += oneW + gap; }
+      sndBtn.style.left = ''; sndBtn.style.right = `${x}px`; sndBtn.style.top = `${top}px`;
     }
 
     /* ----- 주소 · 넘어가기 ----- */
@@ -460,17 +537,32 @@
       if (e.code === 'Escape') { e.preventDefault(); close(); }
     }, true);
 
+    // 검사용: 상자 그림을 칸으로 읽는다(# = 검은 칸, . = 흰 칸, 빈 글자 = 비어 있는 모서리)
+    function readCells(cv) {
+      const cc = cfg.cell(), colsN = cv.width / cc, rowsN = cv.height / cc;
+      const data = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data, cells = [];
+      for (let j = 0; j < rowsN; j += 1) {
+        let line = '';
+        for (let i = 0; i < colsN; i += 1) { const k = ((j * cc + (cc >> 1)) * cv.width + i * cc + (cc >> 1)) * 4; line += data[k + 3] < 128 ? ' ' : data[k] < 128 ? '#' : '.'; }
+        cells.push(line);
+      }
+      return cells;
+    }
+    // 검사용: 소리 버튼 · 몸통 색 버튼의 지금 상태
+    function soundState() {
+      const rect = (node) => { if (!node) return null; const b = node.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; };
+      const cc = cfg.cell(), hit = getComputedStyle(sndBtn, '::before'), sk = skinBtn ? getComputedStyle(skinBtn) : null;
+      return {
+        icon: soundIconName, iconDefault: SOUND_ICON, cols: sndCanvas.width / cc, rowsN: sndCanvas.height / cc, cell: cc / dpr(), cells: readCells(sndCanvas),
+        label: sndLabel.textContent, btn: rect(sndBtn), hit: [parseFloat(hit.width), parseFloat(hit.height)], hitUp: -parseFloat(hit.top), hitDown: -parseFloat(hit.bottom),
+        skinOn: SKIN_BTN_ON, skinBtn: rect(skinBtn), skinShown: !!sk && sk.display !== 'none' && sk.visibility !== 'hidden', skinHidden: !!skinBtn && skinBtn.hidden, skinAria: skinBtn ? skinBtn.getAttribute('aria-hidden') : null,
+      };
+    }
     // 검사용: 게임 상자와 게임 고르는 화면의 지금 상태
     function state() {
       const rect = (node) => { if (!node) return null; const b = node.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; };
       const cc = cfg.cell(), colsN = canvas.width / cc, rowsN = canvas.height / cc;
-      // 상자 그림을 칸으로 읽는다(# = 검은 칸, . = 흰 칸, 빈 글자 = 비어 있는 모서리)
-      const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data, cells = [];
-      for (let j = 0; j < rowsN; j += 1) {
-        let line = '';
-        for (let i = 0; i < colsN; i += 1) { const k = ((j * cc + (cc >> 1)) * canvas.width + i * cc + (cc >> 1)) * 4; line += data[k + 3] < 128 ? ' ' : data[k] < 128 ? '#' : '.'; }
-        cells.push(line);
-      }
+      const cells = readCells(canvas);
       const hit = getComputedStyle(btn, '::before'), q = (sel) => page.querySelector(sel);
       const clip = (n) => n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1;
       return {
@@ -499,6 +591,8 @@
       here: () => cfg.here,
       list: () => GAMES.map((g) => Object.assign({}, g)),
       cols, draw, fit, open, close, act, url, go, state,
+      // 소리 버튼 · 몸통 색 버튼(게임이 위 띠를 그리고 자리 잡을 때 부른다)
+      soundCols, drawSound, skinOn, skinPick, rightWidth, placeRight, soundState,
       isOpen: () => isOpen,
       // 아래는 검사용 손잡이
       holdNav(on) { navHold = !!on; navLog.length = 0; return navHold; },
@@ -506,6 +600,9 @@
       setIcon(name) { iconName = name === undefined || name === null ? GAME_ICON : String(name); return iconName; },   // 부른 뒤 게임의 fit()을 다시 불러야 자리가 맞는다
       icons: () => Object.keys(GAME_ICONS).reduce((o, k) => { o[k] = GAME_ICONS[k] ? { rows: GAME_ICONS[k].rows.slice(), after: !!GAME_ICONS[k].after } : null; return o; }, {}),
       digit: (ch) => DIGITS[ch].slice(),
+      setSoundIcon(name) { soundIconName = SOUND_ICONS[name] ? String(name) : SOUND_ICON; return soundIconName; },   // 부른 뒤 게임의 fit()을 다시 불러야 그림과 자리가 맞는다
+      soundIcons: () => JSON.parse(JSON.stringify(SOUND_ICONS)),
+      soundArt: (k) => SOUND_ART[k].slice(),
     };
     window.__KEY_PICKER__ = api;   // 검사기가 게임마다 같은 이름으로 부를 수 있게
     return api;
@@ -732,7 +829,7 @@
   const now = () => (manual !== null ? manual : performance.now());
 
   /* ---------- 상태 ---------- */
-  let skin = loadSkin();
+  let skin = KeyPicker.skinPick(loadSkin(), FIRST_SKIN);
   let best = loadNum(KEYS.best);
   let phase = 'ready';       // 'ready' 시작 전 둥실 · 'play' 나는 중 · 'fall' 부딪혀 떨어지는 중 · 'over' 땅에 누움
   let score = 0;
@@ -927,6 +1024,7 @@
 
   /* ---------- 몸통 색 바꾸기 ---------- */
   function setSkin(n) {
+    if (!KeyPicker.skinOn()) return false; // 몸통 색 버튼이 꺼져 있는 동안은 색을 바꾸지 않는다(저장 칸도 건드리지 않는다)
     n = Math.floor(Number(n));
     if (!(n >= 0 && n < SKINS.length)) return false;
     skin = n;
@@ -958,9 +1056,10 @@
   // 몸통 폭 dw에 버튼 셋(게임 · 소리 · 몸통 색) + 틈 둘 + 양쪽 여백이 들어가는 가장 큰 칸 크기를 고른다
   function pickCornerCell(dw) {
     const r = dpr(), side = Math.round(dw * 0.08);
-    const cells = gameCols() + 2 * ONE_COLS;
+    // 칸 수 = 게임 상자 + 소리 버튼(+ 몸통 색 버튼이 켜져 있으면 그것도)
+    const skinToo = KeyPicker.skinOn(), cells = gameCols() + KeyPicker.soundCols() + (skinToo ? ONE_COLS : 0);
     let cc = Math.max(1, Math.round(1.5 * r));
-    while (cc > 1 && (cells * cc) / r + 2 * BTN_GAP + 2 * side > dw) cc -= 1;
+    while (cc > 1 && (cells * cc) / r + (skinToo ? 2 : 1) * BTN_GAP + 2 * side > dw) cc -= 1;
     cornerCc = cc;
   }
   function sizeCorner(cv, cw, ch) {
@@ -988,11 +1087,7 @@
 
   // 소리 버튼: 상자 안에 지금 소리 번호(1~6), 끔이면 가위표
   function drawSoundBtn() {
-    const { ctx, cc, bx, by } = drawOneBtn(el.soundCanvas), i = KeySound.index;
-    if (i) stampRows(ctx, GLYPHS[i], bx + 1, by + 1, cc, BG);
-    else stampRows(ctx, MUTE_X, bx + 1, by + 2, cc, BG);
-    const label = i ? `소리 ${i}` : '소리 끔';
-    if (el.soundLabel.textContent !== label) el.soundLabel.textContent = label;
+    KeyPicker.drawSound(KeySound.index); // 그림(스피커 + 번호, 끔이면 스피커 + ×)과 숨은 글은 공용 덩어리 KeyPicker가 맡는다
   }
 
   // 몸통 색 버튼: 상자 하나(7×9칸)를 지금 몸통 색으로 칠하고 검은 테두리 한 칸. 누르면 다음 색
@@ -1353,9 +1448,8 @@
     const side = Math.round(dw * 0.08);
     bandSide = side;
     const one = (ONE_COLS * cornerCell()) / r;
-    [el.skinBtn, el.soundBtn].forEach((b, i) => {
-      b.style.left = ''; b.style.right = `${side + i * (one + BTN_GAP)}px`; b.style.top = `${BAND_PAD}px`;
-    });
+    // 위 띠 오른쪽 끝: 소리 버튼 하나(몸통 색 버튼은 공용 덩어리의 SKIN_BTN_ON 스위치가 켜져 있을 때만 그 오른쪽에 선다). 자리는 KeyPicker가 놓는다
+    KeyPicker.placeRight(side, BAND_PAD, one, BTN_GAP);
 
     // 검은 화면: 가운데 정렬
     setRows(rows);
