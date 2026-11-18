@@ -619,7 +619,7 @@
 
   // 대결 규칙 값(시간 단위는 전부 1/1000초)
   const WAIT_MIN = 1500, WAIT_MAX = 4500; // 대결 시작 ~ 신호까지 무작위 시간
-  const FIRST_WAIT_MIN = 1200, FIRST_WAIT_MAX = 3000; // 게임에 막 들어온 첫 판만: 3초 안에 신호(그냥 서 있는 시간이 길지 않게)
+  const FIRST_WAIT_MIN = 600, FIRST_WAIT_MAX = 1500; // 게임에 막 들어온 첫 판만: 1.5초 안에 신호(그냥 서 있는 시간이 길지 않게). 11/19 형님: 1.2~3초는 「!」가 너무 늦다 → 절반
   const ME_MARK_MS = 1500; // 결투가 시작되면 내 머리 위 「나」 표시가 떠 있는 시간
   // 상대 반응(11/16): 판마다 0.20~0.60초 사이에서 고르게 뽑는다. 첫 네 판 뒤로는 연승과 상관없다(보스도 같은 방식). 비유: 판마다 주사위를 새로 굴림
   const OPP_MIN = 200, OPP_MAX = 600;
@@ -693,7 +693,7 @@
   // 죽지 않고 「! 전에 쏘면 반칙」 글만 이만큼 떴다가, 같은 상대와 새 대기 시간으로 다시 기다린다(그동안 누름은 무시). 연승 1부터는 반칙패 그대로
   const FOUL_WARN_MS = 800;
   const FOUL_WARN_MAX = 5;     // (11/16 13시 형님: 다섯 번까지) 한 판에서 경고는 이만큼까지. 그다음에 또 「!」 전에 누르면 연승 0 판이라도 반칙패
-  const START_GRACE_MS = 600;  // 새 판이 시작되고 이만큼은 눌러도 반칙이 아니다(무시). 신호까지 가장 짧은 시간(1.2초) · 보스 첫 「?」(0.9초)보다 짧아야 한다
+  const START_GRACE_MS = 600;  // 새 판이 시작되고 이만큼은 눌러도 반칙이 아니다(무시). 신호까지 가장 짧은 시간(들어온 첫 판 0.6초) · 보스 첫 「?」(0.9초)보다 길면 안 된다(같은 건 괜찮다 — 신호는 0.6초 전에는 안 뜬다)
   const FALL_START = 100, FALL_MS = 300; // 맞은 사람: 0.1초까지 서 있음 → 0.3초까지 넘어가는 중 → 누움
   const CROWN_BLINK_MS = 300; // 방금 끝난 연승이 최고 기록이면 왕관이 이 간격으로 켜졌다 꺼졌다 한다
 
@@ -1213,7 +1213,7 @@
   /* ---------- 상태 ---------- */
   let skin = KeyPicker.skinPick(loadSkin(), FIRST_SKIN);
   let autoDuel = false;     // 들어오자마자 저절로 시작한 판(안 누르고 지면 연승을 깎지 않는다 — 게임을 넘겨 다니다 연승이 사라지지 않게)
-  let firstDuel = true;     // 게임에 들어와 아직 한 판도 시작 안 함(첫 판만 신호가 3초 안에)
+  let firstDuel = true;     // 게임에 들어와 아직 한 판도 시작 안 함(첫 판만 신호가 1.5초 안에)
   let windDir = 1;          // 이번 판 첫 풀 덩어리 방향: 1 = 왼쪽 → 오른쪽, -1 = 오른쪽 → 왼쪽(판마다 무작위, 덩어리마다 번갈아)
   let streak = loadInt(KEYS.streak) || 0;
   let best = Math.max(loadInt(KEYS.best) || 0, streak);
@@ -1300,7 +1300,7 @@
       const end = fakes.reduce((m, f) => Math.max(m, f.at + f.ms), 0);
       waitMs = Math.max(fixedWait !== null ? fixedWait : end + FAKE_TAIL_MIN, end + FAKE_GRACE_MS + 1);
     } else {
-      // 보통 판: 가끔 움찔 한 번이나 기호 가짜 하나(normalSchedule). 들어오자마자 시작한 첫 판(3초 안에 신호)과 검사용 고정값이 있을 때는 넣지 않는다
+      // 보통 판: 가끔 움찔 한 번이나 기호 가짜 하나(normalSchedule). 들어오자마자 시작한 첫 판(1.5초 안에 신호)과 검사용 고정값이 있을 때는 넣지 않는다
       const plan = !duelBoss && !firstDuel && fixedWait === null && fixedNormalFakes === null ? normalSchedule(streak) : null;
       fakes = plan ? plan.fakes : [];
       waitMs = plan ? plan.wait : fixedWait !== null ? fixedWait : lo + Math.floor(Math.random() * (hi - lo + 1));
@@ -2029,7 +2029,7 @@
   ['gesturestart', 'dblclick', 'contextmenu', 'selectstart', 'dragstart'].forEach((name) => document.addEventListener(name, block));
 
   fit();
-  // 들어오자마자 첫 결투 시작(신호는 3초 안에). 뒤쪽 탭으로 열렸으면 화면이 보이는 순간 시작(visibilitychange)
+  // 들어오자마자 첫 결투 시작(신호는 1.5초 안에). 뒤쪽 탭으로 열렸으면 화면이 보이는 순간 시작(visibilitychange)
   if (!document.hidden) { startDuel(now()); autoDuel = true; }
 
   /* ---------- 검사용 손잡이: 게임에는 영향이 없다(소리도 내지 않는다) ---------- */
